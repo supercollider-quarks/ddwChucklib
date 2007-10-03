@@ -1,0 +1,188 @@
+// this guy interrupts a playing stream to allow midi input
+var saveSubType = AbstractChuckArray.defaultSubType;
+AbstractChuckArray.defaultSubType = \midiInputWrapper;
+
+PR(\abstractProcess).v.clone({
+		// if true, using this as a wrapper will stop the child immediately
+		// really what you want it to do is wait for the first MIDI event before overriding
+	~event = (eventKey: \dummy);
+	~doReplay = false;
+	~canWrap = true;
+	~replayTimeSpec = BasicTimeSpec(1);
+	~parseBuf = true;
+// DEPRECATE THIS:
+//	~bufQuant = nil;	// may override if you want to quantize the midi input
+
+// add a user hook here?
+	~postRecFunc = #{ |self, buf, process|
+		(buf.properties.tryPerform(\at, \parse) ? ~parseBuf).if({ buf = buf.parse; });
+//		(~parseBuf ? false).if({ buf = buf.parse; });
+			// output:
+		buf.hasQuantizeProperties.debug("quantize?").if({ buf.quantize },
+			{ buf });
+//		~bufQuant.notNil.if({ buf.flexQuantize(~bufQuant, process.v[\clock]) },
+//			{ buf });
+	};
+	
+//	~midiParsers = IdentityDictionary[
+//		\mel -> #{ |self, socket| MelodyParser(nil, self, socket) },
+////		\top -> #{ |self, socket| MelodyParser(nil, self, socket) },
+//		\ch -> #{ |self, socket| ChordParser(nil, self, socket, nil,
+//			~deltaThresh ? 0.1, ~lengthThresh ? 0.1) }
+//	];
+	
+//	~getMIDIParser = #{ |self, socket, type|
+//		~parser = ~midiParsers[type ? ~defaultMIDIType].value(self, socket)
+//	};
+
+}) => PR(\abstractMIDIInput);
+
+PR(\abstractMIDIInput).v.clone({
+	~defaultMIDIType = \mel;
+	~preparePlay = #{ |self| self
+	};
+	~getMIDIParser = #{ |self, socket|
+		~parser = MelodyParser(nil, self, socket, ~child.clock)
+	};
+		// use ~collIndex
+	~midiCleanup = #{ |self|
+		var	bp = BP(~collIndex), buf, quant = ~replayTimeSpec.applyLatency(bp.latency);
+		bp.unwrap(false);
+			// insert your own processing here -- parsing, quantization
+		buf = ~postRecFunc.value(self, ~parser.recSocket.buf, bp);
+		bp.clock.schedAbs(quant.schedTime(bp.clock) - 0.05, { bp.stopNow });
+		bp.clock.schedAbs(quant.schedTime(bp.clock), {
+			bp.bindMIDIRecBuf(buf, ~defaultMIDIType);
+			bp.play(NilTimeSpec.new, doReset:true);
+		});
+	};
+	
+	~melNoteOn = #{ |self, note|
+//		var	event;
+			// is it playing? if so, interrupt
+["MIDI process-noteOn", note.asString].postln;
+//		~child.eventStreamPlayer.notNil.if({
+"stopping child stream".postln;
+			~child.eventStreamPlayer.stop;
+//		});
+			// save this note -- when a note is released, this goes into that event
+			// so that event can check for overlapping notes
+"saving last midi note".postln;
+		~child.put(\lastMIDINoteOn, note);
+			// let child process determine how to handle the note
+			// by setting length to nil, we tell child process the note will be terminated later
+"playing event".postln;
+		~preparePlayEvent.value(self, note);
+	};
+	~preparePlayEvent = #{ |self, note|
+		~child.event.copy.put(\note, note.copy.length_(nil))
+			.put(\midi, true)
+			.play;
+	};
+		// should be able to receive an array of notes
+	~melNoteOff = #{ |self, note|
+//["MIDI process-noteOff", note.asString].postln;
+		~child.event.copy
+			.put(\note, note)
+//			.put(\lastMIDINoteOn, ~child[\lastMIDINoteOn])
+			.use({ ~releaseNote.value; });
+	};
+}, nil, #[\defaultMIDIType]) => PR(\melMIDI);
+
+PR(\melMIDI).v.clone({
+	~defaultMIDIType = \adapt;
+}, nil, #[\defaultMIDIType]) => PR(\adaptMIDI);
+
+PR(\abstractMIDIInput).v.clone({
+	~defaultMIDIType = \ch;
+	~preparePlay = #{ |self| self };
+	~getMIDIParser = #{ |self, socket|
+		~parser = ChordParser(nil, self, socket, ~child.clock,
+			~deltaThresh ? 0.1, ~lengthThresh ? 0.1)
+	};
+//	~midiCleanup = PR(\melMIDI).v[\midiCleanup];
+	~chordNoteOn = #{ |self, note|
+//		var	event;
+			// is it playing? if so, interrupt
+//["MIDI process-noteOn", note.asCompileString].postln;
+		~child.eventStreamPlayer.notNil.if({
+			BP(~collIndex).stopNow;
+		});
+			// let child process determine how to handle the note
+
+			// get additional parameters from child (wrapper) process
+			// this assumes child is already playing
+// how to get midi to initiate play?
+		~preparePlayEvent.value(self, note);
+	};
+	~preparePlayEvent = #{ |self, note|
+		~child.eventStream.next(~child.event.copy)
+			.put(\chNotes, note.mapMode(~child.mode))
+			.put(\length, inf)		// child should not cut off on its own
+			.put(\midi, false)		// this only works on mapped data
+			.play;
+	};
+		// should be able to receive an array of notes
+	~chordNoteOff = #{ |self, note|
+//["MIDI process-noteOff", note.asString].postln;
+		~child.event.copy.put(\chNotes, note).use({
+			~releaseNote.value;
+		});
+	};
+}).import((melMIDI: \midiCleanup)) => PR(\chMIDI);
+
+PR(\melMIDI).v.clone({
+	~defaultMIDIType = \mel;	// chord processes place mel into topNote
+	~preparePlayEvent = #{ |self, note|
+		var	mode = ~parser.recSocket.buf.properties.tryPerform(\at, \mode) ?? { ~child.mode ? \default };
+		~child.eventStream.next(~child.event.copy)
+			.put(\length, inf)
+			.put(\top, (note: note.copy.mapMode(mode), mode: mode))
+			.put(\midi, false)
+			.play;
+	};
+
+// this is ok if you're arpeggiating but blockfollow doesn't work
+// no way to know here what notes were triggered...
+
+		// this one should only stop the stream if releasing the last played note
+	~melNoteOff = #{ |self, note|
+//["MIDI process-noteOff", note.asString].postln;
+		(~lastMIDINoteOn == note).if({
+			~child.event.copy
+				.put(\note, note)
+				.use({ ~releaseNote.value; });
+		});
+	};
+}) => PR(\topMIDI);
+
+// chord and topnote melody input simultaneously
+PR(\chMIDI).v.clone({
+	~preparePlayEvent = #{ |self, note|
+"chmelMIDI-preparePlayEvent".postln;
+note.collect(_.freq).postln;
+		~child.eventStream.next(~child.event.copy)
+			.put(\chNotes, note.mapMode(~child.mode))
+// may not work if there's a grace note higher than real chord note
+			.put(\top, note.maxItem.postln.mapMode(~child.mode).postln)
+			.put(\length, inf)		// child should not cut off on its own
+			.put(\midi, false)		// this only works on mapped data
+			.put(\getChord, false)
+			.play;
+	};
+
+	~midiCleanup = #{ |self|
+		var	bp, buf;
+		bp = BP(~collIndex);
+		bp.unwrap(false);
+			// insert your own processing here -- parsing, quantization
+		buf = ~postRecFunc.value(self, ~parser.recSocket.buf, bp);
+		bp.bindMIDIRecBuf(buf, \ch);
+		bp.bindMIDIRecBuf(buf.copyTopNotes, \mel);
+		bp.stopNow;
+		bp.play(~replayTimeSpec.applyLatency(bp.latency), doReset:true);
+	};
+	
+}) => PR(\chmelMIDI);
+
+AbstractChuckArray.defaultSubType = saveSubType;

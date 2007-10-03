@@ -1,0 +1,598 @@
+
+// framework for adaptive processes
+
+var saveSubType = AbstractChuckArray.defaultSubType;
+AbstractChuckArray.defaultSubType = \melodyStorage;
+
+// first, handler for a single segment -- this will be analyzed modally
+AdhocClass({
+		// canPauseAfter is deprecated for a more OO solution
+//	~canPauseAfter = false;		// parent can set this for pausable melodies
+	~prepare = #{ |self, notes, nextNote, storage, parms, rawMIDI = true|
+			// notes should be in the format [note, note, note]
+//mode.debug('melody segment-prepare incoming mode');
+		var	mode = parms.atBackup(\mode, storage) ? \default;
+		~notes = notes.asArray;
+		~nextNote = nextNote;	// final interval should be calculated relative to the next note
+		{ (rawMIDI ? true).if({ ~mapToMode.value(self, mode) }, {
+			~mode = (mode.size > 0).if({ mode[0] }, { mode });
+//~mode.debug('mode assigned');
+			});
+		}.try({ |error|
+			Error("Error translating MIDI to modal. Check to see if default mode is defined.")
+				.throw;
+		});
+		~modeSubstitution = parms.atBackup(\modeSub, storage);
+		~analyzeNotes.value(self, rawMIDI);	// collect stats on chord -- user definable
+		self
+	};
+	
+	~mapToMode = #{ |self, mode|
+		var	bestMode, bestFit = -1e10, bestMap, modeFit, notesTemp, modeObj;
+//~notes.asFloat.debug('new seg-mapToMode');
+//mode.debug('melody segment-mapToMode incoming mode');
+		mode = mode ? \default; 	// keep symbol for storage
+		modeObj = mode.asMode;
+			// is it a single mode, or a mode pool?
+		if(modeObj.size > 0) {
+			modeObj.do({ |mode, i|
+				notesTemp = ~notes.mapMode(mode);
+//notesTemp.asFloat.debug('new seg-mapToMode - trial mapping');
+				((modeFit = Func(\chModeFit).doAction(notesTemp)) > bestFit).if({
+					bestMode = mode;
+					bestFit = modeFit;
+					bestMap = notesTemp;
+				});
+			});
+			~mode = bestMode;
+			~notes = bestMap;
+			~nextNote = ~nextNote.mapMode(bestMode)
+		}{
+			~notes = ~notes.mapMode(mode);
+//~notes.asFloat.debug('new seg-mapToMode - after map');
+			~nextNote = ~nextNote.mapMode(mode);
+			~mode = mode;
+		};
+		self
+	};
+	
+	~mapToMIDI = #{ |self, mode|
+		~notes = ~notes.unmapMode(mode ?? { ~mode ? \default });
+		~nextNote = ~nextNote.unmapMode(mode ?? { ~mode ? \default });
+		self
+	};
+	
+//		// why the ref to self? This avoids necessity to push the environment
+//		// in some lazy evaluations (see lazyMapToMIDI below)
+//		// if I push the env every time, it's almost 7 times slower
+//	~mode = #{ |self| self[\mode] ? Mode(\default).v };
+	
+// subclasses must implement:
+//	~analyzeNotes (if needed)
+//	~asPattern
+}) => PR(\abstractModeSeg);
+
+PR(\abstractModeSeg).v.clone({
+	~analyzeNotes = #{ |self, rawMIDI|
+		self
+	};
+
+		// rhythm profile must act on grace notes before the notes are embedded in the stream
+		// thus, PseqFunc
+		
+		// change in ~useRh will take effect only at segment boundaries
+		
+	~asNotePattern = #{ |self, passInValue|
+		var dur, length, rhy, out;
+		out = (passInValue[\useRh] and: { (rhy = passInValue[\rhythmStream]).notNil }).if({
+			PseqFunc(~notes, 1, func: { |note|
+				#dur, length = rhy.next(note);
+				note.copy.dur_(dur).length_(length);
+			})
+		}, { Pseq(~notes, 1) });
+//			// transpose == modal degrees to transpose by -- best here?
+//		(passInValue[\transpose].notNil and: { passInValue[\transpose] != 0 }).if({
+//			out = out + passInValue[\transpose];
+//		});
+	};
+
+		// all modal patterns must return modally-mapped notes
+		// conversion to midinotes will be made in the note event
+	~asPattern = #{ |self, passInValue|
+		var	pat;
+		pat = Pbind([\note, \delta], ~asNotePattern.value(self, passInValue)
+				.collect({ |n| [n, n.dur] }));
+		~mode.notNil.if({
+			pat.patternpairs = pat.patternpairs ++
+				[\mode, ~modeSubstitution.notNil.if({ ~modeSubstitution.value(self) }, { ~mode })];
+		});
+		pat
+	};
+
+		// combine a series of metrics to compare different segments
+		// ~qkeys and ~qnormals should be populated in the subclass
+		// usage: seg1.qualities.sum.absdif(seg2.qualities.sum) -- lower absdif, more similar
+	~qualities = #{
+		(~qkeys.collect({ |k, i| k.envirGet * ~qnormals[i] })) ? 0
+	};
+}) => PR(\melModeSeg);
+
+PR(\melModeSeg).v.clone({
+	~analyzeNotes = #{ |self, rawMIDI|
+		var notes, temp, tempdur;	// temp variable for calculations
+			// some analysis funcs in here
+			// start with pitch material
+
+		temp = ~notes
+			.reject({ |item| item.isSymbol or: { item.tryPerform(\freq).isSymbol } })
+			.collect(_.asFloat)
+			.select({ |item| item.isNumber });
+
+		~intervals = Array.new(temp.size);
+
+		temp.doAdjacentPairs({ |note1, note2, i|
+			~intervals.add(note2 - note1)
+		});
+		(temp.size > 1).if({
+			~intervals.add(~nextNote.asFloat - temp.last);
+			~angularity = ~intervals.abs.mean / (~intervals.mean.abs.nz(1));
+		}, {
+			~angularity = 0;	// 1 note, can't be angular
+		});
+
+		~hiNote = temp.maxItem;
+		~loNote = temp.minItem;
+		~range = ~hiNote - ~loNote;
+			// 0 = lowest, 1 = highest for center (ratio of median to range)
+		~center = (temp.copy.median - temp.minItem) / ~range.nz(1);
+		~lastNote = temp.last;
+		~firstNote = temp.first;
+		~direction = ~lastNote - ~firstNote;
+		
+			// lots of notes shorter than their deltas will drive this metric down
+		~rhythmSustain = ~notes.sum(_.length) / ~notes.sum(_.dur);
+// add repetition factor? how to compute quickly?
+		
+		~metric = ~qualities.value.sum;
+		
+		self
+	};
+
+	~qkeys = #[\angularity, \direction, \range, \center, \hiNote, \loNote];
+	~qnormals = #[1, 1, 1, 8, 0.25, 0.25];	// factors used for normalizing analysis values
+
+}, nil, #[\qkeys, \qnormals]) => PR(\melAdaptSeg);
+
+
+// holds a single melodic segment along with its adaptations
+PR(\abstractProcess).v.clone({
+	~segProto = \melAdaptSeg;
+	~adaptable = true;		// can specify some segments never to adapt
+	
+	~prepare = #{ |self, notes, nextNote, storage, parms, rawMIDI = true|
+		~segs = List.with(PR(~segProto).v.copy
+			.prepare(notes, nextNote, storage, parms, rawMIDI));
+		~nextNote = nextNote;
+		~mode = parms.atBackup(\mode, storage) ? \default;
+		self
+	};
+	
+	~main = #{ |self| self[\segs][0] };
+	
+	~addAdapt = #{ |self, notes, parms, rawMIDI = false|
+//[parms[\mode], ~mode].debug('addAdapt mode');
+			// if there is no mode in parms, use the one given at creation
+		parms[\mode].isNil.if({ parms[\mode] = ~mode });
+		~segs.add(PR(~segProto).v.copy
+			.prepare(notes, ~nextNote, nil, parms, rawMIDI));  // not passing in storage object
+		self
+	};
+	
+	~removeAt = #{ |self, index| ~segs.removeAt(index) 
+//.tryPerform(\notes).tryPerform(\asFloat).postln;	
+	};
+	
+	~asPattern = #{ |self, rhythmProfile|
+//"making seg pattern".debug;
+		~segs.choose.asPattern(rhythmProfile)
+//.postcs
+	};
+
+	~asNotePattern = #{ |self, rhythmProfile|
+		~segs.choose.asNotePattern(rhythmProfile)
+	};
+	
+	~clearAdapt = #{
+		(~segs.size > 0).if({
+			~segs = List.with(~segs[0]);
+		});
+	};
+	
+}, nil, #[\segProto]) => PR(\melSegWithAdapt);
+
+PR(\abstractProcess).v.clone({
+	~segProto = \melSegWithAdapt;
+	~segFunc = \defaultMelSegmenter;
+	~minSegSize = 4;
+	
+	~prepare = #{ |self, notes, nextNote, rawMIDI = true,
+			intervals, avgInterval, avgDelta, storage, parms|
+		var subsegs;
+		
+		~parms = parms;	// save for adding variations
+
+			// these are needed to analyze future input materials
+		~avgInterval = avgInterval;
+		~avgDelta = avgDelta;
+
+		notes = Func(parms.atBackup(\segFunc, self))
+			.doAction(notes, self, nextNote, intervals, 
+				parms.atBackup(\minSegSize, storage, self), parms);
+
+		subsegs = Array.new(notes.size);
+		notes.do({ |seg, i|
+			subsegs.add(PR(~segProto).v.copy.prepare(seg,
+					// if there's a later segment, give first note of next segment
+					// if this is the last, give first for wraparound interval
+				(i < (notes.size-1)).if({ notes[i+1][0] }, { notes[0][0] }),
+				storage, parms
+			));
+		});
+		~mel = subsegs;
+		self
+	};
+	
+	~patternBase = #{ |self|
+		Pseq(~mel, 1)
+	};
+	
+	~asPattern = #{ |self, passInValue|
+		~addAdaptCollect.value(self, ~patternBase.value(self), passInValue, \asPattern)
+	};
+
+	~asNotePattern = #{ |self, passInValue|
+		~addAdaptCollect.value(self, ~patternBase.value(self), passInValue, \asNotePattern)
+	};
+	
+//	~asStream = #{ |self, passInValue|
+//		(~segStream.isNil or: { passInValue[\resetSeg] ? true }).if({
+//				// make sure to clear segstream when the stream runs out
+//			~segStream = CleanupStream(
+//				~addAdaptCollect.value(self, ~patternBase.value(self), passInValue, \asPattern),
+//				{ self[\segStream] = nil });
+//		}, {
+//				// otherwise reuse existing stream
+//			~segStream
+//		});
+//	};
+	
+	~addAdaptCollect = #{ |self, pattern, passInValue, asPatSelector = \asPattern|
+//		passInValue = passInValue ?? { ~passInValue };
+		pattern.collect({ |seg|
+			passInValue[\adaptProb].coin.if({
+				self.use({
+					~doAdapt.value(self, seg, passInValue);
+					(seg.segs.size > passInValue[\variantThreshold]).if({
+						~eugenicize.value(self, seg, passInValue);
+					});
+				});
+			});
+			seg.perform(asPatSelector, passInValue);
+		})
+	};
+
+// this approach to choosing source and cross doesn't work -- mean is too restrictive
+// for now it's a flat random choice until I figure out something better
+	
+//		// source and cross are Lists ([0] is original, [1..x] are variants)
+//	~doAdapt = #{ |self, source, adaptMel, adaptStream|
+//		var srcSeg, crsSeg, fitness, fitnessmean, qtemp, result, adaptTemp;
+//		(adaptMel.size > 0).if({
+//				// choose source segment -- if too different from original, don't adapt further
+//				// source is melSegWithAdapt
+//			qtemp = source.segs[0].metric;
+//			fitness = source.segs.collect({ |seg, i| [i, seg.metric.absdif(qtemp) / qtemp] });
+//fitness.debug('fitness');
+////			fitnessmean = fitness.flop[1].mean;
+////fitnessmean.debug('fitnessmean');
+////			fitness = fitness.select({ |pair| pair[1] <= fitnessmean });
+////fitness.debug('fitness reduced');
+//			fitness = fitness.choose;
+//fitness.debug('fitness choice');
+////fitness.debug('fitness');
+//			srcSeg = source.segs[fitness[0]];
+//				// choose adaptation segment based on fitness with chosen source
+//				// adaptMel should be a flat array of melAdaptSegs
+//"doAdapt--choosing cross segment".debug;
+//			qtemp = fitness[1] * qtemp;
+//qtemp.debug('qtemp');
+//			adaptTemp = adaptMel /*.do({ |phr| phr.asSegArray }).flat*/;
+//adaptTemp.debug('adaptTemp');
+//			fitness = adaptTemp.collect({ |seg, i| [i, seg.metric.absdif(qtemp)] });
+//fitness.debug('fitness');
+//			fitnessmean = fitness.flop[1].mean;
+//fitnessmean.debug('fitnessmean');
+//			fitness = fitness.select({ |pair| pair[1] <= fitnessmean }).choose;
+//fitness.debug('fitness');
+//			crsSeg = adaptTemp[fitness[0]];
+////"calling Func".debug;
+//			(result = Func(fitness = adaptStream.next).doAction(srcSeg, crsSeg)).notNil.if({
+////"adding result to segWithAdapt".debug;
+//				source.addAdapt(
+//					result,
+////					srcSeg.nextNote,	// use nextNote from original seg
+//					srcSeg.mode,	// newly created seg should use source's mode
+//					false  // rawmidi should now be false
+//				);
+//			}, {
+//				("Func(\\" ++ fitness ++ ") returned nil. No adaptation.").warn;
+//			});
+//		});
+//	};
+
+		// source and cross are Lists ([0] is original, [1..x] are variants)
+	~doAdapt = #{ |self, source, passInValue|
+		var srcSeg, crsSeg, fitness, fitnessmean, qtemp, result, adaptTemp;
+//		passInValue = passInValue ?? { ~passInValue };
+			// choose source segment -- if too different from original, don't adapt further
+			// source is melSegWithAdapt
+		srcSeg = source.segs.choose;
+		(~adaptMel.size > 0 and: { source.adaptable ? true }).if({
+			crsSeg = ~adaptMel.choose;
+//"calling Func".debug;
+			fitness = passInValue[\adaptStream].next(srcSeg);
+			(adaptTemp = Func(fitness)).value.notNil.if({
+				(result = adaptTemp.doAction(srcSeg, crsSeg, passInValue)).notNil.if({
+//"adding result to segWithAdapt".debug;
+//result.asFloat.postln;
+					source.addAdapt(
+						result,
+	//					srcSeg.nextNote,	// use nextNote from original seg
+// hard mode reference
+//						srcSeg.mode,  // newly created seg should use source's mode
+						~parms,	// uses parms from creation time (no subsequent updates)
+						false  // rawmidi should now be false
+					);
+						// it may be a bad adaptation -- kill it preemptively if so
+					Func(passInValue[\eugTest])
+						.doAction(source.segs[0], source.segs.last, passInValue).notNil.if({
+							source.removeAt(source.segs.size-1)
+					});
+				}/*, {
+					format("Func(%) returned nil. No adaptation.",
+						fitness.asCompileString).warn;
+				}*/);
+			}, {
+				format("Func(%) does not exist. No adaptation.",
+					fitness.asCompileString).warn;
+			});
+		});
+	};
+	
+	~tryEugenicize = #{ |self, variantThreshold|
+		var	seg;
+//"tryEugenicize".debug;
+		(seg = ~mel.select({ |seg| seg.mel.size > variantThreshold }).choose)
+			!? { ~eugenicize.value(self, seg); };
+	};
+	
+		// choose worst fit (or oldest) out of source and kill it
+		// ok to have this in phrase b/c it doesn't involve adapt material
+//	~eugenicize = #{ |self, source, passInValue|
+//		var	fits, origQual;
+////source.debug("eugenicize");
+//		origQual = source.segs[0].metric;
+//origQual.debug("original seg metric");
+//		fits = Array.newClear(source.segs.size-1);
+//		for(1, source.segs.size-1, { |i|
+//source.segs[i].notes.asFloat.debug("adapted notes");
+//			fits.put(i-1, [source.segs[i].qualities.sum.absdif(origQual), i]);
+//fits[i-1][0].debug("fitness absdif");
+//		});
+//			// sort descending order of fit
+//		fits = fits.sort({ |a, b| a[0] > b[0] });
+//			// if it's a REALLY bad fit, drop it
+//// problem: as variations die, mean approaches zero and no new variations can survive
+//// use a flat threshold based on original metric
+//		(fits[0][0].postln > ((origQual*0.25).postln)).if({
+//"dropping by fitness".debug;
+//			source.removeAt(fits[0][1])
+//		}, {	// otherwise use age to determine which to drop
+//				// nature of list is that earliest items should be older
+//				// keep the original [0] and drop the oldest
+//"dropping by age".debug;
+//			source.removeAt(1)
+//		});
+//	};
+
+	~eugenicize = #{ |self, source, passInValue|
+		var	fits, orig/*, origQual*/;
+//source.debug("eugenicize");
+//		origQual = source.segs[0].metric;
+//origQual.debug("original seg metric");
+//		passInValue = passInValue ?? { ~passInValue };
+
+		orig = source.segs[0];
+		fits = Array.newClear(source.segs.size-1);
+		for(1, source.segs.size-1, { |i|
+//source.segs[i].notes.asFloat.debug("adapted notes");
+			fits.put(i-1, [Func(passInValue[\eugTest])
+				.doAction(orig, source.segs[i], passInValue), i]);
+//fits[i-1][0].debug("fitness absdif");
+		});
+		fits = fits.reject({ |fit| fit[0].isNil });	// nil values are OK by test func
+			// if any segment is left, kill the worst of them
+		(fits.size > 0).if({
+				// sort descending order of fit
+//"dropping by fitness".debug;
+			fits = fits.sort({ |a, b| a[0] > b[0] });
+			source.removeAt(fits[0][1])
+		}, {		// otherwise use age to determine which to drop
+				// nature of list is that earliest items should be older
+				// keep the original [0] and drop the oldest
+//"dropping by age".debug;
+			source.removeAt(1)
+		});
+	};
+	
+		// returns flat array of original segments -- used for adaptation
+	~asSegArray = #{ |self| ~mel.collect({ |seg| seg.segs[0] }) };
+	
+	~clearAdapt = #{
+		~mel.do(_.clearAdapt);
+		~adaptMel = nil;
+	};
+
+}, nil, #[\segProto]) => PR(\melAdaptPhrase);
+
+// container to hold a number of melodic segments
+// this maintains segments, adaptation, and holds current playback state (which seg)
+// pattern to retrieve segments will be user-definable
+// no need to hold index anymore -- if you want to change melodies,
+// save this object and pop in a new \melodyStorage object
+
+AdhocClass({
+	~segProto = \melAdaptPhrase;
+	~midiParse = true;
+	~splitFunc = \noSplit;
+	~rhythmQuant = 0.25;	// default, quantize to 16th
+	~adaptProb = 1; //0.4;
+	~eugenicizeProb = 1; //0.4;
+	~variantThreshold = 4;	// when more than 4 variants, drop some; see ~eugenicize
+	~useRh = false;
+	
+		// these are keys that will be chucked into BP but need to be passed into mel
+		// range is used for eug testing: NumericRange(lo, hi)
+	~keysFromParent = #[\mode, \rhythmStream, \adaptStream, \adaptProb, \eugenicizeProb,
+		\variantThreshold, \repeats, \preSplitFunc, \useRh, \adTest, \eugTest, \splitFunc,
+		\resetSeg, \resetPhr, \range];
+	
+	~repeats = inf;
+	~adaptPattern = \absSplice;		// this may be a pattern
+
+	~preSplitFunc = #{ |self, notes| notes };
+
+	~clearParms = { ~parms = nil; };
+	
+	~prepareSequence = #{ |self, key, buf, storage, parms|
+			// maintain an aggregate of passed-in parameters
+		~parms = (~parms ?? { () }).putAll(parms);
+		key.envirPut((key ++ "PrepareSequence").asSymbol.envirGet
+			.value(self, buf, storage, ~parms));
+		self
+	};
+
+		// generate metrics for adaptation segments
+	~melPrepareSequence = #{ |self, buf, storage, parms|
+		var	notes, temp, intervals;
+//		var	lastTrueIndex, largeInterval;
+//"mel-adaptPrepareSequence".postln;
+		notes = buf.notes;
+			// calc this for splitting the phrases into subsegments
+		intervals = Array.new(notes.size - 1);
+		notes.doAdjacentPairs({ |note1, note2|
+			intervals = intervals.add(note2 - note1);
+		});
+
+		~avgInterval = intervals.abs.mean;
+		~avgDelta = buf.durs.mean;	// also need note deltas
+
+			// function composition: maybe you want to do mode or some other conversion here
+		temp = ~preSplitFunc.value(self, buf.notes);
+
+		notes = Func(parms.atBackup(\splitFunc, storage, self).debug("splitfunc"))
+			.doAction(temp, self, parms);
+
+			// must be array now because eventually, this will be a collection of phrases
+		(temp == notes).if({ notes = [notes] });
+
+			// return value
+		notes.collect({ |phrNotes, i|
+			PR(~segProto).v.copy.prepare(phrNotes, 
+				(i == (notes.size-1)).if({ notes[0][0] }, { notes[i+1][0] }), 
+				true, intervals, ~avgInterval, ~avgDelta, storage, parms)
+		});
+	};
+
+	~adaptPrepareSequence = #{ |self, buf, storage, parms|
+		var temp;
+			// adaptation should just be a set of segments, so change split type
+		parms[\splitFunc].isNil.if({
+			parms = parms.copy.put(\splitFunc, \noSplit)
+		});
+		~melPrepareSequence.value(self, buf, storage, parms)
+			.collect({ |phr, i|
+				phr.mel.collect({ |seg, i| seg.main })
+			}).flat;
+	};
+	
+//	~mode = #{ |self, newMode|
+//		self		// implement change of mode later
+//	};
+	
+	~clearAdapt = #{
+		~adapt = nil;
+//		~mel = ~mel.collect({ |seg| List.with(seg[0]) });
+		~mel.do(_.clearAdapt);
+	};
+
+		// pattern maker needs to be modularized so you can override
+	~makePhrPattern = #{ |self, passInValue|
+		passInValue = passInValue ?? { ~passInValue };
+		~phrPattern = Pseq(~mel, passInValue[\repeats] ? inf)
+//.collect({ |val| "\nmelstore-phrase pattern".postln; val.postcs })
+	};
+	
+		// run each melody segment successively
+	~asSegPattern = #{ |self, asPatSelector, passInValue|
+var temp;
+		passInValue = passInValue ?? { ~passInValue };
+		~makePhrPattern.value(self, passInValue).collect({ |phr|
+			phr.notNil.if({
+//"\ngot phrase".debug;
+//phr.listVars;
+				self.use({
+//asPatSelector.debug('getting seg');
+						// populate adaptation values in phrase, to simplify API
+temp = 				(
+//						rhythmStream: rhythmStream,
+//						adaptProb: ~adaptProb,
+//						adaptStream: ~adaptStream,
+//						variantThreshold: ~variantThreshold,
+						adaptMel: ~adapt
+					);
+//temp.debug('adaptation values into phrase');
+					phr.putAll(temp);
+						// moving this to melody process level
+//					phr = phr.perform(asPatSelector, ~useRh.if({ rhythmStream }));
+//phr.postln;
+				});
+				phr  // output
+			}, {
+				nil
+			});
+		});
+	};
+	
+	~asSegStream = #{ |self, asPatSelector, passInValue|
+		passInValue = passInValue ?? { ~passInValue };
+		(~segStream.isNil or: { passInValue[\resetPhr] ? true }).if({
+			~segStream = CleanupStream(~asSegPattern.value(self, asPatSelector, passInValue)
+				.asStream, {
+					self.put(\segStream, nil);	// allow reset next time
+				});
+		});
+		~segStream
+	};
+
+}, nil, #[\segProto]) => PR(\melodyStorage);
+
+// subclass that plays phrases in random order
+PR(\melodyStorage).v.clone({
+	~makePhrPattern = #{ |self, passInValue|
+		~phrPattern = Pxrand(~mel, passInValue[\repeats] ? ~repeats ? inf)
+//.collect({ |val| "\nmelstore-phrase pattern".postln; val.postcs })
+	};
+}) => PR(\melRandStorage);
+
+AbstractChuckArray.defaultSubType = saveSubType;

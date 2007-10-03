@@ -1,0 +1,411 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <meta http-equiv="Content-Style-Type" content="text/css">
+  <title></title>
+  <meta name="Generator" content="Cocoa HTML Writer">
+  <meta name="CocoaVersion" content="824.42">
+  <style type="text/css">
+    p.p1 {margin: 0.0px 0.0px 0.0px 0.0px; font: 20.0px Helvetica}
+    p.p2 {margin: 0.0px 0.0px 0.0px 0.0px; font: 12.0px Helvetica; min-height: 14.0px}
+    p.p3 {margin: 0.0px 0.0px 0.0px 0.0px; font: 12.0px Helvetica}
+    p.p4 {margin: 0.0px 0.0px 0.0px 0.0px; font: 10.0px Monaco; color: #bf0000; min-height: 14.0px}
+    p.p5 {margin: 0.0px 0.0px 0.0px 0.0px; font: 10.0px Monaco; color: #bf0000}
+    p.p6 {margin: 0.0px 0.0px 0.0px 0.0px; font: 10.0px Monaco}
+    p.p7 {margin: 0.0px 0.0px 0.0px 0.0px; font: 10.0px Monaco; min-height: 14.0px}
+    p.p8 {margin: 0.0px 0.0px 0.0px 0.0px; font: 14.0px Helvetica}
+    p.p9 {margin: 0.0px 0.0px 0.0px 0.0px; font: 10.0px Monaco; color: #0000bf}
+    p.p10 {margin: 0.0px 0.0px 0.0px 0.0px; font: 10.0px Monaco; color: #007300}
+    p.p11 {margin: 0.0px 0.0px 0.0px 0.0px; font: 10.0px Monaco; color: #0000bf; min-height: 14.0px}
+    p.p12 {margin: 0.0px 0.0px 0.0px 0.0px; font: 10.0px Monaco; color: #007300; min-height: 14.0px}
+    span.s1 {color: #0000bf}
+    span.s2 {color: #606060}
+    span.s3 {color: #007300}
+    span.s4 {color: #000000}
+    span.s5 {color: #bf0000}
+    span.Apple-tab-span {white-space:pre}
+  </style>
+</head>
+<body>
+<p class="p1"><b>Chuck process examples</b></p>
+<p class="p2"><br></p>
+<p class="p3">This file is to illustrate some common usage patterns for the chucking classes. I will add more examples as time permits.</p>
+<p class="p2"><br></p>
+<p class="p3">Contents:</p>
+<p class="p3">1. Setup code</p>
+<p class="p3">2. Simple melody player</p>
+<p class="p3">3. Adaptive melody player</p>
+<p class="p3">4. Chordal process -- chord follows top-note melody</p>
+<p class="p3">5. Chordal process -- arpeggiation with macrorhythm</p>
+<p class="p3">6. Using regular SynthDefs instead of Voicers</p>
+<p class="p4"><br></p>
+<p class="p5">// load the library first -- I put this in my scwork/startup.rtf</p>
+<p class="p6">(<span class="s1">AbstractChuckArray</span>.directory ++ <span class="s2">"startup*.rtf"</span>).loadPaths;</p>
+<p class="p7"><br></p>
+<p class="p6">s.boot;</p>
+<p class="p7"><br></p>
+<p class="p8"><b>1. Setup code</b></p>
+<p class="p2"><br></p>
+<p class="p3">The chucking classes are all about data storage and quick retrieval during performance. Thus, a piece consists of code to set up all the material that will be needed, and the performance is to use this material.</p>
+<p class="p2"><br></p>
+<p class="p3">The preparation code is pretty hefty, but observe later how compact the code is to initiate a process. The idea is to take all the heavy stuff -- materials, code fragments (which require debugging), etc. -- and load it all at once, then use it piecemeal. Running complex processes is very easy once you have the materials set up.</p>
+<p class="p2"><br></p>
+<p class="p3">When writing a piece, I prefer to write all the setup code into a separate file. I can then load that file and have all the materials ready for use. Another file can contain code to create the processes and play the piece.</p>
+<p class="p7"><br></p>
+<p class="p6">(</p>
+<p class="p5">// storage for MIDI data</p>
+<p class="p6"><span class="s1">MIDIBufManager</span>.new(<span class="s1">nil</span>, 0) =&gt; <span class="s1">MBM</span>.prNew(0);</p>
+<p class="p6"><span class="s1">MBM</span>(0).v.gui;</p>
+<p class="p7"><br></p>
+<p class="p5">// using a weird modal definition</p>
+<p class="p6"><span class="s1">ModalSpec</span>.new(#[0, 1, 4, 5, 7, 8, 11], 12, 2) =&gt; <span class="s1">Mode</span>(<span class="s3">\default</span>);</p>
+<p class="p7"><br></p>
+<p class="p6"><span class="s1">TempoClock</span>.default.tempo = 104/60;</p>
+<p class="p7"><br></p>
+<p class="p5">// chord forms</p>
+<p class="p9">MIDIRecBuf<span class="s4">(</span><span class="s3">\chords</span><span class="s4">, [</span></p>
+<p class="p6"><span class="Apple-tab-span">	</span>#[67, 66, 62, 60, 67, 63, 62, 57, 69, 66, 62, 70, 67, 66, 60],</p>
+<p class="p6"><span class="Apple-tab-span">	</span>#[0.01, 0.01, 0.01, 1, 0.01, 0.01, 0.01, 1, 0.01, 0.01, 1, 0.01, 0.01, 0.01, 1],</p>
+<p class="p6"><span class="Apple-tab-span">	</span>1 ! 15</p>
+<p class="p6">].flop.collect(<span class="s1">SequenceNote</span>(*<span class="s1">_</span>))) =&gt; <span class="s1">MBM</span>(0);</p>
+<p class="p7"><br></p>
+<p class="p5">// melody -- will be used for top note of chord progression</p>
+<p class="p9">MIDIRecBuf<span class="s4">(</span><span class="s3">\top</span><span class="s4">, [</span></p>
+<p class="p6"><span class="Apple-tab-span">	</span>#[62, 69, 78, 70, 77, 86, 83, 78, 81, 92,</p>
+<p class="p6"><span class="Apple-tab-span">	</span><span class="Apple-tab-span">	</span>89, 86, 85, 82, 81, 78, 75, 70, 67, 61, 66, 69, 66, 69, 71],</p>
+<p class="p6"><span class="Apple-tab-span">	</span>#[1.5, 0.5, 0.5, 1, 1, 0.5, 1.5, 0.5, 0.5, 1.5,</p>
+<p class="p6"><span class="Apple-tab-span">	</span><span class="Apple-tab-span">	</span>0.75, 0.5, 0.25, 0.75, 0.5, 0.25, 0.75, 0.5, 0.25, 1.5, 0.5, 1, 0.5, 0.5, 1.5],</p>
+<p class="p6"><span class="Apple-tab-span">	</span>#[1.5, 0.2, 0.6, 0.8, 0.3, 0.5, 1.5, 0.5, 0.5, 1.5,</p>
+<p class="p6"><span class="Apple-tab-span">	</span><span class="Apple-tab-span">	</span>0.75, 0.2, 0.2, 0.75, 0.2, 0.2, 0.75, 0.2, 0.2, 1, 0.5, 0.4, 0.5, 0.5, 1.2]</p>
+<p class="p5">//<span class="Apple-tab-span">	</span>, 0.5 ! 24<span class="Apple-tab-span">	</span>// gates - maybe apply contour later</p>
+<p class="p6">].flop.collect(<span class="s1">SequenceNote</span>(*<span class="s1">_</span>))) =&gt; <span class="s1">MBM</span>(0);</p>
+<p class="p7"><br></p>
+<p class="p7"><br></p>
+<p class="p5">// define some pattern prototypes that will be used in chordal process</p>
+<p class="p5">// arpeggiation patterns</p>
+<p class="p4"><br></p>
+<p class="p5">// to play a chord as a block, I have to convert an array of notes into a single note</p>
+<p class="p5">// with an array of note numbers -- .asChord method does this for me</p>
+<p class="p9"><span class="s4">#{ </span>|notes|</p>
+<p class="p6"><span class="Apple-tab-span">	</span>notes.isArray.if({</p>
+<p class="p6"><span class="Apple-tab-span">	</span><span class="Apple-tab-span">	</span><span class="s1">Pn</span>(notes.asChord, 1)</p>
+<p class="p6"><span class="Apple-tab-span">	</span>}, {</p>
+<p class="p6"><span class="Apple-tab-span">	</span><span class="Apple-tab-span">	</span><span class="s1">Pn</span>(notes, 1)</p>
+<p class="p6"><span class="Apple-tab-span">	</span>});</p>
+<p class="p6">} =&gt; <span class="s1">ArpegPat</span>(<span class="s3">\block</span>);</p>
+<p class="p7"><br></p>
+<p class="p9"><span class="s4">#{ </span>|notes|<span class="s4"> </span>Pxrand<span class="s4">(notes, </span>inf<span class="s4">) } =&gt; </span>ArpegPat<span class="s4">(</span><span class="s3">\xrand</span><span class="s4">);</span></p>
+<p class="p6">#{ <span class="s1">|notes|</span> <span class="s1">Pseq</span>(notes.sort, <span class="s1">inf</span>) } =&gt; <span class="s1">ArpegPat</span>(<span class="s3">\up</span>);</p>
+<p class="p7"><br></p>
+<p class="p6">#{ <span class="s1">|notes|</span> <span class="s1">Pseq</span>([notes.sort, notes+7, notes+7, notes+14, notes+14].flat, 1) } =&gt; <span class="s1">ArpegPat</span>(<span class="s3">\bubbleup1</span>);</p>
+<p class="p7"><br></p>
+<p class="p6">#{ <span class="s1">|notes|</span> <span class="s1">Pseq</span>([notes.sort({ <span class="s1">|a, b|</span> a &gt; b }) + 14, notes+7, notes+7, notes, notes].flat, 1) } =&gt; <span class="s1">ArpegPat</span>(<span class="s3">\bubbledown1</span>);</p>
+<p class="p7"><br></p>
+<p class="p6">#{ <span class="s1">|notes|</span> <span class="s1">Pseq</span>([notes.sort, notes+7, notes+7, notes+14, notes+14].flat, inf) } =&gt; <span class="s1">ArpegPat</span>(<span class="s3">\bubbleup</span>);</p>
+<p class="p7"><br></p>
+<p class="p6">#{ <span class="s1">|notes|</span> <span class="s1">Pseq</span>([notes.sort({ <span class="s1">|a, b|</span> a &gt; b }) + 14, notes+7, notes+7, notes, notes].flat, inf) } =&gt; <span class="s1">ArpegPat</span>(<span class="s3">\bubbledown</span>);</p>
+<p class="p7"><br></p>
+<p class="p7"><br></p>
+<p class="p5">// microrhythms</p>
+<p class="p4"><br></p>
+<p class="p5">// block chord rhythm -- produces 1 value</p>
+<p class="p9"><span class="s4">#{ </span>|notes, event|</p>
+<p class="p6"><span class="Apple-tab-span">	</span><span class="s1">var</span> topNote, gateIndex, gate;</p>
+<p class="p6"><span class="Apple-tab-span">	</span>topNote = event[<span class="s3">\top</span>];</p>
+<p class="p6"><span class="Apple-tab-span">	</span>(gateIndex = topNote.args.tryPerform(<span class="s3">\indexOf</span>, <span class="s3">\gate</span>)).isNil.if({</p>
+<p class="p6"><span class="Apple-tab-span">	</span><span class="Apple-tab-span">	</span>gate = gate.tryPerform(<span class="s3">\at</span>, 0);</p>
+<p class="p6"><span class="Apple-tab-span">	</span>}, {</p>
+<p class="p6"><span class="Apple-tab-span">	</span><span class="Apple-tab-span">	</span>gate = topNote.args[gateIndex+1];</p>
+<p class="p6"><span class="Apple-tab-span">	</span>});</p>
+<p class="p6"><span class="Apple-tab-span">	</span><span class="s1">Pn</span>([event.delta, event[<span class="s3">\length</span>], gate ? 0.5], 1)</p>
+<p class="p10"><span class="s4">} =&gt; </span><span class="s1">MicRh</span><span class="s4">(</span>\blockFollow<span class="s4">);</span></p>
+<p class="p7"><br></p>
+<p class="p5">// .estimateLength is how we handle finite arpeggiation -- the microrhythm produces only as</p>
+<p class="p5">// many rhythmic values as needed for the expected number of notes</p>
+<p class="p5">// the reason is that a bass note may cause a new note pattern to be generated, but we</p>
+<p class="p5">// want the rhythmic gesture to keep its integrity</p>
+<p class="p6">#{ <span class="s1">|notepat|</span> <span class="s1">Pn</span>(#[0.25, 0.2, 0.5], notepat.estimateLength) } =&gt; <span class="s1">MicRh</span>(<span class="s3">'16th'</span>);</p>
+<p class="p9"><span class="s4">#{ </span>|notepat|<span class="s4"> </span>Proutine<span class="s4">({</span></p>
+<p class="p6"><span class="Apple-tab-span">	</span><span class="s1">var</span> delta;</p>
+<p class="p6"><span class="Apple-tab-span">	</span>notepat.estimateLength.do({ <span class="s1">|i|</span></p>
+<p class="p6"><span class="Apple-tab-span">	</span><span class="Apple-tab-span">	</span>[delta = 0.2 - ((i * 2pi/25).sin * 0.125), delta, 0.75-delta].yield;</p>
+<p class="p6"><span class="Apple-tab-span">	</span>});</p>
+<p class="p6">}) } =&gt; <span class="s1">MicRh</span>(<span class="s3">\sine</span>);</p>
+<p class="p7"><br></p>
+<p class="p5">// macrorhythms</p>
+<p class="p6"><span class="s1">Pn</span>(4, <span class="s1">inf</span>) =&gt; <span class="s1">MacRh</span>(<span class="s3">\m1</span>);<span class="Apple-tab-span">	</span><span class="s5">// 1 bar</span></p>
+<p class="p6"><span class="s1">Pn</span>(12, <span class="s1">inf</span>) =&gt; <span class="s1">MacRh</span>(<span class="s3">\m3</span>);<span class="Apple-tab-span">	</span><span class="s5">// 3 bars</span></p>
+<p class="p6"><span class="s1">Prand</span>([4, 6, 10, 15, 27], <span class="s1">inf</span>) =&gt; <span class="s1">MacRh</span>(<span class="s3">\prand</span>);<span class="Apple-tab-span">	</span><span class="s5">// varying pacing</span></p>
+<p class="p7"><br></p>
+<p class="p5">// make a simple instrument to play some notes, store it in a factory class</p>
+<p class="p5">// this is storage of the function only -- nothing gets run at this point</p>
+<p class="p6">(make: {</p>
+<p class="p6"><span class="Apple-tab-span">	</span>~target = <span class="s1">MixerChannel</span>(<span class="s2">"ghostly"</span>, s, 1, 2, level:0.1);</p>
+<p class="p5"><span class="s4"><span class="Apple-tab-span">	</span><span class="Apple-tab-span">	</span></span>// note: usually you will define your SynthDefs or Instrs elsewhere</p>
+<p class="p6"><span class="Apple-tab-span">	</span><span class="s1">SynthDef</span>(<span class="s2">"ghostly"</span>, { <span class="s1">arg</span> outbus, freq, gate, attacktime, decaytime, mul;</p>
+<p class="p6"><span class="Apple-tab-span">	</span><span class="Apple-tab-span">	</span><span class="s1">var</span> amp, sig;</p>
+<p class="p6"><span class="Apple-tab-span">	</span><span class="Apple-tab-span">	</span>amp = <span class="s1">Latch</span>.kr(gate, gate);</p>
+<p class="p6"><span class="Apple-tab-span">	</span><span class="Apple-tab-span">	</span>sig = <span class="s1">Mix</span>.ar(<span class="s1">Formlet</span>.ar(<span class="s1">PinkNoise</span>.ar(0.2), freq*2, attacktime, decaytime, mul))</p>
+<p class="p6"><span class="Apple-tab-span">	</span><span class="Apple-tab-span">	</span><span class="Apple-tab-span">	</span>* <span class="s1">EnvGen</span>.kr(<span class="s1">Env</span>.adsr(0.1, 0.5, 0.8, 0.1), gate, doneAction:2, levelScale:amp*2.5);</p>
+<p class="p6"><span class="Apple-tab-span">	</span><span class="Apple-tab-span">	</span><span class="s1">Out</span>.ar(outbus, sig)</p>
+<p class="p6"><span class="Apple-tab-span">	</span>}).send(s);</p>
+<p class="p6"><span class="Apple-tab-span">	</span><span class="s1">Voicer</span>(10, <span class="s3">\ghostly</span>, [<span class="s3">\attacktime</span>, 0.002, <span class="s3">\decaytime</span>, 0.9186, <span class="s3">\vsense</span>, 0.787, <span class="s3">\mul</span>, 0.535], target:~target).latency_(0.5)</p>
+<p class="p6">},</p>
+<p class="p6">free: {</p>
+<p class="p6"><span class="Apple-tab-span">	</span>~target.free</p>
+<p class="p6">}) =&gt; <span class="s1">Fact</span>(<span class="s3">\ghost</span>);</p>
+<p class="p7"><br></p>
+<p class="p6">(make: #{</p>
+<p class="p6"><span class="Apple-tab-span">	</span><span class="s1">var</span> amps, v;</p>
+<p class="p6"><span class="Apple-tab-span">	</span>amps = { <span class="s1">|i|</span> (i+1).reciprocal } ! 70;</p>
+<p class="p6"><span class="Apple-tab-span">	</span>8.do({ amps.put(20.rand, 1.0.rand) });</p>
+<p class="p6"><span class="Apple-tab-span">	</span>~buf = <span class="s1">Buffer</span>.alloc(s, 2048, 1).sine1(amps);</p>
+<p class="p6"><span class="Apple-tab-span">	</span>~target = <span class="s1">MixerChannel</span>(<span class="s2">"clav"</span>, s, 1, 2, level:0.1);</p>
+<p class="p6"><span class="Apple-tab-span">	</span><span class="s1">Instr</span>([<span class="s3">\osc</span>, <span class="s3">\choruspad</span>], { <span class="s1">arg</span> freq, gate, ffreq, rq, env, fenv, fenvsense,</p>
+<p class="p6"><span class="Apple-tab-span">	</span><span class="Apple-tab-span">	</span><span class="Apple-tab-span">	</span>detune, lfospeed, bufnum, velsense;</p>
+<p class="p6"><span class="Apple-tab-span">	</span><span class="Apple-tab-span">	</span><span class="s1">var</span> sig, fm1, fm2;</p>
+<p class="p6"><span class="Apple-tab-span">	</span><span class="Apple-tab-span">	</span>fm1 = <span class="s1">SinOsc</span>.kr(lfospeed, 0, detune, 1);<span class="Apple-tab-span">	</span><span class="s5">// slow sine wave centered around 1.0</span></p>
+<p class="p6"><span class="Apple-tab-span">	</span><span class="Apple-tab-span">	</span>fm2 = <span class="s1">SinOsc</span>.kr(lfospeed, pi/2, detune, 1);</p>
+<p class="p6"><span class="Apple-tab-span">	</span><span class="Apple-tab-span">	</span>ffreq = ffreq * ((<span class="s1">EnvGen</span>.kr(fenv, gate)-1) * fenvsense + 1);</p>
+<p class="p6"><span class="Apple-tab-span">	</span><span class="Apple-tab-span">	</span>sig = <span class="s1">Mix</span>.ar(<span class="s1">Osc</span>.ar(bufnum, [freq * fm1, freq / fm2], 0,</p>
+<p class="p6"><span class="Apple-tab-span">	</span><span class="Apple-tab-span">	</span><span class="Apple-tab-span">	</span><span class="s1">Latch</span>.kr(gate, gate)-1 * velsense + 1));</p>
+<p class="p6"><span class="Apple-tab-span">	</span><span class="Apple-tab-span">	</span>sig = <span class="s1">RLPF</span>.ar(sig, ffreq, rq) * <span class="s1">EnvGen</span>.kr(env, gate, doneAction:2);</p>
+<p class="p6"><span class="Apple-tab-span">	</span>}, #[<span class="s3">\freq</span>, <span class="s3">\amp</span>, <span class="s3">\freq</span>, <span class="s3">\myrq</span>, <span class="s1">nil</span>, <span class="s1">nil</span>, <span class="s1">nil</span>, [0, 0.1], [0, 5], <span class="s1">nil</span>, <span class="s1">nil</span>]);</p>
+<p class="p6"><span class="Apple-tab-span">	</span>v = <span class="s1">Voicer</span>(20, <span class="s1">Instr</span>.at([<span class="s3">\osc</span>, <span class="s3">\choruspad</span>]), [<span class="s3">\env</span>, <span class="s1">Env</span>.adsr(0.01, 0.3, 0.75, 0.1), <span class="s3">\fenv</span>, <span class="s1">Env</span>.adsr(0.01, 2, 0.1, 1), <span class="s3">\bufnum</span>, `(~buf.bufnum), <span class="s3">\detune</span>, `0.0055, <span class="s3">\velsense</span>, `0.6, <span class="s3">\lfospeed</span>, `0.866, <span class="s3">\fenvsense</span>, `1], target:~target).clock_(<span class="s1">TempoClock</span>.default);</p>
+<p class="p6"><span class="Apple-tab-span">	</span>v.mapGlobal(<span class="s3">\ffreq</span>, <span class="s1">nil</span>, 3912, <span class="s3">\freq</span>);</p>
+<p class="p6"><span class="Apple-tab-span">	</span>v.mapGlobal(<span class="s3">\rq</span>, <span class="s1">nil</span>, 1, <span class="s3">\myrq</span>);</p>
+<p class="p6"><span class="Apple-tab-span">	</span>v</p>
+<p class="p6">}, free: #{ ~target.free; ~buf.free; }) =&gt; <span class="s1">Fact</span>(<span class="s3">\clav</span>);</p>
+<p class="p6">)</p>
+<p class="p7"><br></p>
+<p class="p8"><b>2. Simple melody player</b></p>
+<p class="p2"><br></p>
+<p class="p3">Takes in a raw melodic stream in the form of a MIDIRecBuf and plays it back as is, no modification.</p>
+<p class="p2"><br></p>
+<p class="p3">The usual pattern in using these processes is:</p>
+<p class="p2"><br></p>
+<p class="p3">- create the voicer that will play the notes. Fact(\name) holds the voicer definition; =&gt; VC(\name) uses the definition to build the voicer. VC(\name) =&gt; VP(index) makes a voicer available in the GUI, if the VP is already set up. Fact(\name) =&gt; VC(\name) =&gt; VP(index) can be abbreviated to Fact(\name) =&gt; VP(index)</p>
+<p class="p2"><br></p>
+<p class="p3">You only need to create the voicer once. You can assign multiple processes to the same voicer (although the maximum number of notes the voicer can play applies to all processes simultaneously).</p>
+<p class="p2"><br></p>
+<p class="p3">- instantiate the process prototype into a bound process: PR(\name) =&gt; BP(\name).</p>
+<p class="p2"><br></p>
+<p class="p3">- assign the bound process to the voicer: BP(\name) =&gt; VC(\name) or BP(\name) =&gt; VP(index). These two steps can be done in one: PR(\name) =&gt; BP(\name) =&gt; VC(\name).</p>
+<p class="p2"><br></p>
+<p class="p3">- fill in the required MIDI data (and supporting patterns, if needed). Instead of chucking in preexisting data, you can also use an MRS object. This tells the process to create a MIDI recorder and treat each incoming MIDI event as part of the process's normal stream.</p>
+<p class="p2"><br></p>
+<p class="p3">- play.</p>
+<p class="p7"><br></p>
+<p class="p5">// instantiate the voicer in the factory</p>
+<p class="p6"><span class="s1">Fact</span>(<span class="s3">\ghost</span>) =&gt; <span class="s1">VC</span>(0);</p>
+<p class="p7"><br></p>
+<p class="p5">// instantiate the simple melody player process and assign it to the voicer just created</p>
+<p class="p6"><span class="s1">PR</span>(<span class="s3">\mel1</span>) =&gt; <span class="s1">BP</span>(<span class="s3">\mel1</span>) =&gt; <span class="s1">VC</span>(0);</p>
+<p class="p5"><span class="s1">MBM</span><span class="s4">(0)[1] =&gt; </span><span class="s1">BP</span><span class="s4">(</span><span class="s3">\mel1</span><span class="s4">);<span class="Apple-tab-span">	</span></span>// provide it with melodic MIDI data</p>
+<p class="p11"><br></p>
+<p class="p5">// .play and .stop are quantized, by default to the next beat that is a multiple of 4</p>
+<p class="p5">// you can set the quant for a single process by doing quant =&gt; BP(\name),</p>
+<p class="p5">// e.g. 16 =&gt; BP(\name), [16, -2] =&gt; BP(\name) or NilTimeSpec.new =&gt; BP(\name) for immediate start</p>
+<p class="p4"><br></p>
+<p class="p5">// the global default start quantization is set by quant =&gt; BP</p>
+<p class="p4"><br></p>
+<p class="p5">// you can override at play time using the quant argument:</p>
+<p class="p5">// BP(\name).play(3)</p>
+<p class="p6"><span class="s1">BP</span>(<span class="s3">\mel1</span>).play;</p>
+<p class="p7"><br></p>
+<p class="p5">// if you have a midi keyboard connected, do this, play notes on channel 0,</p>
+<p class="p5">// then click the "RECORD" status button to stop recording</p>
+<p class="p5">// DO NOT DO THIS IF YOU DON'T HAVE ANY MIDI GEAR</p>
+<p class="p6"><span class="s1">MRS</span>(<span class="s3">\newmel</span>) =&gt;.mel <span class="s1">BP</span>(<span class="s3">\mel1</span>);</p>
+<p class="p7"><br></p>
+<p class="p5"><span class="s1">MBM</span><span class="s4">(0)[0] =&gt;.mel </span><span class="s1">BP</span><span class="s4">(</span><span class="s3">\mel1</span><span class="s4">);<span class="Apple-tab-span">	</span></span>// switch back to original</p>
+<p class="p5"><span class="s1">MBM</span><span class="s4">(0).v.current =&gt;.mel </span><span class="s1">BP</span><span class="s4">(</span><span class="s3">\mel1</span><span class="s4">);<span class="Apple-tab-span">	</span></span>// switch back to what you played</p>
+<p class="p7"><br></p>
+<p class="p6"><span class="s1">BP</span>(<span class="s3">\mel1</span>).stop;</p>
+<p class="p6"><span class="s1">BP</span>(<span class="s3">\mel1</span>).free;</p>
+<p class="p7"><br></p>
+<p class="p8"><b>3. Adaptive melody player</b></p>
+<p class="p7"><br></p>
+<p class="p3">The adaptive melodic player behaves outwardly just like the simple one, until you pass in material to be used as an adaptation source. Internally it's very different: the incoming material gets converted from MIDI note numbers into a modal representation, split up into phrases and some rudimentary analysis is performed.<span class="Apple-converted-space"> </span></p>
+<p class="p2"><br></p>
+<p class="p3">In addition to an adaptation source, you also need to supply a pattern to dictate what kinds of adaptations the process will perform. Adaptation functions are stored in the class Func. The pattern should output a stream of symbols; each symbol will be used to index the Func collection. If you store this pattern into Pdefn with a name, you can simply provide the name: \adaptPat1 =&gt;.adapt BP(\mel2).<span class="Apple-converted-space"> </span></p>
+<p class="p2"><br></p>
+<p class="p3">You differentiate the main melodic material from the adaptation source using an adverb applied to the chuck operator: =&gt;.mel vs. =&gt;.adapt</p>
+<p class="p7"><br></p>
+<p class="p5">// this uses the setup materials materials from the first code block</p>
+<p class="p7"><br></p>
+<p class="p10"><span class="s1">Fact</span><span class="s4">(</span>\clav<span class="s4">) =&gt; </span><span class="s1">VC</span><span class="s4">(</span>\clav<span class="s4">);</span></p>
+<p class="p10"><span class="s1">PR</span><span class="s4">(</span>\aiMel<span class="s4">) =&gt; </span><span class="s1">BP</span><span class="s4">(</span>\mel2<span class="s4">) =&gt; </span><span class="s1">VC</span><span class="s4">(</span>\clav<span class="s4">);</span></p>
+<p class="p6"><span class="s1">MBM</span>(0)[1].chuck(<span class="s1">BP</span>(<span class="s3">\mel2</span>), \mel, (splitFunc: \noSplit));</p>
+<p class="p6"><span class="s1">MBM</span>(0)[1] =&gt;.mel <span class="s1">BP</span>(<span class="s3">\mel2</span>);</p>
+<p class="p6"><span class="s1">BP</span>(<span class="s3">\mel2</span>).v.event.put(\debug, true);</p>
+<p class="p6"><span class="s1">BP</span>(<span class="s3">\mel2</span>).play(doReset:true);</p>
+<p class="p6"><span class="s1">BP</span>(<span class="s3">\mel2</span>).isPlaying</p>
+<p class="p7"><br></p>
+<p class="p6"><span class="s1">BP</span>(<span class="s3">\mel2</span>).prepareForPlay;</p>
+<p class="p7"><br></p>
+<p class="p5">// start adaptation -- crossbreed melody with itself</p>
+<p class="p5">// first say which adaptation functions to use</p>
+<p class="p6"><span class="s1">Pwrand</span>(#[<span class="s3">\intSplice</span>, <span class="s3">\delete</span>], #[0.6, 0.4], <span class="s1">inf</span>) =&gt;.adapt <span class="s1">BP</span>(<span class="s3">\mel2</span>);</p>
+<p class="p5">// the melody you use here can be different</p>
+<p class="p6"><span class="s1">MBM</span>(0)[1] =&gt;.adapt <span class="s1">BP</span>(<span class="s3">\mel2</span>);</p>
+<p class="p7"><br></p>
+<p class="p6"><span class="s1">BP</span>(<span class="s3">\mel2</span>).stop;</p>
+<p class="p7"><br></p>
+<p class="p5">// shorter form with Pdefn -- define the Pdefn in your setup code</p>
+<p class="p5">// I'm putting it here for illustration's sake</p>
+<p class="p6"><span class="s1">Pdefn</span>(<span class="s3">\adp</span>, <span class="s1">Pwrand</span>(#[<span class="s3">\intSplice</span>, <span class="s3">\delete</span>], #[0.6, 0.4], <span class="s1">inf</span>));</p>
+<p class="p6"><span class="s3">\adp</span> =&gt;.adapt <span class="s1">BP</span>(<span class="s3">\mel2</span>);</p>
+<p class="p6"><span class="s1">MBM</span>(0)[1] =&gt;.adapt <span class="s1">BP</span>(<span class="s3">\mel2</span>);</p>
+<p class="p7"><br></p>
+<p class="p6"><span class="s1">BP</span>(<span class="s3">\mel2</span>).free;</p>
+<p class="p9">Exception<span class="s4">.debug = </span>true<span class="s4">;</span></p>
+<p class="p11"><br></p>
+<p class="p6"><span class="s1">BP</span>(<span class="s3">\mel2</span>).v.eventStreamPlayer.insp</p>
+<p class="p6"><span class="s1">BP</span>(<span class="s3">\mel2</span>).isPlaying</p>
+<p class="p6"><span class="s1">BP</span>(<span class="s3">\mel2</span>).v.mel</p>
+<p class="p6"><span class="s1">BP</span>(<span class="s3">\mel2</span>).v.insp</p>
+<p class="p10"><span class="s1">PR</span><span class="s4">(</span>\aiMel<span class="s4">).v[</span>\melPrepareSequence<span class="s4">].def.dumpByteCodes</span></p>
+<p class="p6"><span class="s1">BP</span>(<span class="s3">\mel2</span>).v[<span class="s3">\melPrepareSequence</span>].def.dumpByteCodes</p>
+<p class="p7"><br></p>
+<p class="p8"><b>4. Chordal process -- chord follows top-note melody</b></p>
+<p class="p2"><br></p>
+<p class="p3">Chordal processes are, as you might expect, quite a bit more complicated. I use a nested process structure: the outer process is responsible for determining the pacing between chords and how each chord will be played, and the inner process results the input data into a stream of real notes.<span class="Apple-converted-space"> </span></p>
+<p class="p2"><br></p>
+<p class="p3">Parameters are:<span class="Apple-converted-space"> </span></p>
+<p class="p3">- chord form MIDI data. Block or arpeggiated chords in a MIDI buffer. These are abstracted and algorithmically fit to the harmonic context at playback time.</p>
+<p class="p3">- melodic MIDI data. Melodic notes determine the highest note in each chord.</p>
+<p class="p3">- macrorhythm. Sets the pacing for each chord: the delta until the next chord, and the length of time this chord should play. Specify as a pattern outputting an array: [delta, length]. <b>This pattern is optional (and will be ignored) if using the \chTop outer process.</b></p>
+<p class="p3">- microrhythm. The rhythm of the arpeggiation playing the chord. Specify as a pattern outputting an array: [note delta, note length, gate (velocity)].</p>
+<p class="p3">- arpeggiation types. A pattern returning symbols, specifying ArpegPats and that will convert the input array of raw notes into a pattern. Notes may be reordered, octave transposed, anything you want in the function defining the ArpegPat.</p>
+<p class="p3">- adaptation types. Passed into the top note melodic process if the melody is to adapt.<span class="Apple-converted-space"> </span></p>
+<p class="p2"><br></p>
+<p class="p3">The inner process will usually be <span class="s3">\arpeg1</span>.</p>
+<p class="p2"><br></p>
+<p class="p3">Two chordal (outer) processes are currently defined:</p>
+<p class="p3">- macroRh: uses a macrorhythm patterns to determine pacing;</p>
+<p class="p3">- chTop: derives its pacing from the top note melody itself.<span class="Apple-converted-space"> </span></p>
+<p class="p2"><br></p>
+<p class="p3">The large number of parameters makes it unfeasible to type each one as a chuck operation, so a couple of initialization functions are provided in Func:</p>
+<p class="p3">- newCh: instantiate a new process, erasing what was in the BP before;</p>
+<p class="p3">- makeCh: instantiate a new process, wrapping what was in the BP before.<span class="Apple-converted-space"> </span></p>
+<p class="p2"><br></p>
+<p class="p3">To call the function, use the form:</p>
+<p class="p6"><span class="s1">Func</span>(<span class="s3">\makeCh</span>).doAction(name of new BP, inner process prototype, outer process prototype, chord MIDIBuf, melodic MIDIBuf, macrorhythm, microrhythm, arpeggiation types, adaptation types);</p>
+<p class="p2"><br></p>
+<p class="p3">This example uses chTop along with parameters designed to play each chord as a block to harmonize the eccentric melody from earlier examples.<span class="Apple-converted-space"> </span></p>
+<p class="p2"><br></p>
+<p class="p7"><br></p>
+<p class="p5">// THIRD EXAMPLE: use the above melody as the top note of a chord progression</p>
+<p class="p5"><span class="s1">Fact</span><span class="s4">(</span><span class="s3">\clav</span><span class="s4">) =&gt; </span><span class="s1">VC</span><span class="s4">(</span><span class="s3">\clav</span><span class="s4">);<span class="Apple-tab-span">	</span></span>// not necessary if you ran example 2 first (if VC already exists)</p>
+<p class="p7"><br></p>
+<p class="p5">// chord progressions have a lot of parameters</p>
+<p class="p5">// so this is a single function call that sets all of them</p>
+<p class="p5">// note that this does not set the melodic adaptation source</p>
+<p class="p6"><span class="s1">Func</span>(<span class="s3">\newCh</span>).doAction(<span class="s3">\ch1</span>, <span class="s3">\arpeg1</span>, <span class="s3">\chTop</span>, <span class="s1">MBM</span>(0)[0], <span class="s1">MBM</span>(0)[1], <span class="s1">nil</span>, <span class="s1">Pn</span>(<span class="s3">\blockFollow</span>, <span class="s1">inf</span>), <span class="s1">Pn</span>(<span class="s3">\block</span>, <span class="s1">inf</span>), <span class="s1">Pwrand</span>(#[<span class="s3">\intSplice</span>, <span class="s3">\delete</span>], #[0.6, 0.4], <span class="s1">inf</span>)) =&gt; <span class="s1">VC</span>(<span class="s3">\clav</span>);</p>
+<p class="p7"><br></p>
+<p class="p6"><span class="s1">BP</span>(<span class="s3">\ch1</span>).play;</p>
+<p class="p4"><br></p>
+<p class="p5">// start adaptation</p>
+<p class="p6"><span class="s1">MBM</span>(0)[1] =&gt;.adapt <span class="s1">BP</span>(<span class="s3">\ch1</span>);</p>
+<p class="p7"><br></p>
+<p class="p6"><span class="s1">BP</span>(<span class="s3">\ch1</span>).stop;</p>
+<p class="p7"><br></p>
+<p class="p6"><span class="s1">BP</span>(<span class="s3">\ch1</span>).free;</p>
+<p class="p7"><br></p>
+<p class="p5">// you can shorten some of the function call above by storing symbol patterns in Pdefns</p>
+<p class="p5">// create the Pdefns in your setup file</p>
+<p class="p10"><span class="s1">Pdefn</span><span class="s4">(</span>\basicAdapt<span class="s4">, </span><span class="s1">Pwrand</span><span class="s4">(#[</span>\intSplice<span class="s4">, </span>\delete<span class="s4">], #[0.6, 0.4], </span><span class="s1">inf</span><span class="s4">));</span></p>
+<p class="p4"><br></p>
+<p class="p5">// if the pattern is simply Pn(\symbol, inf), you don't have to define the Pdefn</p>
+<p class="p5">// the symbol will be automatically converted to a pattern internally</p>
+<p class="p5">// these 2 are shown for illustration, but you don't have to run them for the Func to work!</p>
+<p class="p5">//Pdefn(\blockFollow, Pn(\blockFollow, inf));</p>
+<p class="p5">//Pdefn(\block, Pn(\block, inf));</p>
+<p class="p7"><br></p>
+<p class="p10"><span class="s1">Func</span><span class="s4">(</span>\newCh<span class="s4">).doAction(</span>\ch1<span class="s4">, </span>\arpeg1<span class="s4">, </span>\chTop<span class="s4">, </span><span class="s1">MBM</span><span class="s4">(0)[0], </span><span class="s1">MBM</span><span class="s4">(0)[1], </span><span class="s1">nil</span><span class="s4">, </span>\blockFollow<span class="s4">, </span>\block<span class="s4">, </span>\basicAdapt<span class="s4">) =&gt; </span><span class="s1">VC</span><span class="s4">(</span>\clav<span class="s4">);</span></p>
+<p class="p7"><br></p>
+<p class="p7"><br></p>
+<p class="p8"><b>5. Chordal process -- arpeggiation with macrorhythm</b></p>
+<p class="p2"><br></p>
+<p class="p3">// helvetica</p>
+<p class="p6">//monaco</p>
+<p class="p7"><br></p>
+<p class="p5"><span class="s1">Fact</span><span class="s4">(</span><span class="s3">\clav</span><span class="s4">) =&gt; </span><span class="s1">VC</span><span class="s4">(</span><span class="s3">\clav</span><span class="s4">);<span class="Apple-tab-span">	</span></span>// not necessary if you already did this</p>
+<p class="p7"><br></p>
+<p class="p10"><span class="s1">Func</span><span class="s4">(</span>\newCh<span class="s4">).doAction(</span>\ch2<span class="s4">, </span>\arpeg1<span class="s4">, </span>\macroRh<span class="s4">, </span><span class="s1">MBM</span><span class="s4">(0)[0], </span><span class="s1">MBM</span><span class="s4">(0)[1], </span><span class="s1">MacRh</span><span class="s4">(</span>\m1<span class="s4">), </span>'16th'<span class="s4">, </span>\bubbleup<span class="s4">, </span>\basicAdapt<span class="s4">) =&gt; </span><span class="s1">VC</span><span class="s4">(</span>\clav<span class="s4">);</span></p>
+<p class="p7"><br></p>
+<p class="p6"><span class="s1">BP</span>(<span class="s3">\ch2</span>).play;</p>
+<p class="p7"><br></p>
+<p class="p5">// execute the following one statement at a time to observe the changes in behavior</p>
+<p class="p5">// note that changes you make now don't take effect until the next chord (outer process event)</p>
+<p class="p12"><br></p>
+<p class="p5"><span class="s3">\sine</span><span class="s4"> =&gt;.micro </span><span class="s1">BP</span><span class="s4">(</span><span class="s3">\ch2</span><span class="s4">);<span class="Apple-tab-span">	</span><span class="Apple-tab-span">	</span></span>// change microrhythm to sine pattern</p>
+<p class="p5"><span class="s3">\bubbleup</span><span class="s4"> =&gt;.arpeg </span><span class="s1">BP</span><span class="s4">(</span><span class="s3">\ch2</span><span class="s4">);<span class="Apple-tab-span">	</span></span>// switch to an infinitely running arpeggiation pattern</p>
+<p class="p5"><span class="s4"><span class="Apple-tab-span">	</span><span class="Apple-tab-span">	</span><span class="Apple-tab-span">	</span><span class="Apple-tab-span">	</span><span class="Apple-tab-span">	</span><span class="Apple-tab-span">	</span><span class="Apple-tab-span">	</span></span>// so each chord runs until the next starts</p>
+<p class="p5"><span class="s3">\bubbleup1</span><span class="s4"> =&gt;.arpeg </span><span class="s1">BP</span><span class="s4">(</span><span class="s3">\ch2</span><span class="s4">);<span class="Apple-tab-span">	</span></span>// switch to a finitely running arpeggiation pattern</p>
+<p class="p5"><span class="s4"><span class="Apple-tab-span">	</span><span class="Apple-tab-span">	</span><span class="Apple-tab-span">	</span><span class="Apple-tab-span">	</span><span class="Apple-tab-span">	</span><span class="Apple-tab-span">	</span><span class="Apple-tab-span">	</span></span>// (1 iteration of bubbleup) -- note pause between chords</p>
+<p class="p6"><span class="s1">MacRh</span>(<span class="s3">\prand</span>) =&gt;.macro <span class="s1">BP</span>(<span class="s3">\ch2</span>);<span class="Apple-tab-span">	</span><span class="s5">// change pacing</span></p>
+<p class="p12"><br></p>
+<p class="p5"><span class="s3">'16th'</span><span class="s4"> =&gt;.micro </span><span class="s1">BP</span><span class="s4">(</span><span class="s3">\ch2</span><span class="s4">);<span class="Apple-tab-span">	</span><span class="Apple-tab-span">	</span></span>// arpeggiate in 16th notes</p>
+<p class="p6"><span class="s3">\bubbleup</span> =&gt;.arpeg <span class="s1">BP</span>(<span class="s3">\ch2</span>);</p>
+<p class="p6"><span class="s3">\up</span> =&gt;.arpeg <span class="s1">BP</span>(<span class="s3">\ch2</span>);</p>
+<p class="p6"><span class="s1">MacRh</span>(<span class="s3">\m1</span>) =&gt;.macro <span class="s1">BP</span>(<span class="s3">\ch2</span>);</p>
+<p class="p7"><br></p>
+<p class="p5">// each chord chooses a new way to render itself</p>
+<p class="p10"><span class="s1">Prand</span><span class="s4">([</span>\bubbleup<span class="s4">, </span>\bubbledown<span class="s4">, </span>\up, \xrand<span class="s4">], </span><span class="s1">inf</span><span class="s4">) =&gt;.arpeg </span><span class="s1">BP</span><span class="s4">(</span>\ch2<span class="s4">);</span></p>
+<p class="p6"><span class="s1">Prand</span>([<span class="s3">'16th'</span>, <span class="s3">\sine</span>], <span class="s1">inf</span>) =&gt;.micro <span class="s1">BP</span>(<span class="s3">\ch2</span>);</p>
+<p class="p7"><br></p>
+<p class="p6"><span class="s1">BP</span>(<span class="s3">\ch2</span>).stop;</p>
+<p class="p7"><br></p>
+<p class="p5"><span class="s1">VC</span><span class="s4">(</span><span class="s3">\clav</span><span class="s4">).free;<span class="Apple-tab-span">	</span></span>// drop the voicer's resources</p>
+<p class="p6"><span class="s1">BP</span>(<span class="s3">\ch2</span>).free;</p>
+<p class="p7"><br></p>
+<p class="p3">By now it should be clear how flexible chord processes can be in performance. Simple commands cause dramatic changes in sound and texture.</p>
+<p class="p2"><br></p>
+<p class="p3">The composition process is also more fluid and experimental. You can develop process components (macrorhythms, microrhythms, arpeggiation patterns, adaptation functions) on the fly and swap them in and out while playing, so you can hear the results immediately. Composition becomes more about playing with the material than about writing one-off patterns suited for a single purpose only. It's a step closer to the ideal of SuperCollider as an environment in which to play freely.</p>
+<p class="p2"><br></p>
+<p class="p8"><b>6. Using regular SynthDefs instead of Voicers</b></p>
+<p class="p2"><br></p>
+<p class="p3">You may choose to use SynthDefs instead of Voicers. This is not recommended because you gain additional functionality using Voicer:</p>
+<p class="p2"><br></p>
+<p class="p3">- drag 'n' drop gui capability: voicers can be assigned to a VoicerProxy that has been gui'ed, either by dragging it into the gui or by chucking. SynthDefs can't.</p>
+<p class="p3">- Voicers cap the number of notes that can sound at once, reducing the risk of CPU overloads.</p>
+<p class="p3">- Voicer aids in the creation of global controls for SynthDef arguments, and handles the mapping of nodes to the respective control buses automatically.</p>
+<p class="p3">- Voicer allows live MIDI input directly into the process. SynthDef can't because it doesn't have a mechanism to retain references to synth nodes while notes are sustaining.</p>
+<p class="p2"><br></p>
+<p class="p3">However, if you must use regular synthdefs, here is example 4 (chords harmonizing melody) using the default SynthDef:</p>
+<p class="p2"><br></p>
+<p class="p5">// you must load the synth descriptors</p>
+<p class="p6"><span class="s1">SynthDescLib</span>.global.read;</p>
+<p class="p7"><br></p>
+<p class="p5">// Factories are used here too -- you should populate at least ~target</p>
+<p class="p5">// if ~target is not a MixerChannel, you should also supply ~out as an output bus number</p>
+<p class="p5">// the make function should return the name of the synthdef</p>
+<p class="p6">(make: {</p>
+<p class="p6"><span class="Apple-tab-span">	</span>~target = <span class="s1">MixerChannel</span>(<span class="s3">\synthTest</span>, s, 2, 2);</p>
+<p class="p10"><span class="s4"><span class="Apple-tab-span">	</span></span>\default</p>
+<p class="p6">}, free: { ~target.free }) =&gt; <span class="s1">Fact</span>(<span class="s3">\defaultSynth</span>);</p>
+<p class="p7"><br></p>
+<p class="p5">// instantiate by chucking into SY (not VC)</p>
+<p class="p10"><span class="s1">Fact</span><span class="s4">(</span>\defaultSynth<span class="s4">) =&gt; </span><span class="s1">SY</span><span class="s4">(</span>\default<span class="s4">);</span></p>
+<p class="p7"><br></p>
+<p class="p5">// arpegSynth is an arpeggiator that uses the \synthNote event instead of \voicerNote</p>
+<p class="p5">// also we chuck into SY not VC</p>
+<p class="p5">// these are the only changes from ex. 4</p>
+<p class="p6"><span class="s1">Func</span>(<span class="s3">\newCh</span>).doAction(<span class="s3">\ch1</span>, <span class="s3">\arpegSynth</span>, <span class="s3">\chTop</span>, <span class="s1">MBM</span>(0)[0], <span class="s1">MBM</span>(0)[1], <span class="s1">nil</span>, <span class="s1">Pn</span>(<span class="s3">\blockFollow</span>, <span class="s1">inf</span>), <span class="s1">Pn</span>(<span class="s3">\block</span>, <span class="s1">inf</span>), <span class="s1">Pwrand</span>(#[<span class="s3">\intSplice</span>, <span class="s3">\delete</span>], #[0.6, 0.4], <span class="s1">inf</span>)) =&gt; <span class="s1">SY</span>(<span class="s3">\default</span>);</p>
+<p class="p7"><br></p>
+<p class="p6"><span class="s1">BP</span>(<span class="s3">\ch1</span>).play;</p>
+<p class="p6"><span class="s1">BP</span>(<span class="s3">\ch1</span>).stop;</p>
+<p class="p7"><br></p>
+<p class="p6"><span class="s1">SY</span>(<span class="s3">\default</span>).free;</p>
+<p class="p2"><br></p>
+<p class="p3">Because of the modular structure, retrofitting the existing classes to use this alternate event prototype was fairly easy. It took longer to get the synthNote event to work than it did to integrate it into the class interface! Thus, if \voicerNote and \synthNote don't meet your needs, you can roll your own event without too much trouble.</p>
+<p class="p2"><br></p>
+<p class="p3">For the record, to integrate the new event I had to:</p>
+<p class="p2"><br></p>
+<p class="p3">- create new process prototypes from existing ones (\arpegSynth, above), only overriding the ~event variable</p>
+<p class="p3">- create the SY class to hold info about a synthdef and its target. This class inherits from VC and needs only to override bindBP.</p>
+</body>
+</html>

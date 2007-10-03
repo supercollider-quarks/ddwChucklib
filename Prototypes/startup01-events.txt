@@ -1,0 +1,862 @@
+
+// check SynthDescLib behavior for polySynthPlayer
+
+// polysynthplayer / trigger support for array args
+
+// voicer note must either have delta, length, gate specified or a single note as input - trying to get parms from array notes breaks
+
+/****** updateBuffer definitions to fix
+
+./MPCF-Anniversary-2006/mpcf8-init.rtf: ~updateBuffer = \{ \cf4 |self, buffer, node|\cf2 \
+./MPCF-Anniversary-2006/tests1.rtf:     ~updateBuffer = \{ \cf3 |self, buffer, node|\cf2 \
+./MPCF-Anniversary-2006/xmas-version-init.rtf:  ~updateBuffer = \{ \cf4 |self, buffer, node|\cf2 \
+./tech1/granulators.rtf:                \cf3 BP\cf0 (~collIndex).v.updateBuffer(~buffer, node);\
+./tech1/granulators.rtf:        ~updateBuffer = \{ \cf3 |self, buffer, node|\cf0 \
+./tech1/leadmangler.rtf:                \cf4 BP\cf3 (~collIndex).v.updateBuffer(~buffer, node);\
+./tech1/leadmangler.rtf:        ~updateBuffer = \{ \cf4 |self, buffer, node|\cf3 \
+
+******/
+
+
+// add repetition-factor metric to adaptSeg
+
+// note for doc: asNotePattern is needed because sometimes I want streams that return SequenceNotes,
+// not events
+
+// process prototypes
+
+// start with the abstract
+
+AdhocClass({
+	// environment variables supplied by "subclasses"
+	// ~event, ~prep, ~stopCleanup, ~freeCleanup, ~preparePlay
+
+	~event = (eventKey: \default);
+
+	~bindPatDefault = \a;	// aPattern, aStream -- clones should override
+
+		// mainly used for adaptPattern, but other uses are conceivable
+	~bindPattern = #{ |self, pat, adverb|
+		adverb = adverb ? ~bindPatDefault;
+//		self.put(adverb ++ "Pattern").asSymbol, pat = pat.asPattern);
+		self.put(adverb.asSymbol, pat = pat.asPattern);
+		self.put((adverb ++ "Stream").asSymbol, pat.asStream);
+		self
+	};
+
+	~bindSymbol = #{ |self, sym, adverb|
+		var	pat;
+		((pat = Pdefn(sym)).pattern != Pdefn.default).if({
+				// asPattern gets called in ~bindPattern
+			~bindPattern.value(self, pat, adverb)
+		}, {
+			~bindPattern.value(self, sym, adverb)
+		});
+		self
+	};
+	
+		// special case for Synth Args
+	~bindSA = #{ |self, sa, adverb|
+		~argsStream = sa.asPattern.asStream;
+		~argKeys = sa.argKeys;
+		self
+	};
+
+		// these next two are deprecated -- BPStream(key) is a better solution
+		// retained for backward compatibility
+
+	~makeStreamForKey = #{ |self, key, streamKey|
+			// output, and stream gets replaced so that playing stream picks it up:
+		(streamKey = streamKey ?? { key ++ "Stream" }).asSymbol.envirPut(key.envirGet.asStream)
+	};
+
+	~makeProut = #{ |self, key, reset|
+		var	streamKey;
+			// create stream if it doesn't exist
+		streamKey = (key ++ "Stream").asSymbol;
+		(streamKey.envirGet.isNil or: { reset ? true }).if({
+			~makeStreamForKey.value(self, key, streamKey);
+		});
+
+		Prt({ |inEvent|
+			self.use({
+				{ inEvent = streamKey.envirGet.next(inEvent).yield }.loop
+			});
+		});
+	};
+	
+		// temporary override of a pattern used with BPStream
+		// ref means, if the pattern returns a symbol, look up the target stream
+		// revertAction is run when control returns to the main stream
+	~override = { |self, key, pat, ref = true, revertAction|
+		var	streamkey = (key ++ "Stream").asSymbol,
+			savekey = ("save" ++ streamkey).asSymbol,
+			overkey = ("override" ++ streamkey).asSymbol,
+			overstream;
+
+		savekey.envirGet.isNil.if({
+			savekey.envirPut(streamkey.envirGet);
+		});
+		
+		overkey.envirPut(pat.asStream);
+
+			// need a variant on cleanupstream that will seamlessly hand control back
+			// to the original stream; cleanupstream returns nil and stops the parent stream
+		overstream = Routine({ |inval|
+			var	nextval;
+			self.use({
+				while { (nextval = overkey.envirGet.next(inval)).notNil }
+					{	ref.if({
+							(nextval.isSymbol and: { nextval.envirGet.notNil }).if({
+								inval = nextval.envirGet.next(inval).yield;
+							}, { inval = nextval.yield; });
+						}, {
+							inval = nextval.yield;
+						});
+					};
+						// end of the line; restore the original stream
+						// and return 1 valid value so that the main pattern doesn't die
+						// after substitution, this routine will not get called again
+				streamkey.envirPut(savekey.envirGet);
+				savekey.envirPut(nil);
+				overkey.envirPut(nil);
+				revertAction.value(self);
+				streamkey.envirGet.next(inval).yield;
+			});
+		});
+		
+		streamkey.envirPut(overstream);
+
+		self
+	};
+
+	~midiParse = true;		// flag whether to group notes together or use the midi buf as is
+						// parsing is better for adaptive sequencing objects
+
+	~canWrap = false;
+	
+	~isPlaying = false;
+	~isWaiting = false;
+	~isDriven = false;
+
+}) => PR(\abstractProcess);
+
+
+// one shot PR - sets a base barline in the global library
+
+AdhocClass({
+	~barLength = 4;
+	~path = #[baseBeat];	// may override
+		// run this action when resuming rhythmic patterns
+	~doAction = { |self, path|
+		Library.global.putAtPath(path ? ~path, thisThread.clock.beats.roundUp(~barLength));
+//		thisThread.clock.setMeterAtBeat(newBeatsPerBar, beats);
+	};
+	~freeCleanup = { |self|
+		Library.global.removeAtPath(~path)
+	};
+}) => PR(\setBase);
+
+
+// basic events first
+
+(play:0) => ProtoEvent(\dummy);
+
+Event.default => ProtoEvent(\default);
+
+(grain: false,
+setTarget: {
+	~chan.notNil.if({
+		~target = (~isFx ? false).if({ ~chan.effectgroup },
+			{ ~chan.synthgroup });
+		~server = ~target.server;
+		~bus = ~chan.inbus;
+		~busindex = ~bus.index;
+	}, {
+		~target.isNil.if({
+			~target = Server.default.asTarget;
+		});
+		~server = ~target.server;
+		~bus.notNil.if({
+			~bus = ~bus.asBus;
+			~busindex = ~bus.index;
+		}, {
+			~busindex = 0;
+		});
+	});
+},
+setArgs: {
+	var	args, soloargs, polyargs, lib, desc;
+	((lib = SynthDescLib.all[~lib ? \global]).notNil
+			and: { (desc = lib[~instrument.asSymbol]).notNil }).if({
+		args = desc.msgFunc.valueEnvir;	// not .flopping because this is SINGLE synth player
+	}, {
+		args = Array.new(currentEnvironment.size*2);
+		currentEnvironment.keysValuesDo({ |key, value|
+			value.isValidSynthArg.if({ args.add(key).add(value) });
+		});
+	});
+		// support for array arguments with control
+		// split single-number arguments away from arrays
+	soloargs = Array(args.size);
+	polyargs = Array(args.size);
+	args.pairsDo({ |key, value|
+		(value.size > 0).if({
+			polyargs.add(key).add(value)
+		}, {
+			soloargs.add(key).add(value)
+		});
+	});
+	~args = soloargs;
+	~polyargs = polyargs;
+},
+makeNode: {
+	var	args, nodeID, server, sustain,
+		tempo = ~clock.tryPerform(\tempo) ? 1.0,
+		latency = ~latency !? { ~latency / tempo }, bundle;
+	((~instrument != \rest) and: { ~freq != \rest }).if({
+		~setTarget.value;
+		~busindex.notNil.if({
+			server = ~server;	// for ~trace == true
+			~setArgs.value;
+(~debug == true).if({ thisThread.clock.beats.debug("\nnow"); ~args.debug("singleSynthPlayer"); });
+			~grain = ~grain ? false;
+			nodeID = ~grain.if({ -1 }, { ~server.nextNodeID });
+			~node = Synth.basicNew(~instrument, ~server, nodeID);
+			bundle = [~node.newMsg(~target, ~args ++ [\outbus, ~busindex, \out, ~busindex,
+				\i_out, ~busindex], \addToTail)];
+			(~polyargs.size > 0).if({
+				bundle = bundle.add(~node.setnMsg(*~polyargs));
+			});
+			~server.listSendBundle(latency, bundle);
+(~trace == true).if({
+	thisThread.clock.sched(0.05 + latency, { server.sendMsg(\n_trace, nodeID); nil });
+});
+				// currently user's responsibility to set hasGate true
+				// eventually I will use SynthDescLib
+			(~grain.not and: { ~hasGate ? false and: { (sustain = ~sustain.value).notNil } }).if({
+				thisThread.clock.sched(sustain, {
+					server.sendBundle(latency, [\n_set, nodeID, \gate, 0])
+				});
+			});
+		});
+	});
+},
+play: {
+	~makeNode.value;
+	(~collIndex.notNil and: { ~grain.not }).if({
+		~notifyDependents.value;
+	});
+}) => ProtoEvent(\singleSynthPlayer);
+
+ProtoEvent(\singleSynthPlayer).v.copy.putAll((
+	notifyDependents: {
+		BP(~collIndex).v.recvEventNotify(~node);
+	}
+)) => ProtoEvent(\singleSynthPlayNotify);
+
+	// backward compatibility
+ProtoEvent(\singleSynthPlayNotify).v.copy => ProtoEvent(\bufStatusUpdate);
+
+//(play: { var args, nodeID, node;
+//	((~instrument != \rest) and: { ~freq != \rest }).if({
+//		args = Array.new(currentEnvironment.size*2);
+//		currentEnvironment.keysValuesDo({ |key, value|
+//			value.isValidSynthArg.if({ args.add(key).add(value) });
+//		});
+//(~debug == true).if({ thisThread.clock.beats.debug("\nnow"); args.debug("singleSynthPlayer"); });
+//		nodeID = (~grain ? false).if({ -1 }, { ~chan.server.nextNodeID });
+//		node = Synth.basicNew(~instrument, ~chan.server, nodeID);
+//		~chan.server.sendBundle(~latency !? { ~latency / ~clock.tempo }, 
+//			node.newMsg((~isFx ? false).if({ ~chan.effectgroup }, { ~chan.synthgroup }), 
+//				[\outbus, ~chan.inbus.index, \out, ~chan.inbus.index, \i_out, ~chan.inbus.index]
+//					++ args, \addToTail)
+//		);
+//		
+//(~trace == true).if({
+//	thisThread.clock.sched(0.05 + (~latency !? { ~latency / ~clock.tempo }), { s.sendMsg(\n_trace, nodeID); nil });
+//});
+//	})
+//}) => ProtoEvent(\bufStatusUpdate);
+
+ProtoEvent(\singleSynthPlayer).v.copy.putAll((play: {
+	var args, nodeID, msg, bundle, tempo = ~clock.tryPerform(\tempo) ? 1.0;
+		// the full condition is needed for Ppar which uses ~freq == \rest
+	(~node != \rest and: { ~instrument != \rest and: { ~freq != \rest } }).if({
+		~setArgs.value;
+		msg = [~node.setMsg(*~args)];
+		(~polyargs.size > 0).if({
+			msg = msg ++ ~node.setnMsg(*~polyargs)
+		});
+		~node.server.listSendBundle(~latency !? { ~latency / tempo }, msg);
+		(~debug ? false).if({
+			msg.postln 
+		});
+	})
+})) => ProtoEvent(\singleSynthTrigger);
+
+ProtoEvent(\singleSynthPlayer).v.copy.putAll((
+setArgs: {
+	var	args, lib, desc;
+	((lib = SynthDescLib.all[~lib ? \global]).notNil
+			and: { (desc = lib[~instrument.asSymbol]).notNil }).if({
+		~args = desc.msgFunc.valueEnvir.clump(2);
+	}, {
+		args = Array.new(currentEnvironment.size);
+			// note that this is a clumped array --
+			// that's necessary for flopping (multichannel expanding) the args out in makeNode
+		currentEnvironment.keysValuesDo({ |key, value|
+			value.isValidVoicerArg.if({ args.add([key, value]) });
+		});
+		~args = args;
+	});
+},
+play: { var args, nodeID;
+	(~node != \rest and: { ~instrument != \rest and: { ~freq != \rest } }).if({
+		~setArgs.value;
+		~args = ~args.collect(_.flop).flop.collect(_.flat);
+		~node.do({ |node, i|
+//[node, ~args.wrapAt(i)].debug("arg set");
+			node.server.sendBundle(~latency !? { ~latency / ~clock.tempo }, 
+				node.setMsg(*~args.wrapAt(i)));
+		});
+	})
+})) => ProtoEvent(\polySynthTrigger);
+
+
+// Seems to work but might need some more testing
+// currently does not support multiple output buses
+
+ProtoEvent(\singleSynthPlayer).v.copy.putAll((
+	setTarget: {
+		~chan.notNil.if({
+			~chan = ~chan.asArray;
+			~target = ~chan.collect({ |chan|
+				(~isFx ? false).if({ chan.effectgroup },
+					{ chan.synthgroup });
+			});
+			~server = ~target.collect(_.server);
+			~bus = ~chan.collect(_.inbus);
+		}, {
+			~target.isNil.if({
+				~target = Server.default.asTarget;
+			});
+			~target = ~target.asArray;
+			~server = ~target.collect(_.server);
+			~bus.notNil.if({
+				~bus = ~bus.asArray.collect(_.asBus);
+			});
+		});
+	},
+	checkbuses: {
+		block { |break|
+			~bus.do({ |bus|
+				bus.tryPerform(\index).isNumber.not.if({ break.(false) });
+			});
+			true
+		}
+	},
+	setArgs: {
+		var	args, lib, desc;
+		((lib = SynthDescLib.all[~lib ? \global]).notNil
+				and: { (desc = lib[~instrument.asSymbol]).notNil }).if({
+			~args = desc.msgFunc.valueEnvir.clump(2);
+		}, {
+			args = Array.new(currentEnvironment.size);
+				// note that this is a clumped array --
+				// that's necessary for flopping (multichannel expanding) the args out in makeNode
+			currentEnvironment.keysValuesDo({ |key, value|
+				value.isValidVoicerArg.if({ args.add([key, value]) });
+			});
+			~args = args;
+		});
+	},
+	makeNode: {
+		var args, instr, nodeID, strum, latency;
+		(~instrument != \rest).if({
+			~setTarget.value;
+			~checkbuses.value.if({
+				~instrument = ~instrument.asArray;
+				~setArgs.value;
+				~args = ~args.collect(_.flop).flop.collect(_.flat);
+				strum = ~strum ? 0;
+				~grain = ~grain ? false;
+				~node = Array.newClear([~instrument.size, ~args.size, ~bus.size,
+					~target.size].maxItem);
+				~node.size.do({ |i|
+					((instr = ~instrument.wrapAt(i)) != \rest).if({
+						nodeID = ~grain.if({ -1 }, { ~server.wrapAt(i).nextNodeID });
+						~node[i] = Synth.basicNew(instr, ~server.wrapAt(i), nodeID);
+						latency = ~latency.isNil.if(nil, {
+							(strum*i) + (~latency / ~clock.tempo)
+						});
+						~server.wrapAt(i).sendBundle(latency, 
+							~node[i].newMsg(~target.wrapAt(i), 
+								~args.wrapAt(i) ++ [\out, ~bus.wrapAt(i).index,
+								\i_out, ~bus.wrapAt(i).index, \outbus, ~bus.wrapAt(i).index],
+								\addToTail)
+						);
+// add gate handling here
+					});
+				});
+			});
+		});
+	}
+)) => ProtoEvent(\polySynthPlayer);
+
+ProtoEvent(\polySynthPlayer).v.copy.putAll((
+	notifyDependents: {
+		BP(~collIndex).v.recvEventNotify(~node);
+	}
+)) => ProtoEvent(\polySynthPlayNotify);
+
+// voicer events (for ai sequencing):
+
+(	// args: [],
+		// maybe you want to use non-equal-temperament. override this func
+		// or, if you are using modally-mapped values, include the cpsFunc or EqualTemperament derivative
+		// in the ModalSpec itself
+	midiNoteToFreq: #{ |notenum|
+//~mode.debug("mode in note player");
+//[~freq, notenum].debug("~freq, notenum");
+//thisFunction.dumpBackTrace;
+		~mode.notNil.if({ ~mode.asMode.cpsFunc.value(notenum) },
+			{ notenum.midicps });
+	},
+	
+	prepNote: #{
+		var i, args, argval;
+		~freq = ~freq ?? { ~note.asFloat };
+		~mtranspose.notNil.if({ ~freq = ~freq + ~mtranspose });
+		(~midi ? false).not.if({ ~freq = ~freq.unmapMode(~mode.asMode) });
+//~freq.debug("\tfreq mapped to midi");
+		~ctranspose.notNil.if({ ~freq = ~freq + ~ctranspose });
+
+		~freq = ~midiNoteToFreq.value(~freq);
+		~delta = ~delta ?? { ~note.dur };
+		~length = ~length ?? { ~note.length };
+// handling of args here is VERY badly hacked
+		~args = ~args ?? { [~note.tryPerform(\args)].tryPerform(\flatten, 1) } ?? { [] };
+		i = 0;	// args should be key value pairs, but might be an array of velocities
+				// drop pairs that are not \symbol, value
+		{ i < ~args.size }.while({
+			~args[i].isSymbol.not.if({
+				try { ~args.removeAt(i); ~args.removeAt(i); };
+			}, {
+				i = i + 2;	// should increment only if not removing an item
+			});
+		});
+		
+		~gate = ~gate ?? { ~note.gate };
+		
+//		~gate = ~gate ?? { ~note.args } ?? {
+//				// identify the \gate, xxx pair in the args array
+//				// 2nd removeAt should return the value *wink*
+//			(i = ~args.detectIndex({ |item| item == \gate })).notNil
+//				.if({ ~args.removeAt(i); ~args.removeAt(i); }, { 0.5 });
+//		};
+			// for args array to be valid (argName, value pairs), must have at least 2 items
+		(~args.size < 2).if({ ~args = nil });
+		(~argKeys.size > 0).if({
+			args = Array.new(~argKeys.size);
+			~argKeys.do({ |key|
+				((argval = key.envirGet).notNil and: { argval.isValidVoicerArg }).if({
+					args.add([key, argval])
+				});
+			});
+			(args.size > 0).if({
+				~args = (~args.tryPerform(\clump, 2) ++ args)
+					.collect(_.flop).flop.collect(_.flat);
+			});
+			(~freq.size == 0).if({ ~args = ~args.first });
+		});
+		~bassID.notNil.if({
+			Library.put(~bassID, ~note);
+				// allow this thread to finish before alerting dependents
+			thisThread.clock.sched(0, { BP.changed(~bassID); });
+		});
+	},
+	
+	play: #{
+		(~debug == true).if({
+			"\n".debug;
+			["voicerNote event", ~clock.beats, ~clock.tempo].debug;
+			currentEnvironment.collect({ |value| value.isFunction.not.if(value, nil) }).postcs;
+//			currentEnvironment[\note].postcs;
+		});
+		~prepNote.value;
+		~finish.value;	// user-definable
+//(~debug == true).if({
+//	"\nafter prepnote".debug;
+//	currentEnvironment.debug;
+//});
+		~voicer.notNil.if({
+			~length.isNil.if({		// midi input... note will be released later
+				~voicer.trigger(~freq, ~gate, ~args, ~latency !? { ~latency / ~clock.tempo });
+			}, {
+(~debug == true).if({
+	[~freq, ~length, ~gate, ~args].debug("gate sent");
+});
+				~voicer.gate(~freq, ~length, ~gate, ~args, ~latency !? { ~latency / ~clock.tempo });
+			});
+		});
+	},
+		// for live midi input -- assumes midi note has been put into ~note
+	releaseNote: #{
+//"\nvoicerNote-releaseNote".postln;
+//currentEnvironment.postln;
+		~voicer.release(~midiNoteToFreq.value(~freq ? ~note.freq),
+			~latency !? { ~latency / ~clock.tempo });
+	},
+	
+	keysToPropagate: #[\voicer, \midi, \mode, \latency, \argKeys]
+) => ProtoEvent(\voicerNote);
+
+// synthNote
+ProtoEvent(\voicerNote).v.copy.putAll((
+	play: #{
+		var	synthLib;
+			// cribbed from Event.default
+		if (~msgFunc.isNil) {
+			synthLib = ~synthLib ?? { SynthDescLib.global };
+			~desc = synthLib.synthDescs[~instrument];
+			if (~desc.notNil) { 
+				~hasGate = ~desc.hasGate;
+				~msgFunc = ~desc.msgFunc;
+			}{
+				~hasGate = ~hasGate ? true;
+				~msgFunc = ~defaultMsgFunc;
+			};
+		}{
+			~hasGate = ~hasGate ? true;
+		};	// end crib
+		~prepNote.value;
+		~finish.value;	// user-definable
+//"".postln;
+//["synthNote event", ~clock.beats].postln;
+//currentEnvironment.postln;
+		(~freq.isSymbol.not and: { ~desc.notNil }).if({
+//"note is not rest".postln;
+			(~freq.size > 0).if({
+//["freq is array", ~freq].postcs;
+				(~gate.size == 0).if({ ~gate = [~gate] });
+				(~length.size == 0).if({ ~length = [~length] });
+				~freq.do({ |freq, i|
+					~playOneNote.value(freq, ~gate.wrapAt(i), ~length.wrapAt(i));
+				});
+			}, {
+				~playOneNote.value(~freq, ~gate, ~length)
+			});
+		});
+	},
+	
+	playOneNote: #{ |freq, gate, length|
+		var	synth, server, groupbus;
+		server = ~server ? ~target.server;
+		synth = Synth.basicNew(~instrument, server);
+			// I know this is not the right way to do this, but don't have time to do it right now
+		(groupbus = ~target.tryPerform(\groupBusInfo)).notNil.if({
+			server.sendBundle(~latency !? { ~latency / ~clock.tempo }, 
+				synth.newMsg(groupbus[0], 
+					~args ++ [\outbus, groupbus[1], \out, groupbus[1],
+					\freq, freq, \gate, gate], \addToTail));
+		}, {
+			server.sendBundle(~latency !? { ~latency / ~clock.tempo }, synth.newMsg(~target,
+				~args ++ [\outbus, ~out, \out, ~out, \freq, freq, \gate, gate], \addToTail));
+		});
+		~hasGate.if({
+			~clock.sched(length, {
+				server.sendBundle(~latency !? { ~latency / ~clock.tempo },
+					synth.setMsg(\gate, 0));
+			});
+		});
+	},
+	
+	releaseNote: nil,
+	
+	keysToPropagate: #[\instrument, \target, \midi, \mode, \latency]
+)) => ProtoEvent(\synthNote);
+
+
+// event for a melody wrapper
+(	play: #{
+		(~debug == true).if({
+			thisThread.beats.debug("\nchord trigger event"); currentEnvironment.debug;
+		});
+		~preAction.value;	// maybe some kind of cleanup?
+		~getTopNoteNum.value;
+			// nil is legit if there is no topnote pattern
+		(~topNoteNum.isNumber or: { ~topNoteNum.isNil }).if({
+			(~midi ? false).if({
+//"midi received".postln;
+				~length = inf;	// should not terminate except by midi note
+			}, {
+//["doing wrapper event", ~delta, ~length].postln;
+					// not needed here but included for subclasses
+					// if previous child stream needs to be stopped, do it in ~finish
+				~finish.value;
+				~length = ~length ? ~delta;
+			});
+				// start it at the current logical time
+//"scheduling new stream on clock:".postln;
+			~clock.sched(0, ~makeChildStream.value);
+			NotificationCenter.notify(~child, \runChild, currentEnvironment);
+		});
+//~delta	// check later whether this is really necessary for correct timing after topnote midi input
+	},
+	getTopNoteNum: {
+		~topNoteNum = ~top.tryPerform(\at, \freq)
+			?? { ~top.tryPerform(\at, \note).tryPerform(\freq) };
+	},
+	makeChildStream: {
+		var childStreamTemp, childEvent, child = ~child;
+			// create a new stream and put it in the environment
+			// child stream needs to know the current event, so it's passed to asPattern
+//"creating new stream".postln;
+
+			// downward propagation - responsibility of wrapper
+//"downward propagation".debug;
+//~allKeysToPropagate.debug;
+		~propagateDownward.value;
+//"getting child event:".debug;
+//~child[\event].debug;
+		(childEvent = ~child[\event]).parent = ProtoEvent(childEvent[\eventKey]).v;
+//childEvent.debug;
+
+		~child.preparePlay;
+		~child.put(\eventStream, CleanupStream(
+			~wrapPattern.value(~child.asPattern(currentEnvironment)).asStream,
+				// maybe somebody else needs to know that you stopped?
+				// this doesn't handle manual stop, but parent should stop too
+			{ NotificationCenter.notify(child, \childStop); }
+		));
+
+//"populating stream player".postln;
+		~child.put(\eventStreamPlayer, childStreamTemp = PausableEventStreamPlayer(
+			~child.eventStream,
+			childEvent
+		).refresh);
+		childStreamTemp	// return new ESP
+	},
+	finish: #{
+		(~stopChild ? true).if({
+			~child.eventStreamPlayer.stop;
+		});
+	},
+	wrapPattern: #{ |pattern|
+		pattern	// simply return pattern, unmodified
+	},
+//////// temporarily removing this so chords play continuously
+//////// will figure out a way to make this configurable at play time
+//	releaseNote: #{
+//		~child.eventStreamPlayer.stop
+//	},
+	keysToPropagate: #[\midi]
+) => ProtoEvent(\melWrap);
+
+
+// melody wrapper event that pauses the parent
+// the parent must register a notification for the childStop event so that it can resume when the child is done
+// this supports wrapping a melody whose length is not known at play start time
+
+ProtoEvent(\melWrap).v.copy.make({
+	~finishSuper = ~finish;
+	~finish = {
+		~finishSuper.value;
+			// user must supply eventstreamplayer
+			// this breaks the contract vis-a-vis circular references
+		~myThread.pause;
+	};
+}) => ProtoEvent(\melWrapEmbed);
+
+
+// macrorhythm protoevent
+// dur and length should be populated
+// note may contain topNote, but it's up to the child process to use it
+// how to use inheritance on a protoevent:
+ProtoEvent(\melWrap).v.copy.make({
+		// should only be called inside the event
+	~wrapPattern = #{ |pattern|
+//		var	id = UniqueID.next;
+//[~length, id, thisThread.clock.beats, thisThread.clock.beats + ~length].debug("wrapping child pattern");
+		pattern = Pfindur(~length-0.01, pattern);
+//		Pseq([pattern, Pfuncn({ [id, thisThread.clock.beats].debug("stopping child event"); nil }, 1)], 1);
+	};
+	
+	~getChord = true;	// default; midi input may override -- used??
+	
+	~keysToPropagate = #[\mode, \midi];
+}) => ProtoEvent(\macroRh);
+
+
+// a general-purpose singleSynthPlayer process
+
+PR(\abstractProcess).v.clone({
+	~event = (eventKey: \singleSynthPlayer);
+
+	~inChannels = 2;
+	~outChannels = 2;
+	~postSendReady = false;
+
+		// synthdef preparation might depend on the mixerchannel and user-defined resources
+		// note the order of initialization carefully
+	~prep = { |self|
+		~chan = MixerChannel(~collIndex, s, ~inChannels, ~outChannels,
+			postSendReady: ~postSendReady, outbus: ~master, completionFunc: { |chan|
+				~userpreps.do(_.value(self));
+				~userprep.(self);		// preparation specified in chuck parameters
+				~makeSynthDefs.(self);
+			});
+		
+		~delta = 1.0;
+			// by default, delta and sustain will have the same value
+		~sustain = Pkey(\delta);
+		~synth = Pfunc({ ~objects.keys.choose });
+	};
+	
+		// when you clone, if you need extra preparation, do ~userpreps = ~userpreps.copy.add({ |self| ... });
+	~userpreps = List.new;
+	
+		// chuck-time parameter for user preparation
+	~userprep = nil;
+	
+		// ~objects is a dictionary
+		// key --> dict; outer key is the identifier for the synth that will be used in the synth pattern
+		// dict = (def: definition, args: [arg1: Pattern1, arg2: pattern2...])
+		// definition is a function, Patch or SynthDef
+	~objects = (
+		default: (def: \default, args: [
+			freq: PdegreeToKey(Pwhite(35, 50, inf), #[0, 2, 4, 5, 7, 9, 11], 12).midicps,
+			hasGate: true
+		])
+	);
+
+
+		// support code follows
+	~makeSynthDefs = { |self|
+		var	sdef;
+		~objects = ~objects.value(self);
+		~objects.keysValuesDo({ |id, def|
+			def[\synthdef].isNil.if({
+				~makeOneSynthDef.(self, id, def);
+			});
+		});
+	};
+
+	~makeOneSynthDef = { |self, id, def|
+		var	sdef, reference;
+			// allow references to other items in ~objects
+			// that is, you can reuse a patch but supply a different argument array
+		(def[\def].isSymbol and: { (reference = ~objects[def[\def]]).notNil }).if({
+				// has the reference already been prepared?
+			reference[\synthdef].isNil.if({
+				~makeOneSynthDef.(self, def[\def], reference);
+			});
+			def[\synthdef] = reference[\synthdef];
+			def[\name] = reference[\name];
+				// no need to resend synthdef
+		}, {
+			sdef = ~makeDefForObject.(self, def[\def], id);
+			def[\synthdef] = sdef;
+			def[\name] = sdef.tryPerform(\name) ? sdef;
+//sdef.insp;
+			sdef.tryPerform(\send, ~chan.server);
+			sdef.tryPerform(\memStore);
+		});
+		~prepareArgsForOneDef.(self, id);
+	};
+
+	~makeDefForObject = #{ |self, obj, id|
+		var return, reference;
+		(return = ~classActions[obj.class]).notNil.if({
+			return = return.envirGet.(self, obj, id)
+		});
+		return ?? { obj }	// if nothing, return the object itself
+	};
+	~makeFnDef = #{ |self, fn|
+		fn.asSynthDef(outClass: (~isFx ? false).if({ \ReplaceOut }, { \Out }));
+	};
+	~makePatchDef = #{ |self, patch, id|
+		var	sdef = patch.asSynthDef;
+			// I saw a scenario where InstrSynthDef did not come up with a unique name based on args
+			// dictionary id must be unique
+		sdef.name = id.asString;
+		sdef
+	};
+	~makeSynthDef = #{ |self, def| def };
+	~classActions = IdentityDictionary[
+		SynthDef -> \makeSynthDef,
+		Function -> \makeFnDef,
+		Patch -> \makePatchDef
+	];
+
+	~prepareArgsForOneDef = { |self, id|
+		var	streamarray = Array.new(~objects[id][\args].size), fullname;
+		~objects[id][\args].pairsDo({ |name, pattern|
+				// assigning a Pattern to a BP environment variable automatically creates the stream
+			fullname = (id ++ name).asSymbol;
+			fullname.envirPut(pattern.asPattern);
+			streamarray.add(name).add(BPStream(fullname).asStream);
+		});
+		~objects[id][\argStreams] = streamarray;
+	};
+
+	~basePattern = { |self|
+		(~debug ? false).if(DebugPbind, Pbind)
+		.new(
+			\synthKey, BPStream(\synth),
+			\delta, BPStream(\delta),
+			\sustain, BPStream(\sustain),
+			\instrument, Pfunc({ |ev|
+				(ev[\synthKey] == \rest).if({ \rest }, { ~objects[ev[\synthKey]][\name] })
+			}),
+			\chan, ~chan
+		)
+	};
+
+	~asPattern = { |self|
+		~basePattern.(self).collect({ |ev|
+			(ev[\synthKey] != \rest).if({
+				self.use({ ~getUserArgs.(self, ev) });
+			}, { ev });
+		});
+	};
+	
+	~getUserArgs = { |self, event|
+		var key = event[\synthKey], streamout;
+		block { |break|
+			~objects[key][\argStreams].pairsDo({ |name, stream|
+				(streamout = stream.next(event)).isNil.if({
+					break.(nil);	// early exit with nil result to stop main stream
+				}, {
+					(~debug ? false).if({
+						[name, streamout].debug("user arg");
+					});
+					(name.isSequenceableCollection).if({
+						name.do({ |n, i| event[n] = streamout[i] })
+					}, {
+						event[name] = streamout;
+					});
+				});
+			});
+			event
+		}
+	};
+	
+		// when you clone, if you need extra preparation, do ~userfrees = ~userfrees.copy.add({ |self| ... });
+	~userfrees = List.new;
+	
+		// chuck-time parameter for user preparation
+	~userfree = nil;
+	
+	~freeCleanup = { |self|
+		~chan.free;
+			// should free patches
+		~objects.do({ |def|
+			def[\def].isKindOf(AbstractPlayer).if({ def[\def].free });
+		});
+		~userfree.(self);
+		~userfrees.do(_.value(self));
+	};
+
+}) => PR(\basicSynthChooser);

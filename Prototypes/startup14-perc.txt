@@ -1,0 +1,637 @@
+
+// bufPerc: isFx won't work for patches now... easy fix, but later
+// broke regular bufperc (squishy)?
+
+// need iMadeDef for defPerc -- per def
+
+// percussion process templates
+// first, generic synthdefs
+
+var saveSubType = AbstractChuckArray.defaultSubType;
+
+SynthDef.writeOnce(\bufGrain, { |start, time, bufnum, rate, amp = 1,
+		attack = 0.001, decay = 0.02, outbus|
+	var sig;
+	sig = PlayBuf.ar(1, bufnum, rate * BufRateScale.kr(bufnum), 1, start, 0)
+		* EnvGen.kr(Env.linen(attack, time, decay), doneAction:2);
+	Out.ar(outbus, sig * amp);
+});
+
+SynthDef.writeOnce(\bufGrainPan, { |start, time, bufnum, pan, rate, amp = 1,
+		attack = 0.001, decay = 0.02, outbus|
+	var sig;
+	sig = PlayBuf.ar(1, bufnum, rate * BufRateScale.kr(bufnum), 1, start, 0)
+		* EnvGen.kr(Env.linen(attack, time, decay), doneAction:2);
+	Out.ar(outbus, Pan2.ar(sig, pan, amp));
+});
+
+SynthDef.writeOnce(\bufGrain2, { |start, time, bufnum, rate, amp = 1,
+		attack = 0.001, decay = 0.02, outbus|
+	var sig;
+	sig = PlayBuf.ar(2, bufnum, rate * BufRateScale.kr(bufnum), 1, start, 0)
+		* EnvGen.kr(Env.linen(attack, time, decay), doneAction:2);
+	Out.ar(outbus, sig * amp);
+});
+
+SynthDef.writeOnce(\bufGrainPan2, { |start, time, bufnum, rate, pan, amp = 1,
+		attack = 0.001, decay = 0.02, outbus|
+	var l, r;
+	#l, r = PlayBuf.ar(2, bufnum, rate * BufRateScale.kr(bufnum), 1, start, 0)
+		* EnvGen.kr(Env.linen(attack, time, decay), doneAction:2);
+	Out.ar(outbus, Balance2.ar(l, r, pan, amp));
+});
+
+//SynthDef.writeOnce(\bufRoll, { |start, time = 1, bufnum, rate = 1, amp = 1, strokesPerSec = 18,
+//		outbus|
+//	var sig, envDefault, env, trig = Impulse.ar(strokesPerSec);
+//		// time of this env must add up to 1.0 sec
+//	envDefault = Env(#[1, 0.1, 1], #[0.06, 0.94], \exp);
+//		// 40 == 10 possible envelope segments (which is a lot, really)
+//	env = Control.names(\env).kr((0 ! 40).overWrite(envDefault.asArray, 0));
+//	sig = PlayBuf.ar(1, bufnum, rate * BufRateScale.kr(bufnum), trig, start, 1)
+//		* EnvGen.kr(env, timeScale: time, doneAction:2);
+//	Out.ar(outbus, sig * amp);
+//});
+
+// use a pair of enveloped PlayBufs to avoid clicks when looping back on the sample
+
+SynthDef.writeOnce(\bufRoll, { |start, time = 1, bufnum, rate = 1, amp = 1, strokesPerSec = 18,
+		outbus|
+	var	sig, envDefault, env,
+		trig = Impulse.ar(strokesPerSec),
+		trigs = PulseDivider.ar(trig, 2, (0..1)),
+		strokeEnv = EnvGen.ar(Env.linen(0.002, strokesPerSec.reciprocal, 0.01), trigs);
+		// time of this env must add up to 1.0 sec
+	envDefault = Env(#[0, 1, 0], #[0.001, 0.999], -4);
+		// 40 == 10 possible envelope segments (which is a lot, really)
+	env = Control.names(\env).kr((0 ! 40).overWrite(envDefault.asArray, 0));
+	sig = (PlayBuf.ar(1, bufnum, rate * BufRateScale.kr(bufnum), trigs, start, 1) * strokeEnv).sum
+		* EnvGen.ar(env, timeScale: time, doneAction:2);
+	Out.ar(outbus, sig * amp);
+});
+
+SynthDef.writeOnce(\bufRollPan, { |start, time = 1, bufnum, rate = 1, amp = 1, strokesPerSec = 18, pan = 0,
+		outbus|
+	var	sig, envDefault, env,
+		trig = Impulse.ar(strokesPerSec),
+		trigs = PulseDivider.ar(trig, 2, (0..1)),
+		strokeEnv = EnvGen.ar(Env.linen(0.002, strokesPerSec.reciprocal, 0.01), trigs);
+		// time of this env must add up to 1.0 sec
+	envDefault = Env(#[0, 1, 0], #[0.001, 0.999], -4);
+		// 40 == 10 possible envelope segments (which is a lot, really)
+	env = Control.names(\env).kr((0 ! 40).overWrite(envDefault.asArray, 0));
+	sig = (PlayBuf.ar(1, bufnum, rate * BufRateScale.kr(bufnum), trigs, start, 1) * strokeEnv).sum
+		* EnvGen.ar(env, timeScale: time, doneAction:2);
+	Out.ar(outbus, Pan2.ar(sig, pan, amp));
+});
+
+SynthDef.writeOnce(\bufRollPanMove, { |start, time = 1, bufnum, rate = 1, amp = 1, strokesPerSec = 18,
+		panStart = 0, panEnd = 0,	outbus|
+	var	sig, envDefault, env,
+		trig = Impulse.ar(strokesPerSec),
+		trigs = PulseDivider.ar(trig, 2, (0..1)),
+		strokeEnv = EnvGen.ar(Env.linen(0.002, strokesPerSec.reciprocal, 0.01), trigs);
+		// time of this env must add up to 1.0 sec
+	envDefault = Env(#[0, 1, 0], #[0.001, 0.999], -4);
+		// 40 == 10 possible envelope segments (which is a lot, really)
+	env = Control.names(\env).kr((0 ! 40).overWrite(envDefault.asArray, 0));
+	sig = (PlayBuf.ar(1, bufnum, rate * BufRateScale.kr(bufnum), trigs, start, 1) * strokeEnv).sum
+		* EnvGen.ar(env, timeScale: time, doneAction:2);
+	Out.ar(outbus, Pan2.ar(sig, Line.kr(panStart, panEnd, time), amp));
+});
+
+
+SynthDef.writeOnce(\bufGrainRLPF, { |start, time, bufnum, rate, amp = 1,
+		attack = 0.001, decay = 0.02, ffreq = 2000, rq = 1, outbus|
+	var sig;
+	sig = PlayBuf.ar(1, bufnum, rate * BufRateScale.kr(bufnum), 1, start, 0)
+		* EnvGen.kr(Env.linen(attack, time, decay), doneAction:2);
+	sig = RLPF.ar(sig, ffreq, rq);
+	Out.ar(outbus, sig * amp);
+});
+
+SynthDef.writeOnce(\bufGrainRLPF2, { |start, time, bufnum, rate, amp = 1,
+		attack = 0.001, decay = 0.02, ffreq = 2000, rq = 1, outbus|
+	var sig;
+	sig = PlayBuf.ar(2, bufnum, rate * BufRateScale.kr(bufnum), 1, start, 0)
+		* EnvGen.kr(Env.linen(attack, time, decay), doneAction:2);
+	sig = RLPF.ar(sig, ffreq, rq);
+	Out.ar(outbus, sig * amp);
+});
+
+SynthDef.writeOnce(\bufGrainRLPFPan, { |start, time, bufnum, rate, amp = 1,
+		attack = 0.001, decay = 0.02, pan = 0, ffreq = 2000, rq = 1, outbus|
+	var sig;
+	sig = PlayBuf.ar(1, bufnum, rate * BufRateScale.kr(bufnum), 1, start, 0)
+		* EnvGen.kr(Env.linen(attack, time, decay), doneAction:2);
+	sig = RLPF.ar(sig, ffreq, rq);
+	Out.ar(outbus, Pan2.ar(sig, pan, amp));
+});
+
+
+// figure out rollPan and 2-channel versions later
+
+
+// abstract process based on buffers
+// the process generates a new Pbind per cycle
+// amp pattern is specified in terms of subdivisions:
+// #[0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0] will sound on beats 2 and 4
+// if ~division = 0.25
+
+// other arrays are per event, using wrapAt
+AbstractChuckArray.defaultSubType = \drumSequencer;
+
+PR(\abstractProcess).v.clone({
+		// grain: true means don't generate a new node id each time (use -1)
+	~event = (grain: true, eventKey: \singleSynthPlayer);
+	~quant = 4;
+	~requiredKeys = #[\amps, \bufPaths];
+	~inChannels = 1;
+	~outChannels = 2;
+	~postSendReady = true;
+	
+//	~bufPaths = #[path0, path1...];	// files to load
+//	~bufCoords = #[[start0, len0], [start1, len1]...];	// which portions
+
+	~bufCoords = #[[0, -1]];	// default load whole soundfile for each file
+	
+	~bufs = #[0];		// default: use only first buffer
+	~rates = #[1];	// default: play at normal speed
+	~deltaAdjust = #[0];	// push samples ahead (-) or behind (+) to compensate for transient time
+						// this array's elements correspond to buffers
+						// adjustments given in beats and may be NO LESS THAN -LATENCY
+	~divCycle = 0.25;	// or #[0.3, 0.2] for swing
+	~beatsPerBar = 4;
+	~def = \bufGrain;
+	~argPairs = nil;	// you may specify other arg keys as an array: [key, value, key, value]
+					// if the key's value is not a pattern, a pattern will be made for it
+					// using makePattern
+
+	~attack = 0.001;
+	~decay = 0.02;
+	~mono = false;	// true = automatically prevent note overlaps
+	~compensateEnv = false;		// true = subtract attack and decay time from time value
+							// so that the synth plays for exactly "time" seconds
+
+	~compactPatterns = true;
+
+	~iMadeMixer = false;
+
+	~prep = #{ |self|
+			// user may supply a mixerchannel
+			// if so, ~iMadeMixer flag means the channel won't be freed
+		~chan.isNil.if({
+			~iMadeMixer = true;
+			~chan = MixerChannel(~collIndex, Server.default, ~inChannels ? 1, ~outChannels ? 2,
+				postSendReady: ~postSendReady ? true, outbus:~master);
+		});
+			// this func is environment safe
+			// loadbufs is here for defPerc, which may need resources from postMCCreation
+		~chan.doWhenReady({ |chan| 
+			~postMCCreation.(self, chan);
+			~loadBufs.(self);
+		});
+		self
+	};
+	~postMCCreation = nil;	// exit point to put in your own initialization
+	~loadBufs = #{ |self|
+		~buffers.notNil.if({ ~buffers.free });
+		~bufTimes = Array.newClear(~bufPaths.size);
+		~buffers = ~bufPaths.collect({ |path, i|
+			Buffer.readAndQuery(~chan.server, path, 
+				~bufCoords.wrapAt(i)[0], ~bufCoords.wrapAt(i)[1],
+				completionFunc: { |buf|
+					self.fixBufTime(i, buf)
+			});
+		});
+	};
+	
+	~listBufs = { |self|
+		~buffers.do({ |buf, i| "%: %\n".postf(i, buf) })
+	};
+	
+	~replaceBuf = { |self, i, path, startFrame, numFrames|
+		(i >= ~buffers.size).if({
+			~addBuf.(self, path, startFrame, numFrames);
+		}, {
+			~buffers[i].free;
+			~buffers[i] = Buffer.readAndQuery(~chan.server, path, startFrame, numFrames, { |buf|
+				self.fixBufTime(i, buf)
+			});
+			~buffers[i]
+		});
+	};
+	
+	~addBuf = { |self| "Not yet implemented.".warn; };
+	
+	~fixBufTime = { |self, i, buf|
+			// this func is not environment safe
+			// try b/c a failure here shouldn't kill the buffer queue
+		try { self[\bufTimes][i] = buf.numFrames / buf.sampleRate }
+			{ |error| error.reportError; }  // display error but continue
+	};
+	
+	~makeDeltaPattern = #{ |self|
+		var	current = 0, thisDelta, totalDelta, dStream, deltas;
+		self[\compactPatterns].if({
+			deltas = Array.new(self[\amps].size);
+			dStream = Pn(self[\divCycle].asPattern, inf).asStream;
+			thisDelta = totalDelta = 0;
+			self[\amps].do({ |step, i|
+				(step > 0).if({	// there's a note here
+					(thisDelta > 0).if({
+						deltas.add(thisDelta);
+						totalDelta = totalDelta + thisDelta;
+						thisDelta = 0;
+						current = current + 1;
+					});
+				});
+				thisDelta = thisDelta + dStream.next;
+			});
+			(totalDelta < self[\beatsPerBar]).if({
+				deltas.add(self[\beatsPerBar] - totalDelta);
+			});
+			Pseq(deltas, 1)
+		}, { Pfin(self[\amps].size, Pn(self[\divCycle].asPattern, inf)) });
+	};
+	~makeAmpPattern = #{ |self|
+		self[\compactPatterns].if({
+			Pseq(((self[\amps][0] == 0).if({ #[0] })) ++ self[\amps].select(_ > 0), 1);
+		}, {
+			Pseq(self[\amps], 1)
+		});
+	};
+	~makePatternFromArray = #{ |self, array, repeats, sourceKey|
+		var amps, outArray, i;
+		self[\compactPatterns].if({
+			amps = self[\amps];
+			outArray = Array.new(amps.size);
+				// if first is a rest, need a placeholder
+			(sourceKey != \def and: { amps[0] == 0 }).if({ outArray.add(0) });
+			i = 0;
+			amps.do({ |amp|
+				(amp > 0).if({
+					outArray.add(array.wrapAt(i));
+					i = i + 1;
+				});
+			});
+			Pseq(outArray, repeats)
+		}, {
+			Pseq(array, repeats)
+		});
+	};
+	~makePattern = #{ |self, sourceKey, repeats|
+		self[\makePatternFromArray].(self, self[sourceKey].asArray, repeats ? 1, sourceKey);
+	};
+	~addArgPairs = { |self, out|
+		out = out.grow(~argPairs.size);
+		~argPairs.pairsDo({ |key, value|
+			out.add(key);
+				// if you say nil, look for the key in the envir
+			value.isNil.if({ value = key.envirGet });
+			value.isSymbol.if({ value = value.envirGet });
+				// this is the only way to get values from the environment
+				// while the pattern is running
+			value.isFunction.if({ value = value.(self, out) });
+			(value.size > 0).if({	// assume it's an array, use makePattern
+				value = ~makePatternFromArray.(self, value, 1)
+			});
+			out.add(value);
+		});
+		out
+	};
+	
+	~makePbindArray = { |self|
+		~def = ~def.asArray;
+		[\amp, self[\makeAmpPattern].(self),
+			\bufIndex, self[\makePattern].(self, \bufs, inf),
+			\bufnum, Pfunc({ |ev|
+				self[\buffers].wrapAt(ev[\bufIndex]).bufnum
+			}),
+			\rate, self[\makePattern].(self, \rates, inf),
+// if user specifies times, they should be scaled by tempo. default times are in seconds
+			\time, self[\times].notNil.if({
+				(self[\makePattern].(self, \times, inf) / thisThread.clock.tempo)
+			}, {
+				Pfunc({ |ev|
+					self[\bufTimes].wrapAt(ev[\bufIndex]) / ev[\rate]
+				});
+			}),
+				// rest if 0, else give synthdef name
+			\instrument, Pif(Pkey(\amp) > 0, ~makePattern.(self, \def, inf), \rest),
+			\chan, Pfunc({ self[\chan] }),
+			\latencyAdjust, Pfunc({ |ev| self[\deltaAdjust].wrapAt(ev[\bufIndex]) }),
+			\latency, Pfunc({ |ev| (ev[\latency] ? 0) + (ev[\latencyAdjust] ? 0) }),
+			\delta, self[\makeDeltaPattern].(self),
+			\attack, self[\makePattern].(self, \attack, inf), // Pfunc({ self[\attack] }),
+			\decay, self[\makePattern].(self, \decay, inf), // Pfunc({ self[\decay] }),
+			\time, Pfunc({ |ev|	// check for overlap if mono flag is true
+				var time = ev[\time];
+					// negative time value defaults to entire buffer dur
+				(time < 0).if({ time = self[\bufTimes].wrapAt(ev[\bufIndex]) / ev[\rate] });
+					// compensate for env ramp in/out
+				self[\mono].if({
+					time = min(time, ev[\delta] / thisThread.clock.tempo)
+				});
+				self[\compensateEnv].if({
+					(time - ev[\attack] - ev[\decay]).max(0.001)
+				}, { time });
+			})
+		]
+	};
+	
+	~pbindPreAction = nil;		// custom action to run before building Pbind can be written here
+	~pbindPostAction = nil;		// same, after building Pbind
+
+	~doPreAction = { |self|
+		(~pbindPreAction.isSymbol and: { Func(~pbindPreAction).exists }).if({
+			Func(~pbindPreAction).doAction(self)
+		}, {
+			~pbindPreAction.(self)
+		});
+	};
+
+	~doPostAction = { |self, out|
+		(~pbindPostAction.isSymbol and: { Func(~pbindPostAction).exists }).if({
+			Func(~pbindPostAction).doAction(self, out)
+		}, {
+			~pbindPostAction.(self, out)
+		});
+	};
+
+	~asPattern = { |self|
+		var	out;
+		~prepareForPlay.value(self);	// one use is streams that must persist past 1 bar
+		~argPairs = ~argPairs.(self, out);
+		PnNilSafe(Plazy({
+			self.doPreAction;
+			out = self.makePbindArray;
+			(self[\argPairs].size > 0).if({
+				out = self.addArgPairs(out);
+			});
+			out = self.doPostAction(out) ? out;	// do postprocessing on pbind pairs
+			Pbind(*out);
+		}), inf);
+	};
+	
+	~freeCleanup = #{ |self|
+		~iMadeMixer.if({ ~chan.free });
+		~buffers.free;
+		~free.(self)	// did you make any other resources?
+	};	
+}) => PR(\bufPerc);
+
+
+// use functions to make a pack of synthdefs
+// alternately, supply synthdef names for preexisting defs
+// can also supply Patches (compound Patches are not supported yet)
+// it's assumed that the def contains a fixed-length envelope that will free the node (doneAction:2)
+
+PR(\bufPerc).v.clone({
+	~defs = #[0];
+	~requiredKeys = #[\objects, \amps];
+		// user extensible: define your own functions to add objects as synthdefs
+		// String and Symbol are supported by nil
+	~classActions = IdentityDictionary[
+		SynthDef -> \makeSynthDef,		// as it happens, these can be the same b/c of asSynthDef
+		Function -> \makeFnDef,
+		Patch -> \makePatchDef
+	];
+	~patchesToFree = List.new;
+		// now, instead of loading buffers, we load synthdefs
+		// using names defined in bufPerc, though
+	~loadBufs = #{ |self|
+		~buffers.notNil.if({ ~buffers.free });
+			// .value(self) allows function to create objects array dynamically
+		~buffers = ~objects.value(self).collect({ |obj| 
+			~makeDefForObject.(self, obj).asSymbol
+		});
+	};
+	~makeDefForObject = #{ |self, obj|
+		var return;
+		(return = ~classActions[obj.class]).notNil.if({
+			return = return.envirGet.(self, obj)
+		});
+		return ?? { obj }	// if nothing, return the object itself
+	};
+	~makeFnDef = #{ |self, fn|
+		var def;
+		def = fn.asSynthDef(outClass: 
+			(~isFx ? false).if({ \ReplaceOut }, { \Out })).memStore;  // .send(~chan.server);
+		def.name
+	};
+	~makePatchDef = #{ |self, patch|
+		var def;
+		def = patch.asSynthDef.memStore;  // .send(~chan.server);
+		~patchesToFree.add(patch);
+		def.name
+	};
+	~makeSynthDef = #{ |self, def| def.memStore /*.send(~chan.server)*/ .name };
+	~replaceDef = { |self, i, obj|
+		(i >= ~buffers.size).if({
+			~addBuf.(self, obj);
+		}, {
+			~chan.server.sendMsg(\d_free, ~buffers[i]);
+			~buffers[i] = ~makeDefForObject.(self, obj).asSymbol;
+			~buffers[i]
+		});
+	};
+	
+	~addBuf = { |self| "Not yet implemented.".warn; };
+
+	~makePbindArray = { |self|
+		[\amp, self[\makeAmpPattern].(self),
+				// rest if 0, else give synthdef name
+			\defIndex, self[\makePattern].(self, \defs),
+			\instrument, Pfunc({ |ev|
+				(ev[\amp] > 0).if({
+					self[\buffers].wrapAt(ev[\defIndex])
+				}, { \rest });
+			}),
+			\chan, Pfunc({ self[\chan] }),
+			\delta, self[\makeDeltaPattern].(self)
+		]
+	};
+
+//	~asPattern = { |self|
+//		var	out;
+//		PnNilSafe(Plazy({
+//			self.pbindPreAction;
+//			out = ;
+//			(self[\argPairs].size > 0).if({
+//				out = self.addArgPairs(out);
+//			});
+//			out = self.pbindPostAction(out) ? out;	// do postprocessing on pbind pairs
+//			Pbind(*out);
+//		}), inf);
+//	};
+
+	~superfree = ~freeCleanup;
+	~freeCleanup = { |self|
+		~patchesToFree.do(_.free);
+		~superfree.(self);
+	};
+
+}) => PR(\defPerc);
+
+PR(\defPerc).v.clone({
+	~event = (eventKey: \singleSynthTrigger);
+	~alwaysReset = true;
+	~isFx = false;
+	~makePbindArray = { |self|
+		[\t_trig, self[\makeAmpPattern].(self),
+				// rest if 0, else give synthdef name
+			\defIndex, self[\makePattern].(self, \defs),
+			\node, Pfunc({ |ev|
+				(ev[\t_trig] > 0).if({
+					self[\nodes].wrapAt(ev[\defIndex])
+				}, { \rest });
+			}),
+			\chan, Pfunc({ self[\chan] }),
+			\delta, self[\makeDeltaPattern].(self)
+		]
+	};
+	~asPattern = { |self|
+		Pseq([
+			Pfuncn({	// first, make nodes
+				var latency;
+				(~nodes.size == 0).if({
+					~nodes = ~buffers.collect({ |def| Synth.basicNew(def, ~chan.server) });
+					latency = ~latency !? { ~latency / ~clock.tempo };
+					~nodes.do({ |node, i|
+						~chan.server.sendBundle(latency, 
+							node.newMsg(~isFx.if({ ~chan.effectgroup }, { ~chan.synthgroup }), 
+								[\outbus, ~chan.inbus.index, \out, ~chan.inbus.index,
+								\i_out, ~chan.inbus.index] ++ ~initArgs.(self, node, i),
+								\addToTail));
+					})
+				});
+				(play: 0, delta: 0)
+			}, 1),
+			PnNilSafe(Plazy({
+				var out;
+				self.doPreAction;
+				out = self.makePbindArray;
+				(self[\argPairs].size > 0).if({
+					out = self.addArgPairs(out);
+				});
+				out = self.doPostAction(out) ? out;  // do postprocessing on pbind pairs
+				Pbind(*out);
+			}), inf)
+		]);
+	};
+	
+	~stopCleanup = {
+		var	latency;
+		(~nodes.size > 0).if({
+			latency = ~event.latency !? { ~event.latency / ~clock.tempo };
+			~nodes.do({ |node|
+				~chan.server.sendBundle(latency,
+					(~hasGate ? false).if({ node.setMsg(\gate, 0) }, { node.freeMsg }))
+			});
+			~nodes = nil;
+		});
+	};
+}) => PR(\defTrig);
+
+// loads the whole beat into 1 buffer; user specifies start positions for segments and times (beats)
+// multiple files are supported -- use bufs to select file
+PR(\bufPerc).v.clone({
+	~requiredKeys = #[bufPaths, amps, start];
+	~segStart = #[[0]];	// default, 1 segment encompassing the whole file
+	~start = #[0];
+	~mono = true;
+	~compensateEnv = true;
+	
+	~makeStartTimes = { |self|
+		self[\makePatternFromArray].(self, self[\start].collect({ |st, i|
+				self[\segStart].wrapAt(self[\bufs].wrapAt(i)).wrapAt(st)
+			}), 1);
+	};
+		
+	~makePbindArray = { |self|
+		[\amp, self[\makeAmpPattern].(self),
+			\bufIndex, self[\makePattern].(self, \bufs),
+			\bufnum, Pfunc({ |ev|
+				self[\buffers][ev[\bufIndex]].bufnum
+			}),
+			\rate, self[\makePattern].(self, \rates),
+// if user specifies times, they should be scaled by tempo. default times are in seconds
+			\start, self[\makeStartTimes].(self),
+			\time, self[\times].notNil.if({
+				self[\makePattern].(self, \times) / thisThread.clock.tempo
+			}, {
+				Pfunc({ |ev|
+					self[\bufTimes][ev[\bufIndex]]
+				});
+			}),
+				// rest if 0, else give synthdef name
+			\instrument, Pfunc({ |ev|
+				(ev[\amp] > 0).if({ self[\def] }, { \rest });
+			}),
+			\chan, Pfunc({ self[\chan] }),
+			\latencyAdjust, Pfunc({ |ev| self[\deltaAdjust].wrapAt(ev[\bufIndex]) }),
+			\latency, Pfunc({ |ev| (ev[\latency] ? 0) + (ev[\latencyAdjust] ? 0) }),
+			\delta, self[\makeDeltaPattern].(self),
+			\attack, self[\makePattern].(self, \attack), // Pfunc({ self[\attack] }),
+			\decay, self[\makePattern].(self, \decay), // Pfunc({ self[\decay] }),
+			\time, Pfunc({ |ev|	// check for overlap if mono flag is true
+				var time = ev[\time];
+					// negative time value defaults to entire buffer dur
+				(time < 0).if({ time = self[\bufTimes].wrapAt(ev[\bufIndex]) / ev[\rate] });
+					// compensate for env ramp in/out
+				self[\mono].if({
+					time = min(time, ev[\delta] / thisThread.clock.tempo)
+				});
+				self[\compensateEnv].if({
+					(time - ev[\attack] - ev[\decay]).max(0.001)
+				}, { time });
+			})
+		]
+	};
+//	~asPattern = { |self|
+//		var	out;
+//		~prepareForPlay.value(self);	// one use is streams that must persist past 1 bar
+//		PnNilSafe(Plazy({
+//			self.pbindPreAction;
+//			out = self.makePbindArray;
+//			(self[\argPairs].size > 0).if({
+//				out = self.addArgPairs(out);
+//			});
+//			out = self.pbindPostAction(out) ? out;	// do postprocessing on pbind pairs
+//			Pbind(*out)/*.postcs*/;
+//		}), inf)/*.trace*/;
+//	};
+}) => PR(\break);
+
+AbstractChuckArray.defaultSubType = saveSubType;
+
+// a simple soundfile-segment player
+// uses bufPerc's buffer management methods but constructs events from streams, not arrays
+
+PR(\abstractProcess).v.clone({
+	~event = (eventKey: \singleSynthPlayer);
+	~requiredKeys = #[bufPaths];
+	~def = \bufGrain;
+	~bufCoords = #[[0, -1]];
+	~postMCCreation = nil;		// put in your own user preparation func here
+	~timeConversion = { |self, time, ev| time };
+		// required: put in a pattern factory here
+	~asPattern = { |self|
+		Pbind(\instrument, BPStream(\def),
+			\bufIndex, BPStream(\bufIndex),
+			\bufnum, Pfunc({ |ev| ~buffers[ev[\bufIndex]].bufnum }),
+			\startIndex, BPStream(\startIndex),
+			\start, BPStream(\start),
+			\time, BPStream(\time).collect({ |time, ev| ~timeConversion.(self, time, ev) }),
+			\rate, BPStream(\rate),
+			\amp, BPStream(\amp),
+			\attack, BPStream(\attack),
+			\decay, BPStream(\decay),
+			\chan, ~chan,
+			\delta, BPStream(\delta),
+			\time, Pkey(\time) / Pfunc({ thisThread.clock.tempo })
+		)
+	};
+}).import((bufPerc: #[prep, loadBufs, fixBufTime, replaceBuf, addBuf, freeCleanup]))
+	=> PR(\basicBufferPlayer).subType_(\bufPlayer);
