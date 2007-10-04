@@ -8,7 +8,7 @@ var	path;
 
 ~toolbarFlow.isNil.if({
 
-AbstractChuckArray.loadFromChuckDirectories("devPreMIDIcfg.sc");
+AbstractChuckArray.loadFromChuckDirectories("devPreMIDIcfg.txt");
 
 MIDIPort.init(~srcInports);
 MIDIPort.resetAll;
