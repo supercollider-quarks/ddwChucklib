@@ -1541,13 +1541,13 @@ ProtoEvent : AbstractChuckNewDict {
 										// but DO NOT EMBED the prototype
 			});
 			out.parent.protoEvent = keys[0];	// default event type
-			out.parent.play = {
+			out.parent.put(\play, {
 				var	ev;
 				(ev = ~protoEvent.envirGet).notNil.if({
 						// currentEnvironment == the event to be played
 					ProtoEvent(~protoEvent).value.copy.putAll(currentEnvironment).play
 				});
-			};
+			});
 		}, {
 			Error("Must supply keys to ProtoEvent:composite.").throw;
 		});
