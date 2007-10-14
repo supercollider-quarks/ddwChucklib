@@ -1,0 +1,126 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <meta http-equiv="Content-Style-Type" content="text/css">
+  <title></title>
+  <meta name="Generator" content="Cocoa HTML Writer">
+  <meta name="CocoaVersion" content="824.42">
+  <style type="text/css">
+    p.p1 {margin: 0.0px 0.0px 0.0px 0.0px; font: 19.0px Helvetica}
+    p.p2 {margin: 0.0px 0.0px 0.0px 0.0px; font: 12.0px Helvetica; min-height: 14.0px}
+    p.p3 {margin: 0.0px 0.0px 0.0px 0.0px; font: 12.0px Helvetica}
+    p.p4 {margin: 0.0px 0.0px 0.0px 0.0px; font: 9.0px Monaco; color: #007300}
+    p.p5 {margin: 0.0px 0.0px 0.0px 0.0px; font: 9.0px Monaco; color: #bf0000}
+    p.p6 {margin: 0.0px 0.0px 0.0px 0.0px; font: 9.0px Monaco}
+    p.p7 {margin: 0.0px 0.0px 0.0px 0.0px; font: 9.0px Monaco; color: #bf0000; min-height: 12.0px}
+    p.p8 {margin: 0.0px 0.0px 0.0px 0.0px; font: 9.0px Monaco; min-height: 12.0px}
+    span.s1 {color: #0000bf}
+    span.s2 {color: #000000}
+    span.s3 {color: #007300}
+    span.s4 {color: #bf0000}
+  </style>
+</head>
+<body>
+<p class="p1"><b>Chuck process prototypes<span class="Apple-converted-space"> </span></b></p>
+<p class="p2"><br></p>
+<p class="p3">This document lists the process prototypes provided by default, along with required and optional parameters. See <b>[ChuckExamples]</b> for details on usage in code.</p>
+<p class="p2"><br></p>
+<p class="p3">For all processes, you determine the object that will play the process by chucking the process into that object. Processes will run silently in the background if you don't do this (and they will spring to life if you do this after playing the process!):</p>
+<p class="p2"><br></p>
+<p class="p4"><span class="s1">BP</span><span class="s2">(</span>\myProcess<span class="s2">) =&gt; </span><span class="s1">VC</span><span class="s2">(</span>\myVoicer<span class="s2">);</span></p>
+<p class="p5">// or:</p>
+<p class="p5"><span class="s1">BP</span><span class="s2">(</span><span class="s3">\myProcess</span><span class="s2">) =&gt; </span><span class="s1">VP</span><span class="s2">(0);<span class="Apple-converted-space">  </span></span>// hot-swappable VoicerProxy</p>
+<p class="p2"><br></p>
+<p class="p3"><b>PR(\abstractProcess)</b></p>
+<p class="p3"><b>PR(\abstractModeSeg)</b></p>
+<p class="p3"><b>PR(\abstractMIDIInput)</b></p>
+<p class="p2"><br></p>
+<p class="p3">Abstract processes do not include any real sequencing functionality. They simply define parameters that will be shared by their subclasses.</p>
+<p class="p2"><br></p>
+<p class="p3"><b>PR(\mel1)</b></p>
+<p class="p2"><br></p>
+<p class="p3">The simplest possible melodic player. Accepts raw MIDI input, and outputs the notes exactly as played. You may chuck in different MIDI buffers to change the melody while playing.<span class="Apple-converted-space"> </span></p>
+<p class="p2"><br></p>
+<p class="p3">Required:</p>
+<p class="p2"><br></p>
+<p class="p6">aMIDIRecBuf =&gt;.mel <span class="s1">BP</span>(<span class="s3">\mel1</span>);</p>
+<p class="p2"><br></p>
+<p class="p3"><b>PR(\aiMel)</b></p>
+<p class="p3"><b>PR(\aiMelSynth)</b></p>
+<p class="p3"><b>PR(\aiBass)</b></p>
+<p class="p2"><br></p>
+<p class="p3">Adaptive melodic sequences. aiMelSynth differs from aiMel only in that it uses the synthdef-playing ProtoEvent, instead of the voicer ProtoEvent. aiBass writes its notes into the global library (at a user definable key), so that chordal processes can retrieve this note to determine harmonic context. It's possible to have multiple bass processes using different library keys, but of course you have to figure out how to make musical sense with it!<span class="Apple-converted-space"> </span></p>
+<p class="p2"><br></p>
+<p class="p3">Required:</p>
+<p class="p2"><br></p>
+<p class="p6">aMIDIRecBuf =&gt;.mel <span class="s1">BP</span>(<span class="s3">\mel1</span>);<span class="Apple-converted-space">  </span><span class="s4">// source material</span></p>
+<p class="p2"><br></p>
+<p class="p3">Optional:</p>
+<p class="p2"><br></p>
+<p class="p5"><span class="s2">aMIDIRecBuf =&gt;.adapt </span><span class="s1">BP</span><span class="s2">(</span><span class="s3">\mel1</span><span class="s2">);<span class="Apple-converted-space">  </span></span>// material to use for adaptation</p>
+<p class="p5"><span class="s2">adaptPattern =&gt;.adapt </span><span class="s1">BP</span><span class="s2">(</span><span class="s3">\mel1</span><span class="s2">);<span class="Apple-converted-space">  </span></span>// which adaptation functions to use</p>
+<p class="p5"><span class="s1">BP</span><span class="s2">(</span><span class="s3">\mel1</span><span class="s2">).v[</span><span class="s3">\repeats</span><span class="s2">] = </span>/* integer, how many times to loop through all the phrases before stopping */<span class="s2">;</span></p>
+<p class="p5"><span class="s1">BP</span><span class="s2">(</span><span class="s3">\mel1</span><span class="s2">).v[</span><span class="s3">\adaptProb</span><span class="s2">] = </span>/* float, 0-1, probability of executing an adaptation this phrase */<span class="s2">;</span></p>
+<p class="p5"><span class="s1">BP</span><span class="s2">(</span><span class="s3">\mel1</span><span class="s2">).v[</span><span class="s3">\eugenicizeProb</span><span class="s2">] = </span>/* float, 0-1, probability of removing an adaptation this phrase */<span class="s2">;</span></p>
+<p class="p5"><span class="s1">BP</span><span class="s2">(</span><span class="s3">\mel1</span><span class="s2">).v[</span><span class="s3">\variantThreshold</span><span class="s2">] = </span>/* integer, when the number of adaptations for phrase exceeds this, one of them will be dropped regardless of the eugenicize probability */<span class="s2">;</span></p>
+<p class="p5"><span class="s1">BP</span><span class="s2">(</span><span class="s3">\mel1</span><span class="s2">).v[</span><span class="s3">\preSplitFunc</span><span class="s2">] = { </span><span class="s1">|self, notes|</span><span class="s2"> </span>/* to do something to the notes before splitting into phrases--by default this is nothing */<span class="s2"> };</span></p>
+<p class="p5"><span class="s1">BP</span><span class="s2">(</span><span class="s3">\mel1</span><span class="s2">).v[</span><span class="s3">\segProto</span><span class="s2">] = </span><span class="s3">\nameOfSegProto</span><span class="s2">;<span class="Apple-converted-space">  </span></span>// if you write your own phrase holder, put its name here</p>
+<p class="p2"><br></p>
+<p class="p3"><b>PR(\basicMacroRh)</b></p>
+<p class="p3"><b>PR(\macroRh)</b></p>
+<p class="p3"><b>PR(\chTop)</b></p>
+<p class="p2"><br></p>
+<p class="p3">Chord players. basicMacroRh plays chords unmodified, paced by the macro rhythm you provide and arpeggiated as you specify. macroRh does the same, but also maintains a melodic process that determines the top note of every chord. The input chord will adapt to fit this top note and the current bass note. chTop dispenses with the macro rhythm, taking its macro rhythm from the notes of the top note melody. This is useful if you want to harmonize a melody.<span class="Apple-converted-space"> </span></p>
+<p class="p2"><br></p>
+<p class="p3">To use one of these processes, you have to wrap an arpeggiator inside a chord process. The only arpeggiators are <b>PR(\arpeg1)</b> (voicer) and <b>PR(\arpegSynth)</b> (synthdef).</p>
+<p class="p2"><br></p>
+<p class="p4"><span class="s1">PR</span><span class="s2">(</span>\arpeg1<span class="s2">) =&gt; </span><span class="s1">BP</span><span class="s2">(</span>\ch1<span class="s2">);</span></p>
+<p class="p4"><span class="s1">PR</span><span class="s2">(</span>\macroRh<span class="s2">) =&gt; </span><span class="s1">BP</span><span class="s2">(</span>\ch1<span class="s2">);</span></p>
+<p class="p7"><br></p>
+<p class="p5">// or, one step:<span class="Apple-converted-space"> </span></p>
+<p class="p4"><span class="s1">PR</span><span class="s2">(</span>\macroRh<span class="s2">) =&gt; (</span><span class="s1">PR</span><span class="s2">(</span>\arpeg1<span class="s2">) =&gt; </span><span class="s1">BP</span><span class="s2">(</span>\ch1<span class="s2">));<span class="Apple-converted-space"> </span></span></p>
+<p class="p2"><br></p>
+<p class="p3">The <b>[ChuckExamples]</b> help file shows you a shorter form to do the wrapping and populate the required variables in one function call.</p>
+<p class="p2"><br></p>
+<p class="p3">Required:</p>
+<p class="p2"><br></p>
+<p class="p6">aMIDIRecBuf =&gt;.ch <span class="s1">BP</span>(<span class="s3">\ch1</span>);<span class="Apple-converted-space">  </span><span class="s4">// chords</span></p>
+<p class="p5"><span class="s2">aMIDIRecBuf =&gt;.mel </span><span class="s1">BP</span><span class="s2">(</span><span class="s3">\ch1</span><span class="s2">);<span class="Apple-converted-space">  </span></span>// topNote melody; not required for basicMacroRh</p>
+<p class="p5"><span class="s1">MacRh</span><span class="s2">(</span><span class="s3">\macrorhythmName</span><span class="s2">) =&gt;.macro </span><span class="s1">BP</span><span class="s2">(</span><span class="s3">\ch1</span><span class="s2">);<span class="Apple-converted-space">  </span></span>// not required for chTop</p>
+<p class="p6">microrhythmNamesPattern =&gt;.micro <span class="s1">BP</span>(<span class="s3">\ch1</span>);</p>
+<p class="p6">arpegpatNamesPattern =&gt;.arpeg <span class="s1">BP</span>(<span class="s3">\ch1</span>);</p>
+<p class="p2"><br></p>
+<p class="p3">Optional:</p>
+<p class="p2"><br></p>
+<p class="p5"><span class="s2">aMIDIRecBuf =&gt;.adapt </span><span class="s1">BP</span><span class="s2">(</span><span class="s3">\ch1</span><span class="s2">);<span class="Apple-converted-space">  </span></span>// if the topnote melody needs to adapt; not required for basicMacroRh</p>
+<p class="p6">adaptfuncPat =&gt;.adapt <span class="s1">BP</span>(<span class="s3">\ch1</span>);</p>
+<p class="p8"><br></p>
+<p class="p5"><span class="s1">BP</span><span class="s2">(</span><span class="s3">\ch1</span><span class="s2">).v[</span><span class="s3">\respondsToBass</span><span class="s2">] = </span><span class="s1">true</span><span class="s2">;<span class="Apple-converted-space">  </span></span>// change chord when the bass note changes?</p>
+<p class="p4"><span class="s1">BP</span><span class="s2">(</span>\ch1<span class="s2">).v[</span>\melodyProto<span class="s2">] = </span>\nameOfMelodyPrototype<span class="s2">;<span class="Apple-converted-space">  </span></span><span class="s4">// for topnote<span class="Apple-converted-space"> </span></span></p>
+<p class="p2"><br></p>
+<p class="p3">Fewer optional parameters here, but macro, micro and arpeg will give you enough to play with.</p>
+<p class="p2"><br></p>
+<p class="p3"><b>PR(\melModeSeg)</b></p>
+<p class="p3"><b>PR(\melAdaptSeg)</b></p>
+<p class="p2"><br></p>
+<p class="p3">These hold phrases for the adaptive melodic sequencers.</p>
+<p class="p2"><br></p>
+<p class="p3"><b>PR(\arpeg1)</b></p>
+<p class="p3"><b>PR(\arpegSynth)</b></p>
+<p class="p2"><br></p>
+<p class="p3">Arpeggiators for chord processes. They don't do anything unless you wrap them in one of the chord processes above.</p>
+<p class="p2"><br></p>
+<p class="p3"><b>PR(\basicChordSeg)</b></p>
+<p class="p3"><b>PR(\chordModeSeg)</b></p>
+<p class="p2"><br></p>
+<p class="p3">These hold single chords for the chord processes, and should not be used individually.</p>
+<p class="p2"><br></p>
+<p class="p3"><b>PR(\melMIDI)</b></p>
+<p class="p3"><b>PR(\chMIDI)</b></p>
+<p class="p3"><b>PR(\chmelMIDI)</b></p>
+<p class="p3"><b>PR(\topMIDI)</b></p>
+<p class="p2"><br></p>
+<p class="p3">Support processes for live MIDI input. Do not use these directly! These are created behind the scenes when you chuck a MIDI record socket (MRS) into a running process.</p>
+</body>
+</html>
