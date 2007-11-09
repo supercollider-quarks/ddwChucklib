@@ -21,7 +21,8 @@ AbstractChuckArray {
 	
 	var	<collIndex,	// the instance is stored at this.class(collIndex)
 		<>value,		// what I'm pointing to
-		<>subType;
+		<>subType,
+		<>path;
 
 		// collection is shared among all subclasses, so must index by classname
 	*initClass {
@@ -61,7 +62,9 @@ AbstractChuckArray {
 	*collectionType { ^Array }
 
 	*collection { ^collection[this.name] }
-	*keys { ^(0 .. this.collection.size - 1) }
+	*keys {
+		^(this.collection.size > 0).if({ (0 .. this.collection.size - 1) }, { Array.new });
+	}
 	*values { ^this.collection }
 	
 		// to be removed later
@@ -136,6 +139,12 @@ AbstractChuckArray {
 		this.collection.values.do(_.free);
 	}
 	
+	*subTypes {
+		var	types = IdentitySet.new;
+		this.collection.do({ |item| types.add(item.subType) });
+		^types.asArray.sort
+	}
+	
 	*allOfType { |type|
 		type.notNil.if({
 			^this.collection.select({ |item| item.subType == type }).asArray;
@@ -149,6 +158,7 @@ AbstractChuckArray {
 	prInit { |index|
 		collIndex = index;
 		subType = defaultSubType;
+		path = thisProcess.nowExecutingPath ?? { path };
 		this.init(index);
 	}
 	
@@ -158,6 +168,9 @@ AbstractChuckArray {
 	printOn { |stream|
 		if (stream.atLimit, { ^this });
 		stream << this.class.name << "(" <<< collIndex << ")";
+	}
+	openFile {
+		^(path !? { path.asString.openDocument })
 	}
 	*loadFromChuckDirectories { |path|
 		directories.reverseDo({ |dir|
@@ -203,7 +216,6 @@ AbstractChuckArray {
 			ok.if({ path.loadPath });
 		});
 	}
-
 }
 
 AbstractChuckNewArray : AbstractChuckArray {
@@ -672,9 +684,12 @@ PR : AbstractChuckNewDict {
 						// so I can't call BP-quant
 					(self[\quant] ?? { BP.defaultQuant }).dereference.asTimeSpec
 				};
+					// this is done after putting a new value into the AdhocClass
+					// should not be global for AdhocClass, but yes for PR/BP
 				~putAction = { |self, key, value|
-					value.isKindOf(Pattern).if({
-						self.put((key ++ "Stream").asSymbol, value.asStream);
+					var	streamKey = (key ++ "Stream").asSymbol;
+					streamKey.envirGet.notNil.if({
+						self.put(streamKey, value.asStream);
 					});
 				};
 			});
@@ -804,9 +819,14 @@ BP : AbstractChuckNewDict {
 	}
 	
 	bindAdhocClass { |process, adverb, parms|
-			// PR(\xyz).v => BP(\abc) is dangerous, so fail the attempt
+		(process === value).if({
+			"Cannot chuck a process into itself. Chuck operation ignored.".warn;
+			^this
+		});
+			// PR(\xyz).v => BP(\abc) is dangerous
 		process.isPrototype.if({
-			Error("% received an AdhocClass that is a prototype.".format(this)).throw;
+//			Error("% received an AdhocClass that is a prototype.".format(this)).throw;
+			process = process.copy;	// you need a new instance, not the prototype
 		});
 			// midi input needs to be able to access this object from within the AdhocClass
 		process.put(\collIndex, this.collIndex);
