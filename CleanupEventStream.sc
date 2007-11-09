@@ -112,21 +112,27 @@ PausableEventStreamPlayer : PauseStreamHJH {
 
 	mute { muteCount = muteCount + 1; }
 	unmute { muteCount = muteCount - 1; }
-	
+
 	next { arg inTime;
 		var nextTime;
 		var outEvent = stream.next(event);
-		if (outEvent.isNil) {
-//thisThread.clock.beats.debug("eventstreamplayer ended at");
+		case { outEvent.isNil } {
 			streamHasEnded = stream.notNil;
 			stream = nextBeat = nil;
 			^nil
-		}{
+		}
+		{ outEvent.respondsTo(\keysValuesDo) } {
 			if (muteCount > 0) { outEvent.put(\freq, \rest) };
-			if ((nextTime = outEvent.play).isNil) { stream = nil }
-				{ nextBeat = inTime + nextTime };	// inval is current logical beat
-			^nextTime
-		};
+			outEvent.play;
+			if ((nextTime = outEvent.delta).isNil) { stream = nextBeat = nil; ^nil };
+		}
+		{ outEvent.isNumber } {
+			nextTime = outEvent
+		} // default:
+		{ stream = nextBeat = nil; ^nil };
+
+		nextBeat = inTime + nextTime;	// inval is current logical beat
+		^nextTime
 	}
 	
 	asEventStreamPlayer { ^this }
