@@ -12,29 +12,29 @@ PR(\abstractProcess).v.clone({
 		// each sequence type is responsible for its own code to receive a sequence
 		// should not mix types: if a chord sequence needs to own a melody sequence,
 		// it should contain a separate object and delegate melody functions to it
-	~acceptMIDIBuf = #{ |self, buf, adverb|
+	~acceptMIDIBuf = #{ |buf, adverb|
 		~sequence = buf;
 			// necessary because buf can change while sequence is playing
 		(~index >= buf.size).if({
 			~index = ~index % buf.size;	// or should this just be 0?
 		});
-		self
+		currentEnvironment
 	};
 	
-	~asNotePattern = #{ |self|
+	~asNotePattern = #{ 
 		~index = 0;
 			// Pfunc is roughly 6.7 times SLOWER than Proutine
 		Proutine({ |inval|
-			self.use({
+//			currentEnvironment.use({
 				{	inval = ~sequence[~index].embedInStream(inval);  // output
 					((~index = ~index+1) >= ~sequence.size).if({ ~index = 0 });
 				}.loop;
-			});
+//			});
 		});
 	};
 	
-	~asPattern = #{ |self|
-		Pbind([\note, \delta], ~asNotePattern.value(self).collect({ |n| [n, n.dur] }));
+	~asPattern = #{ 
+		Pbind([\note, \delta], ~asNotePattern.value.collect({ |n| [n, n.dur] }));
 	};
 }, nil, #[\requiredKeys]) => PR(\mel1);
 
@@ -42,7 +42,7 @@ PR(\abstractProcess).v.clone({
 PR(\abstractProcess).v.clone({
 	~storageProto = \melodyStorage;
 	~useRh = false;	// useRhythmProfile -- but this is a performance parm so I'm shortening it
-	~rhythmProfileProto = \randRhythm;
+	~rhythmProfileProto = nil; // \randRhythm;
 	~rhythmProfileReset = false;
 	~rhythmQuant = 0.25;	// default, quantize to 16th
 	~event = ~event.copy.put(\eventKey, \voicerNote);
@@ -57,7 +57,7 @@ PR(\abstractProcess).v.clone({
 	
 	~newMelFlag = false;	// internal flag: when a new melody is given, this becomes true
 
-	~acceptMIDIBuf = #{ |self, buf, adverb, parms|
+	~acceptMIDIBuf = #{ |buf, adverb, parms|
 		var	result, temp;
 		parms.isNil.if({
 			parms = buf.tryPerform(\properties).copy ?? { () };
@@ -74,7 +74,7 @@ PR(\abstractProcess).v.clone({
 		});
 			// not entirely sure about this for splitFunc
 		parms.keysValuesDo({ |k, v|
-			v.notNil.if({ self.put(k, v) });
+			v.notNil.if({ currentEnvironment.put(k, v) });
 		});
 		
 			// get the proper action, either from supplied adverb or buf type
@@ -84,29 +84,33 @@ PR(\abstractProcess).v.clone({
 
 		(adverb != \rhythm).if({
 			result = (adverb ++ "PrepareSequence").asSymbol.envirGet
-				.value(self, ~midiParse.if({ buf = buf.parse }, { buf }), parms);
-			adverb.envirPut(result);
+				.value(~midiParse.if({ buf = buf.parse }, { buf }), parms);
+				// boy, this is an ugly workaround -
+				// but without it, adaptation data were incorrectly stored in this rather than storage obj
+			(adverb == \mel).if({
+				adverb.envirPut(result);
+			});
 		}, {
 // also refactor
 // barlength is never initialized
-			~rhythm = ~rhythmPrepareSequence.value(self, buf, parms);
+			~rhythm = ~rhythmPrepareSequence.value(buf, parms);
 		});			
 
 			// populate rhythm profile if there isn't one and I'm receiving a melody
 		(~rhythmProfileProto.notNil and: ~rhythm.isNil and: (adverb == \mel)).if({
-			~rhythm = ~rhythmPrepareSequence.value(self, buf, parms);
+			~rhythm = ~rhythmPrepareSequence.value(buf, parms);
 		});
 		
-		self
+		currentEnvironment
 	};
 	
 		// should always return a new mel object, but should keep adapt (and other stuff?)
 		// why always a new object? -- to save mel and reuse it
-	~melPrepareSequence = #{ |self, buf, parms|
+	~melPrepareSequence = #{ |buf, parms|
 		var	saveMel = ~mel;
 		(~mel = PR(~storageProto).v.copy)
-			.prepareSequence(\mel, buf, self, parms);
-//			.prepareSequence(\mel, buf, minSegSize, ~mode.(self), ~splitFunc);
+			.prepareSequence(\mel, buf, currentEnvironment, parms);
+//			.prepareSequence(\mel, buf, minSegSize, ~mode.value, ~splitFunc);
 		saveMel.tryPerform(\adapt).notNil.if({
 			~mel[\adapt] = saveMel[\adapt];
 		});
@@ -118,24 +122,24 @@ PR(\abstractProcess).v.clone({
 	};
 	
 		// add adaptation data to current melody if it exists
-	~adaptPrepareSequence = #{ |self, buf, parms|
+	~adaptPrepareSequence = #{ |buf, parms|
 		~mel.isNil.if({
 			~mel = PR(~storageProto).v.copy;
 		});
-		~mel.prepareSequence(\adapt, buf, self, parms);
+		~mel.prepareSequence(\adapt, buf, currentEnvironment, parms);
 	};
 	
-	~rhythmPrepareSequence = #{ |self, buf, parms|
+	~rhythmPrepareSequence = #{ |buf, parms|
 			// create a new rhythm profiler only if needed
 //"rhythmPrepareSequence".debug;
 		(~rhythm ?? { PR(~rhythmProfileProto).v.copy })
 //.debug
-			.prepare(buf, ~getPassInValue.(self, PR(~rhythmProfileProto).v.keysFromParent, false),
-				parms)
+			.prepare(buf, ~getPassInValue.(PR(~rhythmProfileProto).v.keysFromParent, false),
+				parms, currentEnvironment)
 //.debug;
 	};
 	
-	~dumpSegments = { |self|
+	~dumpSegments = { 
 		~mel.mel.do({ |phr, i|
 			"Phrase %\n".postf(i);
 			phr.mel.do({ |seg, j|
@@ -154,130 +158,130 @@ PR(\abstractProcess).v.clone({
 		});
 	};				
 	
-//	~copyKeyToMel = #{ |self, key, value|
+//	~copyKeyToMel = #{ |key, value|
 //		(key.envirGet.notNil and: { ~mel.notNil }).if({
 //			~mel.put(key, value ?? { key.envirGet })
 //		});
-//		self
+//		currentEnvironment
 //	};
 //	
 //		// check all keysFromParent in mel and copy values if we have them
-//	~copyKeys = #{ |self, thing|
-//		thing = thing ?? { self };
+//	~copyKeys = #{ |thing|
+//		thing = thing ?? { currentEnvironment };
 //		(thing.notNil and: ~mel.notNil).if({
 //			~mel[\keysFromParent].do({ |key|
-//				~copyKeyToMel.value(self, key, thing[key])
+//				~copyKeyToMel.value(key, thing[key])
 //			});
 //		});
-//		self
+//		currentEnvironment
 //	};
 	
 // potential problem: do some numeric parms belong to melodyStorage?
 // yes: repeats, adaptProb, eugenicizeProb, variantThreshold, rhythmQuant
-	~bindSimpleNumber = #{ |self, num, adverb|
+	~bindSimpleNumber = #{ |num, adverb|
 		adverb.envirPut(num);
-//		~copyKeyToMel.value(self, adverb);
+//		~copyKeyToMel.value(adverb);
 	};
 	
 	~clearAdapt = #{
 		~mel.clearAdapt;
 	};
 
-//	~mode = #{ |self| self[\mode] ? Mode(\default).v };
-	~getMode = #{ |self| self[\mode] ? \default };
-	~mode_ = #{ |self, mode|
+//	~mode = #{  ~mode ? Mode(\default).v };
+	~getMode = #{  ~mode ? \default };
+	~mode_ = #{ |mode|
 		mode = mode.tryPerform(\collIndex) ? mode ? \default;  // pass a symbol in as the mode
-		self.put(\mode, mode);
-		self[\mel] !? { self[\mel].mode = mode };
-		self[\event].put(\mode, self[\mode].value(self));
-		self
+		currentEnvironment.put(\mode, mode);
+		~mel !? { ~mel.mode = mode };
+		~event.put(\mode, ~mode.value);
+		currentEnvironment
 	};
 	
 // function test this breaks the possibility of passing a function as such
-	~getPassInValue = #{ |self, keys, save = false|
+	~getPassInValue = #{ |keys, save = false|
 		var	out;
 		out = ();
 		keys.do({ |key|
-			out.put(key, self[key].isFunction.if({ self[key].value(self) }, { self[key] }));
-//			out.put(key, self[key]);
+			out.put(key, currentEnvironment[key].isFunction.if({ currentEnvironment[key].value }, { currentEnvironment[key] }));
+//			out.put(key, currentEnvironment[key]);
 		});
-		(save ? false).if({ self[\passInValue] = out; });
+		(save ? false).if({ ~passInValue = out; });
 		out
 	};
 	
-	~asPattern = #{ |self|
+	~asPattern = #{ 
 		var rhythm;
-		self[\event].put(\mode, self[\mode].value(self));  // ensure event knows its mode
+		~event.put(\mode, ~mode.value);  // ensure event knows its mode
 		~rhythmStream = ~rhythm.asPattern.asStream;
 			// need to pass in repeats among other parms
 			// true = save the passinvalue in the main BP environment
-		~mel.asSegStream(\asPattern, ~getPassInValue.(self, ~mel.keysFromParent, true));
+		~mel.asSegStream(\asPattern, ~getPassInValue.(~mel.keysFromParent, true));
 		~newMelFlag = false;
 		Prt({ |inval|
 			var phrase, phraseStream, seg, rhy;
 				// try to get phrase; if nil, is this a new melody object?
-			{ ((phrase = self[\mel][\segStream].next).isNil and: { self[\newMelFlag] }).if({
+			{ ((phrase = ~mel[\segStream].next).isNil and: { ~newMelFlag }).if({
 						// new melody object -- make the phrase stream
-					self[\mel].asSegStream(\asPattern,
-						~getPassInValue.(self, ~mel.keysFromParent, true));
-					self[\newMelFlag] = false;
-					phrase = self[\mel][\segStream].next;
+					~mel.asSegStream(\asPattern,
+						~getPassInValue.(~mel.keysFromParent, true));
+					~newMelFlag = false;
+					phrase = ~mel[\segStream].next/*.debug("refreshed segStream, new result")*/;
 				});
 				phrase.notNil  // if that fails, nothing to do
 			}.while({
-				phraseStream = phrase  //.asStream(self[\getPassInValue].(self));
-////					.perform(\asPattern, self[\useRh].if({ self[\rhythmStream] }))
+//"calling asPattern on phrase".debug;
+				phraseStream = phrase  //.asStream(~getPassInValue.value);
+////					.perform(\asPattern, ~useRh.if({ ~rhythmStream }))
 					.perform(\asPattern,
-						self[\getPassInValue].(self, self[\mel][\keysFromParent])).asStream;
+						~getPassInValue.(~mel[\keysFromParent])).asStream;
 				{ (seg = phraseStream.next).notNil }.while({
 // not entirely sure about inval = , but in theory it's correct
 					inval = seg.embedInStream(inval)
 				});
 					// stick in rest if available
-					// passing in self so pattern can get clock
+					// passing in currentEnvironment so pattern can get clock
 					// passing in phr because (sometime) phrase will contain metric alignment
 					// last bit is not implemented now
-				(rhy = self[\macroStream].next(self, phrase)).notNil.if({
+				(rhy = ~macroStream.next(phrase)).notNil.if({
 					(type: \rest, delta: rhy).yield
 				});
 			});
 		})
-		.collect({ |ev|	// apply extra synth args, if available
-			self[\argsStream].notNil.if({
-//				ev	.put(\argKeys, self[\argKeys])
-//					.putAll(self[\argsStream].next(ev))
-				self[\argsStream].next(ev).put(\argKeys, self[\argKeys])
+		.collect(e { |ev|	// apply extra synth args, if available
+			~argsStream.notNil.if({
+//				ev	.put(\argKeys, ~argKeys)
+//					.putAll(~argsStream.next(ev))
+				~argsStream.next(ev).put(\argKeys, ~argKeys)
 			}, { ev })
 		})
 	};
 
 // asNotePattern MIGHT BE BROKEN, pretty much deprecated
 
-	~asNotePattern = #{ |self|
+	~asNotePattern = #{ 
 		~mel.asSegStream(\asNotePattern);
 		~newMelFlag = false;
-//		~asSegStream.value(self, \asNotePattern);
+//		~asSegStream.value(\asNotePattern);
 			// for finite number of repeats, ~segStream will eventually return nil
 		Prt({ |inval|
 			var phrase, phraseStream, seg;
-			{ ((phrase = self[\mel][\segStream].next).isNil and: { self[\newMelFlag] }).if({
+			{ ((phrase = ~mel[\segStream].next).isNil and: { ~newMelFlag }).if({
 						// new melody object -- make the phrase stream
-					self[\mel].asSegStream(\asPattern/*, ~rhythmStream*/);
-					self[\newMelFlag] = false;
-					phrase = self[\mel][\segStream].next;
+					~mel.asSegStream(\asPattern/*, ~rhythmStream*/);
+					~newMelFlag = false;
+					phrase = ~mel[\segStream].next;
 				});
 				phrase.notNil  // if that fails, nothing to do
 			}.while({
 				phraseStream = phrase
-//					.perform(\asNotePattern, self[\useRh].if({ self[\rhythmStream] }))
-					.perform(\asNotePattern, self[\getPassInValue].(self))
+//					.perform(\asNotePattern, ~useRh.if({ ~rhythmStream }))
+					.perform(\asNotePattern, ~getPassInValue.value)
 					.asStream;
 				{ (seg = phraseStream.next).notNil }.while({
 					seg.embedInStream(inval)
 				});
 			});
 		})
-//		Pembedn(Plazy({ self[\mel][\segStream].next }), inf)
 	};		
 
 	~bindPatDefault = \adapt;
@@ -300,204 +304,11 @@ PR(\aiMel).v.clone({
 	~bassIDPattern = \currentBassNote;
 	~bassIDStream = \currentBassNote;
 
-	~asPattern = #{ |self|
-		~asBasePattern.(self)
-			.collect({ |ev| ev.put(\bassID, self[\bassIDStream].next(ev)) });
+	~asPattern = #{ 
+		~asBasePattern.value
+			.collect(e { |ev| ev.put(\bassID, ~bassIDStream.next(ev)) });
 	};
-
-//	~asPattern = #{ |self|
-//		self[\event].put(\mode, self[\mode].value(self));  // ensure event knows its mode
-//		~useRh.if({
-//			Error("rhythm profiles are not implemented yet").throw;
-//		}, {
-//			~asSegStream.value(self, \asPattern);
-//				// for finite number of repeats, ~segStream will eventually return nil
-//			Pn(Plazy({ self[\segStream].next }), inf)
-//				.collect({ |ev| ev.put(\isBass, true) })
-//		});
-//	};	
 }) => PR(\aiBass);
 
 
-// rhythm profiles
-// each return value from the pattern should be of the form [delta, length]
-// rhythm is applied in PR(\melModeSeg).v[\asNotePattern]
-// calls to the pattern with next will be passed the SequenceNote object
-AbstractChuckArray.defaultSubType = \rhythmProfile;
-
-PR(\abstractProcess).v.clone({
-		// getQuant calls a method
-	~keysFromParent = #[rhythmQuant, getQuant, midiParse, rhythmProfileReset];
-
-	~prepare = #{ |self, buf, passInValue, parms|
-		var 	quant = parms.atBackup(\rhythmQuant, passInValue),
-			beatsPerBar = (parms[\quant] ?? { passInValue[\getQuant] }).quant,
-			needToParse = parms.atBackup(\midiParse, passInValue).not,
-			reset = parms.atBackup(\rhythmProfileReset, passInValue);
-
-		(needToParse ? false).if({ buf = buf.parse });  // assumes buffer has already been parsed
-		buf = buf.quantize(quant, beatsPerBar);  // simple quantize; deal w/ flexQuantize later?
-		~durLen = [buf.durs, buf.lengths].flop;
-		self
-	};
-
-	~asPattern = { |self|
-		Prand(~durLen, inf)
-	};
-	
-	
-}) => PR(\randRhythm);
-
-PR(\randRhythm).v.clone({
-	~prepare = #{ |self, buf, passInValue, parms|
-		var 	quant = parms.atBackup(\rhythmQuant, passInValue),
-			beatsPerBar = (parms[\quant] ?? { passInValue[\getQuant] }).quant,
-			needToParse = parms.atBackup(\midiParse, passInValue).not,
-			reset = parms.atBackup(\rhythmProfileReset, passInValue);
-		
-		(needToParse ? false).if({ buf = buf.parse });  // assumes buffer has already been parsed
-		buf = buf.quantize(quant, beatsPerBar);  // simple quantize; deal w/ flexQuantize later?
-
-			// may chuck in new material without overwriting previous analyses
-		(~durMarkov.isNil or: { reset ? false }).if({
-			~durMarkov = MarkovSet.new(updateSeeds: true);
-			~lenMarkov = MarkovSet.new(updateSeeds: true);
-		});
-
-		~durMarkov.parse(Pseq(buf.durs, inf), buf.size+1);
-			// associate dur to length
-		buf.notes.do({ |note| ~lenMarkov.read(note.dur, note.length) });
-		~durStream = ~durMarkov.asStream;
-		self
-	};
-
-	~asPattern = #{ |self|
-		var dur;
-		Pfunc({
-			[dur = self[\durStream].next, self[\lenMarkov].next(dur)].debug("markovRhythm output")
-		})
-	};
-	
-}) => PR(\markovRhythm);
-
-// useful for swing
-// specify a bar's worth of timepoints, or part of a bar to be repeated
-// e.g., #[0.28, 0.22] -- a rhythm stream 0.25, 0.25, 0.25, 0.25 turns into 0.28, 0.22, 0.28, 0.22
-// during play, map the current time point onto the bar according to rhythmCycle
-// and the clock's baseBeat and morph to the cycle
-
-// if the source rhythms aren't quantized, they will be when this process gets done with it
-
-// this will not adapt to a change in meter in the clock
-PR(\randRhythm).v.clone({
-		// rhythmCycle may be given in the main melody BP
-		// or clone this PR and write in a default
-		// my default will be basic 16th-note swing
-	~keysFromParent = #[\getQuant, \rhythmCycle, \rhythmProfileReset, \rhythmQuant];
-
-	~defaultCycle = #[0.28, 0.22];
-	~defaultTolerance = 0.0001;		// modulo arithmetic is inexact; how inexact is OK?
-	
-		// if cycle is longer than bar length, shorten cycle
-		// this should happen only if your cycle doesn't match your barLength
-		// results may not be predictable but maybe you want weird rhythm
-		// buf is not used!
-	~prepare = { |self, buf, passInValue, parms|
-		var	runningsum = 0, index;
-		~barLength = (parms[\quant] ?? { passInValue[\getQuant] }).quant;
-		~cycle = parms.atBackup(\rhythmCycle, passInValue) ? ~defaultCycle;
-		~cycleLength = ~cycle.sum;
-		~rhythmQuant = parms.atBackup(\rhythmQuant, passInValue);
-		~tolerance = parms.atBackup(\rhythmTolerance, passInValue) ?? ~defaultTolerance;
-		(~cycleLength < ~barLength).if({
-			~cycle = (~cycle ! ((~barLength div: ~cycleLength) + 1)).flat;
-			~cycleLength = ~cycle.sum;
-		});
-		(~cycleLength > ~barLength).if({
-			index = ~cycle.detectIndex({ |item|
-				runningsum = runningsum + item;
-				runningsum >= ~barLength
-			});
-			~cycle = ~cycle[..index];
-			~cycleLength = ~cycle.sum;
-			~cycle[index] = ~cycle.last - (~cycleLength - ~barLength);
-		});
-		runningsum = 0;
-		~outpoints = ~cycle.collect({ |item| runningsum <! (runningsum = runningsum + item) })
-			++ ~cycleLength;
-// I'm not really happy with either of these
-//		~inpoints = Array.series(~cycle.size, 0, ~rhythmQuant);
-		~inpoints = ~outpoints.round(~rhythmQuant);
-		self
-	};
-	
-	~timeWithinBar = { |self, time|
-		((time - thisThread.clock.baseBarBeat) % ~barLength)
-	};
-
-	~mapToCycle = { |self, time|
-		var	timeinbar = ~timeWithinBar.(self, time),
-			nearest = timeinbar.nearestInList(~inpoints),
-			index = ~inpoints.indexOfEqual(nearest),
-			index2;
-//[nearest, timeinbar, index].debug("nearest, time");
-		(nearest == timeinbar).if({
-			~outpoints[index]		// spot on, no interpolation needed
-		}, {
-			(timeinbar < nearest).if({
-				index2 = index;
-				index = index - 1;
-			}, {
-				index2 = index + 1;
-			});
-				// interpolate beyond last item in array
-			(index2 == ~inpoints.size).if({
-				index = 0;	// last item in points arrays <--> first item
-				index2 = 1;
-				timeinbar = timeinbar - ~barLength;
-			});
-			timeinbar.linlin(~inpoints[index], ~inpoints[index2],
-				~outpoints[index], ~outpoints[index2]);
-		});
-	};
-
-		// note, because of FuncStreamEnvir, currentEnvironment here is the master BP
-		// NOT the rhythm profile - use self for all local environment vars
-		// I need latency from the BP so this is (strangely) good
-		// self. enters the local environment for calculations
-	~asPattern = { |self|
-		Prout({ |note|
-			var	now = thisThread.clock.beats + ~latency,
-				nowmap = self.mapToCycle(now),
-				then, thenmap, deltamap;
-			loop {
-thisThread.clock.beats.debug;
-//[now, nowmap].debug("now");
-//"input note: ".post; note.postln;
-				then = now + note.dur;
-				thenmap = self.mapToCycle(then);
-				deltamap = (thenmap - nowmap) % self[\barLength];
-				note = [deltamap, note.length * (deltamap / note.dur)]
-//.debug("rhythm output")
-				.yield;
-					// if the process was paused, state variables must be reset
-					// if no pause, clock should be in sync with then
-//"\nafter return".debug;
-//[thisThread.clock.beats, ~latency, thisThread.clock.beats + ~latency].debug("now, latency");
-//self.timeWithinBar(thisThread.clock.beats + ~latency).debug/*("current time in bar")*/;
-//self.timeWithinBar(thenmap).debug("thenmap in bar");
-				((self.timeWithinBar(thisThread.clock.beats + ~latency).round(self[\tolerance]))
-						!= self.timeWithinBar(thenmap).round(self[\tolerance])).if({
-					then = thisThread.clock.beats + ~latency;
-					thenmap = self.mapToCycle(then);
-				});
-				now = then;
-				nowmap = thenmap;
-			}
-		});
-	};
-}) => PR(\cycleMapRhythm);
-
 AbstractChuckArray.defaultSubType = saveSubType;
-
-//				((thisThread.clock.beats + ~latency) != then).if({

@@ -8,15 +8,15 @@ AdhocClass({
 	
 		// note, parent must NOT be stored in this environment
 		// it's used only to get the shared variables
-	~prep = { |self, audio, index, parent|
+	~prep = { |audio, index, parent|
 		~audio = audio;
 		~index = index;
 		~keysFromParent.do({ |key| key.envirPut(parent[key]) });
-		self
+		currentEnvironment
 	};
 	
 		// buf will be used in the buffer-based version
-	~getfft = { |self|
+	~getfft = { 
 		var	srcfft, peak, melfft;
 
 		~peak = ~audio.abs.maxItem;
@@ -31,11 +31,11 @@ AdhocClass({
 			});
 			~srcfft = ~srcfft.avgsmooth(~fftsmooth);
 			
-			self
+			currentEnvironment
 		});	// returns nil if peak condition not met
 	};
 	
-	~fftPostProcessing = { |self|
+	~fftPostProcessing = { 
 		var	fft = ~srcfft,
 			slopes = Array.new(fft.size - ~slopedist),
 			peaks = List.new,	// stores index and magnitude of peak
@@ -61,7 +61,7 @@ AdhocClass({
 		~slopes = slopes;
 		~peaks = peaks.array;
 		~peakIndices = peakIndices.array;
-		self
+		currentEnvironment
 	};
 	
 	~absRatio = { |a, b|
@@ -71,7 +71,7 @@ AdhocClass({
 		// a replacement for nearestInList that does not permit repeated matches
 		// returns elements in b that are closest to elements in a
 		// a.size <= b.size or the method will fail
-	~nearInListExclusive = { |self, a, b|
+	~nearInListExclusive = { |a, b|
 		var	out, index;
 		(a.size <= b.size).if({
 			out = Array.new(a.size);
@@ -91,20 +91,20 @@ AdhocClass({
 		});
 	};
 
-	~compareData = { |self, comparisonfft|
+	~compareData = { |comparisonfft|
 		var	data1, data2, matchedIndices, matchedPeaks, out = 0;
 
 			// which is shorter?
 		(~peaks.size <= comparisonfft.peaks.size).if({
-			data1 = self;
+			data1 = currentEnvironment;
 			data2 = comparisonfft;
 		}, {
 			data1 = comparisonfft;
-			data2 = self;
+			data2 = currentEnvironment;
 		});
 
 			// peak indices in data2 that are closest to the indices in data1
-		matchedIndices = ~nearInListExclusive.(self, data1.peakIndices, data2.peakIndices);
+		matchedIndices = ~nearInListExclusive.(data1.peakIndices, data2.peakIndices);
 			// peak objects at those indices
 		matchedPeaks = data2.peaks[matchedIndices.collectIndicesFromArray(data2.peakIndices)];
 
@@ -126,7 +126,7 @@ AdhocClass({
 		// remove most expensive memory consumers
 		// preserve data (peaks, peakIndices) needed for comparison
 		// usually you should collect garbage UNLESS you are debugging
-	~collectGarbage = { |self, doGC|
+	~collectGarbage = { |doGC|
 		(doGC ? true).if({
 			~fhzfft = nil;
 			~srcfft = nil;
@@ -157,11 +157,11 @@ PR(\abstractProcess).v.clone({
 	~garbageCollection = true;
 
 		// getfft converts to mel frequencies for better analysis
-	~freqToMel = { |self, fhz|
+	~freqToMel = { |fhz|
 		1127.01048 * log(1 + (fhz/700))
 	};
 	
-	~melToFreq = { |self, mel|
+	~melToFreq = { |mel|
 		exp(mel / 1127.01048) - 1 * 700
 	};
 
@@ -171,7 +171,7 @@ PR(\abstractProcess).v.clone({
 	~quant = NilTimeSpec.new;
 	~reuseCleanup = true;
 	
-	~startAnalysis = { |self, path, pts, fftsize|
+	~startAnalysis = { |path, pts, fftsize|
 		~isPlaying.if({
 			"BP(%) is still analyzing %. Cannot start a new file."
 				.format(~collIndex.asCompileString, ~path);
@@ -183,12 +183,12 @@ PR(\abstractProcess).v.clone({
 		});
 	};
 	
-	~asyncHang = { |self|
+	~asyncHang = { 
 		~saveEventStreamPlayer = ~eventStreamPlayer;
 		nil.yield;
 	};
 	
-	~asyncUnhang = { |self|
+	~asyncUnhang = { 
 		~eventStreamPlayer = ~saveEventStreamPlayer;
 		~clock.sched(0, ~eventStreamPlayer.refresh);
 		~isPlaying = true;
@@ -197,9 +197,9 @@ PR(\abstractProcess).v.clone({
 		// SoundFile-based is synchronous but buffers might be async
 		// getAudioData should send the messages to get the data, then call ~asyncHang
 		// the following method is synchronous
-	~getAudioData = { |self, time|
+	~getAudioData = { |time|
 		var	result;
-		~file.seek(time * ~sampleRate.(self), 0);
+		~file.seek(time * ~sampleRate.value, 0);
 		result = FloatArray.newClear(~fftsize);
 		~file.readData(result);
 		(result.size == ~fftsize).if({
@@ -221,11 +221,11 @@ PR(\abstractProcess).v.clone({
 		});
 	};
 
-	~makeWindow = { |self| Signal.hanningWindow(~fftsize) };
+	~makeWindow = {  Signal.hanningWindow(~fftsize) };
 
-	~sampleRate = { |self| ~file.sampleRate };
+	~sampleRate = {  ~file.sampleRate };
 
-	~preparePlay = { |self|
+	~preparePlay = { 
 		var	resolution, melreso, mel, fhz, melNyquist;
 
 		~path !? { ~file = SoundFile.openRead(~path) };
@@ -235,26 +235,26 @@ PR(\abstractProcess).v.clone({
 		~imag = Signal.fill(~fftsize, 0);
 		~cos = Signal.fftCosTable(~fftsize);
 		
-		resolution = ~sampleRate.(self) / ~fftsize;
+		resolution = ~sampleRate.value / ~fftsize;
 		~melfreqsize = (~fftsize * 0.125).nextPowerOfTwo.asInteger;
-		melreso = ~freqToMel.(self, ~sampleRate.(self) * 0.5) / ~melfreqsize;
+		melreso = ~freqToMel.(~sampleRate.value * 0.5) / ~melfreqsize;
 		
 			// melmap[mel_bin_index] == first bin index into fft
 		~melmap = Array.fill(~melfreqsize+1, { |i|
-			fhz = ~melToFreq.(self, melreso * i);
+			fhz = ~melToFreq.(melreso * i);
 			((fhz + (resolution * 0.5)) / resolution).asInteger
 		});
 		
-		~window = ~makeWindow.(self);
+		~window = ~makeWindow.value;
 		
 		~analysisComplete = false;
 	};
 
-	~initMatrix = { |self|
+	~initMatrix = { 
 		~matrix = Array.fill(~pts.size, { Array.newClear(~pts.size) });
 	};
 	
-	~addToMatrix = { |self, metric, refindex, cmpindex, matrix, ffts, pts|
+	~addToMatrix = { |metric, refindex, cmpindex, matrix, ffts, pts|
 		matrix = matrix ? ~matrix;
 		ffts = ffts ? ~ffts;
 		pts = pts ? ~pts;
@@ -265,7 +265,7 @@ PR(\abstractProcess).v.clone({
 	};		
 
 		// by now matrix is mostly built, need to fill in the [i, i] diagonal
-	~buildMatrix = { |self|
+	~buildMatrix = { 
 		~matrix.size.do({ |i|
 			~matrix[i][i] = (metric: 1, index: i, refindex: i, peak: ~ffts[i].peak,
 				time: ~pts[i]);
@@ -273,7 +273,7 @@ PR(\abstractProcess).v.clone({
 		~matrix
 	};
 
-	~asPattern = { |self|
+	~asPattern = { 
 			// normally this should be a pattern but routines made from patterns
 			// can't be hung and unhung for async use
 			// Routine().asStream === Routine() so it should be OK
@@ -288,9 +288,9 @@ PR(\abstractProcess).v.clone({
 			~pts.copy.do({ |time, i|
 				(play: 0, delta: ~fftwait).yield;
 					// ~buffer is nil in the file version, but won't be in the buffer version
-				audio = ~getAudioData.(self, time, ~buffer);
+				audio = ~getAudioData.(time, ~buffer);
 				audio.notNil.if({
-					srcfft = PR(~dataProto).v.copy.prep(audio, i-failed, self);
+					srcfft = PR(~dataProto).v.copy.prep(audio, i-failed, currentEnvironment);
 						// nil indicates peak check for the clip failed
 					srcfft.getfft.notNil.if({
 						~ffts.add(srcfft.fftPostProcessing);
@@ -321,8 +321,8 @@ PR(\abstractProcess).v.clone({
 			~postProgress.if({
 				"BP(%): Comparing ffts\n".postf(~collIndex.asCompileString);
 			});
-			~initIndexPair.(self);
-			~initMatrix.(self);
+			~initIndexPair.value;
+			~initMatrix.value;
 			{ (pair = ~indexpair.next).notNil }.while({
 					// this func must store comparison in matrix
 				(~postProgress and: { pair[0] != lastPair0 }).if({
@@ -331,39 +331,39 @@ PR(\abstractProcess).v.clone({
 					lastPair0 = pair[0];
 				});
 				metric = ~ffts[pair[0]].compareData(~ffts[pair[1]]);
-				~addToMatrix.(self, metric, pair[0], pair[1]);
+				~addToMatrix.(metric, pair[0], pair[1]);
 				(play: 0, delta: ~cmpwait).yield;
 			});
 
-			~buildMatrix.(self);
-			~garbageCollection.(self);	// since these run in a routine, they may .wait
+			~buildMatrix.value;
+			~garbageCollection.value;	// since these run in a routine, they may .wait
 			~analysisComplete = true;
 				// pattern will stop, control passes to ~stopCleanup
 		})
 	};
 
-	~userStop = { |self|
+	~userStop = { 
 		~file.close;
 	};
 
 		// if this is called when analysisComplete is false, the thread is hanging,
 		// waiting for async reply
-	~stopCleanup = { |self, streamStopped|
+	~stopCleanup = { |streamStopped|
 		streamStopped.if({
 			(~analysisComplete ? false).if({
 				"Analysis complete. Executing action.".postln;
-				~userStop.(self);
-				~clearAsyncResponder.(self);
-				~action.(self, ~path, ~pts, ~matrix);
+				~userStop.value;
+				~clearAsyncResponder.value;
+				~action.(~path, ~pts, ~matrix);
 			});
 		}, {
 			"Analysis was aborted. Call .play to resume.".warn;
 		});
 	};
 	
-	~freeCleanup = { |self|
-		~clearAsyncResponder.(self);
-		~userFree.(self);
+	~freeCleanup = { 
+		~clearAsyncResponder.value;
+		~userFree.value;
 	};
 	
 		// be careful -- this is NOT threaded and will block other threads until complete
@@ -375,7 +375,7 @@ PR(\abstractProcess).v.clone({
 		// to restore, do:
 		//		(PR(\transient_analysis_file) => BP(\reader)).v.readMatrixFromCSV(path);
 
-	~saveMatrixToCSV = { |self, path|
+	~saveMatrixToCSV = { |path|
 		var	file = File(path = path.standardizePath, "w");
 		file.isOpen.if({
 			~pts.do({ |pt, i|
@@ -401,7 +401,7 @@ PR(\abstractProcess).v.clone({
 		});
 	};
 
-	~readMatrixFromCSV = { |self, path|
+	~readMatrixFromCSV = { |path|
 		var	raw = CSVFileReader.read(path.standardizePath, true, true, _.asFloat),
 			peaks, pts;
 		raw.notNil.if({
@@ -418,7 +418,7 @@ PR(\abstractProcess).v.clone({
 		});
 	};
 	
-	~readMatrixFromCSVOldFormat = { |self, path|
+	~readMatrixFromCSVOldFormat = { |path|
 		var	raw = CSVFileReader.read(path.standardizePath, true, true, _.asFloat),
 			peaks, pts;
 		raw.notNil.if({
@@ -434,7 +434,7 @@ PR(\abstractProcess).v.clone({
 		});
 	};
 	
-	~readRowFromCSV = { |self, file|
+	~readRowFromCSV = { |file|
 		var	out = List.new,
 			char, string = String.new;
 
@@ -455,21 +455,21 @@ PR(\abstractProcess).v.clone({
 		out.asArray
 	};
 	
-	~asyncReadFromCSV = { |self, path, action|
+	~asyncReadFromCSV = { |path, action|
 		var file, raw, peaks, size;
 		path = path.standardizePath;
 		(file = File.new(path, "r")).isOpen.if({
 			AppClock.sched(0, Routine({
-				self.use({
+//				currentEnvironment.use({
 					protect {
-						~pts = ~readRowFromCSV.(self, file);
+						~pts = ~readRowFromCSV.(file);
 						0.01.yield;
-						peaks = ~readRowFromCSV.(self, file);
+						peaks = ~readRowFromCSV.(file);
 						size = ~pts.size;
 						~matrix = Array.new(size);
 						size.do({ |i|
 							0.01.yield;
-							raw = ~readRowFromCSV.(self, file);
+							raw = ~readRowFromCSV.(file);
 							~matrix.add(
 								raw.collect({ |col, j|
 									(refindex: i, index: j, metric: col, peak: peaks[j],
@@ -481,7 +481,7 @@ PR(\abstractProcess).v.clone({
 					} {
 						file.close;
 					};
-				});
+//				});
 			}))
 		}, {
 			"% could not be opened.".format(path).error
@@ -491,9 +491,9 @@ PR(\abstractProcess).v.clone({
 }) => PR(\transient_analysis_file);
 
 PR(\transient_analysis_file).v.clone({
-	~sampleRate = { |self| ~buffer.sampleRate };
+	~sampleRate = {  ~buffer.sampleRate };
 
-	~startAnalysis = { |self, buffer, pts, fftsize|
+	~startAnalysis = { |buffer, pts, fftsize|
 		~isPlaying.if({
 			"BP(%) is still analyzing %. Cannot start a new file."
 				.format(~collIndex.asCompileString, ~buffer);
@@ -507,14 +507,14 @@ PR(\transient_analysis_file).v.clone({
 
 		// asynchronous version to read from a buffer
 		// note, if getToFloatArray fails, the thread will stop with error
-	~getAudioData = { |self, time, buffer|
+	~getAudioData = { |time, buffer|
 		var	result, startFrame = (time * buffer.sampleRate).asInteger;
 		(startFrame < (buffer.numFrames - ~fftsize)).if({
-			buffer.getToFloatArray(startFrame, ~fftsize, action: { |v|
+			buffer.getToFloatArray(startFrame, ~fftsize, action: e { |v|
 				result = v;
-				self.asyncUnhang;	// getToFloatArray action is not environment-safe
+				~asyncUnhang.value;	// getToFloatArray action is not environment-safe
 			});
-			~asyncHang.(self);
+			~asyncHang.value;
 			(result.size == ~fftsize).if({
 				result
 			}, {
@@ -559,17 +559,17 @@ PR(\transient_analysis_buffer).v.clone({
 	~bufStateProto = (status: \idle, dur: nil, peak: nil, recTime: 0, playCount: 0,
 		actionDone: false)
 		.parent_(
-			(status_: { |self, status|
-				self[\status] = status;
-				self.changed(\status, status);	// dependents should know when status changes
+			(status_: { |thisBufState, status|
+				thisBufState[\status] = status;
+				thisBufState.changed(\status, status);  // dependents should know when status changes
 			})
 		);
 
 //////// INITIALIZATION ////////
 	
-	~sampleRate = { |self| ~bufs[0].buf.sampleRate };
+	~sampleRate = {  ~bufs[0].buf.sampleRate };
 
-	~prep = { |self|
+	~prep = { 
 		~chan.isNil.if({
 			~chan = MixerChannel(~collIndex, s, 1, ~mixerOutChannels, postSendReady: true,
 				outbus: ~master);
@@ -587,9 +587,9 @@ PR(\transient_analysis_buffer).v.clone({
 
 		~watcher = NodeWatcher.newFrom(s);
 
-		~resp = OSCresponderNode(s.addr, '/tr', { |t, r, m|
+		~resp = OSCresponderNode(s.addr, '/tr', e { |t, r, m|
 			var	buf;
-			self.use({
+//			currentEnvironment.use({
 					// ignore if I don't know about the node
 				buf = ~bufs.detect({ |buf| m[1] == buf.node.tryPerform(\nodeID) });
 				buf.notNil.if({
@@ -599,60 +599,60 @@ PR(\transient_analysis_buffer).v.clone({
 							buf.dur = nil;	// set flags so we know when all messages
 							buf.peak = nil;	// have come in
 							buf.ontimes = List.new;
-							~doOnRecord.(self, buf);
+							~doOnRecord.(buf);
 						}
 						{ 0 } {
 							buf.status = \stopRec;
 							buf.peak = m[3].max(0.01);
-							buf.dur.notNil.if({ ~closeRecording.(self, buf) });
+							buf.dur.notNil.if({ ~closeRecording.(buf) });
 						}
 						{ 1 } {
 							buf.status = \stopRec;
 							buf.dur = m[3];
 							buf.recTime = Main.elapsedTime;
-							buf.peak.notNil.if({ ~closeRecording.(self, buf) });
+							buf.peak.notNil.if({ ~closeRecording.(buf) });
 						}
 				}, {
 					buf = ~bufs.detect({ |buf| m[1] == buf.detectnode.tryPerform(\nodeID) });
 					(buf.notNil and: { m[2] == 32 and: { buf.status == \record
 							and: { m[3] > 0 } } }).if({
 						buf.ontimes.add(m[3]);
-						~queueOnsetTime.(self, buf, m[3], buf.ontimes.size-1);
+						~queueOnsetTime.(buf, m[3], buf.ontimes.size-1);
 					});
 				});
-			});
+//			});
 		}).add;
 
-		~featuredef = ~makeFeatureDetector.(self).send(s);
-		~inputdef = ~makeInputSource.(self).send(s);
+		~featuredef = ~makeFeatureDetector.value.send(s);
+		~inputdef = ~makeInputSource.value.send(s);
 
-		~userprep.(self);
+		~userprep.value;
 
-		~initFFT.(self);
+		~initFFT.value;
 
-		~triggerdevice = ~makeTrigger.(self);
-		~startRecord.(self, ~recordActive);
+		~triggerdevice = ~makeTrigger.value;
+		~startRecord.(~recordActive);
 		~lastTrigTime = 0;
 	};
 
-	~makeTrigger = { |self|
+	~makeTrigger = { 
 			// asClass is used here because you might not have installed the ddwMIDI quark
 			// rather than make chucklib depend on the whole MIDI framework,
 			// I will use this technique to avoid an error on recompile
-		'BasicMIDIControl'.asClass.new(~midiTriggerChan, ~midiTriggerCtlNum, { |value|
+		'BasicMIDIControl'.asClass.new(~midiTriggerChan, ~midiTriggerCtlNum, e { |value|
 				// seems we need to trap very rapid triggers
-			(value > 0 and: { (Main.elapsedTime - self[\lastTrigTime]) > 1.0 }).if({
-				self.sendTrigger;
+			(value > 0 and: { (Main.elapsedTime - ~lastTrigTime) > 1.0 }).if({
+				~sendTrigger.value;
 			});
 		});
 	};
 	
-	~sendTrigger = { |self|
+	~sendTrigger = { 
 		s.makeBundle(nil, {
-			self[\recNode] !? { self[\recNode].set(\t_trig, 1) };
-			self[\detectNode] !? { self[\detectNode].set(\t_trig, 1) };
+			~recNode !? { ~recNode.set(\t_trig, 1) };
+			~detectNode !? { ~detectNode.set(\t_trig, 1) };
 		});
-		self[\lastTrigTime] = Main.elapsedTime;
+		~lastTrigTime = Main.elapsedTime;
 	};
 
 	~makeFeatureDetector = {
@@ -684,9 +684,9 @@ PR(\transient_analysis_buffer).v.clone({
 		});
 	};
 	
-	~detectParms = { |self, buf| 
+	~detectParms = { |buf| 
 		[bufnum: buf.buf.bufnum, fftbuf: ~fftbuf.bufnum, 
-			i_fftwait: ~fftsize / ~sampleRate.(self), waittime: ~onsetRejectLimit]
+			i_fftwait: ~fftsize / ~sampleRate.value, waittime: ~onsetRejectLimit]
 	};
 	
 	~makeInputSource = {
@@ -731,26 +731,26 @@ PR(\transient_analysis_buffer).v.clone({
 		// call from outside when a new node is using one of my buffers
 		// watch for the node to stop and allow the buf to be reused when no one is using it
 		// if node is nil, it's the user's responsibility to release the buffer (next method)
-	~bufferPlayingNewNode = { |self, buffer, node|
+	~bufferPlayingNewNode = { |buffer, node|
 		buffer.status = \play;
 		buffer.playCount = buffer.playCount + 1;
 		node.notNil.if({
 			~watcher.register(node);
-			Updater(node, { |node, msg|
+			Updater(node, e { |node, msg|
 				(msg == \n_end).if({
 					node.releaseDependants;
-					self.releaseBufferFromPlay(buffer);
+					~releaseBufferFromPlay.(buffer);
 				});
 			});
 		});
 	};
 
 		// should be called from outside to release a buffer from play
-	~releaseBufferFromPlay = { |self, buffer|
+	~releaseBufferFromPlay = { |buffer|
 		buffer.playCount = buffer.playCount - 1;
 		(buffer.playCount == 0).if({
 			buffer.status = \ready;
-			~startRecord.(self, ~recordActive);	// if already recording, this will not fire
+			~startRecord.(~recordActive);	// if already recording, this will not fire
 		});
 	};
 	
@@ -758,8 +758,8 @@ PR(\transient_analysis_buffer).v.clone({
 
 	~inputBusIndex = s.options.numOutputBusChannels;
 
-	~startRecord = { |self, recActive|
-		var	buf = ~oldestBuffer.(self, #[idle, ready]),  // ready means not playing
+	~startRecord = { |recActive|
+		var	buf = ~oldestBuffer.(#[idle, ready]),  // ready means not playing
 			bundle;
 		recActive = recActive ? true;	// if nil, start every time (if user calls directly)
 		(recActive and: { ~recording.not and: { buf.notNil } }).if({
@@ -771,9 +771,9 @@ PR(\transient_analysis_buffer).v.clone({
 			bundle = s.makeBundle(false, {
 				buf.node = ~chan.play(~inputdef.name, [\bufnum, buf.buf.bufnum,
 					\inbus, ~inputBusIndex, \t_trig, 0, \audiothru, ~audioThru.binaryValue]
-					++ ~inputParms.(self, buf));
+					++ ~inputParms.(buf));
 				buf.detectnode = ~chan.playfx(~featuredef.name, [t_trig: 0]
-					++ ~detectParms.(self, buf));
+					++ ~detectParms.(buf));
 			});
 			~recNode = buf.node;
 			~detectNode = buf.detectnode;
@@ -788,12 +788,12 @@ PR(\transient_analysis_buffer).v.clone({
 		});
 	};
 
-	~oldestBuffer = { |self, status|
+	~oldestBuffer = { |status|
 		~bufs.sort({ |a, b| a.recTime < b.recTime })
 			.detect({ |buf| status.matchItem(buf.status) })
 	};
 	
-	~closeRecording = { |self, buf, startRec|
+	~closeRecording = { |buf, startRec|
 			// update gui status if I'm in an MT
 		~isPlaying = false;
 		BP(~collIndex).changed(\stop);
@@ -822,16 +822,16 @@ PR(\transient_analysis_buffer).v.clone({
 		~detectNode.free;	// detectNode should not be outputting audio, can kill brutally
 		~detectNode = nil;
 		~recording = false;
-		self[\lastTrigTime] = Main.elapsedTime;  // to avoid accidental record restart
+		~lastTrigTime = Main.elapsedTime;  // to avoid accidental record restart
 		(startRec ? true).if({
-			~startRecord.(self, ~recordActive);
+			~startRecord.(~recordActive);
 		});
 		~cmpqueue.isEmpty.if({
-			~doAction.(self, buf);
+			~doAction.(buf);
 		});
 	};
 
-	~doOnRecord = { |self, buf|
+	~doOnRecord = { |buf|
 		"\n\n\n>>>>> RECORDING IS ACTIVE. <<<<<".postln;
 			// update gui status if I'm in an MT
 		~isPlaying = true;
@@ -839,7 +839,7 @@ PR(\transient_analysis_buffer).v.clone({
 	};
 	
 		// dummy action, replace to call another BP to use the buffer
-	~doAction = { |self, buf|
+	~doAction = { |buf|
 		(buf.actionDone.not and: { buf.peak >= ~minPeak }).if({
 			"Analysis complete. Last buffer stored in BP(%).v.lastBuf.\n"
 				.postf(~collIndex.asCompileString);
@@ -847,7 +847,7 @@ PR(\transient_analysis_buffer).v.clone({
 			buf.actionDone = true;
 			BP(~collIndex).changed(\bufReady, buf);
 		});
-		self
+		currentEnvironment
 	};
 
 //////// FFT ANALYSIS CONTROL ////////
@@ -856,21 +856,21 @@ PR(\transient_analysis_buffer).v.clone({
 	~fftThreadWaiting = false;
 	~cmpThreadActive = false;
 
-	~queueOnsetTime = { |self, buf, time|
+	~queueOnsetTime = { |buf, time|
 		~fftID = ~fftID + 1;
 		~fftqueue.put(~fftID, (buf: buf, time: time, index: buf.ffts.size));
-		~activateFFTThread.(self);
+		~activateFFTThread.value;
 	};
 	
-	~activateFFTThread = { |self|
-		~fftThread.isNil.if({ ~makeFFTThread.(self) });
+	~activateFFTThread = { 
+		~fftThread.isNil.if({ ~makeFFTThread.value });
 		~fftThreadActive.not.if({
 			AppClock.sched(0, ~fftThread);
 			~fftThreadActive = true;
 		});
 	};
 	
-	~makeFFTThread = { |self|
+	~makeFFTThread = { 
 		~fftThread = CleanupEventStream(
 			Routine({
 				var	audio, srcfft, spec;
@@ -880,9 +880,9 @@ PR(\transient_analysis_buffer).v.clone({
 							// spec.buf.ffts.size == index of next fft to add
 							// spec has an index but if a previous fft failed, it may be wrong
 						spec.index = spec.buf.ffts.size;
-						audio = ~getAudioData.(self, spec.time, spec.buf.buf);
+						audio = ~getAudioData.(spec.time, spec.buf.buf);
 						audio.notNil.if({
-							srcfft = PR(~dataProto).v.copy.prep(audio, spec.index, self);
+							srcfft = PR(~dataProto).v.copy.prep(audio, spec.index, currentEnvironment);
 							srcfft.getfft.notNil.if({
 								~postProgress.if({
 									"BP(%): got valid time %\n".postf(
@@ -891,7 +891,7 @@ PR(\transient_analysis_buffer).v.clone({
 								~ffts.add(srcfft.fftPostProcessing);
 								srcfft.collectGarbage(~garbageCollection);
 								spec.buf.ffts.add(srcfft);
-								~queueComparisons.(self, spec);
+								~queueComparisons.(spec);
 							}, {
 								spec.buf.ontimes.removeAt(spec.index);
 							});
@@ -904,11 +904,11 @@ PR(\transient_analysis_buffer).v.clone({
 					});
 				}
 			}),
-			{ self[\fftThreadWaiting].not.if({ self[\fftThreadActive] = false }); },
+			{ ~fftThreadWaiting.not.if({ ~fftThreadActive = false }); },
 			true);
 	};
 	
-	~queueComparisons = { |self, fftspec|
+	~queueComparisons = { |fftspec|
 		var	matrix = fftspec.buf.matrix, index = fftspec.index;
 			// make sure matrix is large enough to handle the comparisons
 		(matrix.size < (index+1)).if({
@@ -927,19 +927,19 @@ PR(\transient_analysis_buffer).v.clone({
 				~cmpID = ~cmpID + 1;
 				~cmpqueue.put(~cmpID, fftspec.copy.put(\cmpindex, i));
 			});
-			~activateCmpThread.(self);
+			~activateCmpThread.value;
 		});
 	};
 
-	~activateCmpThread = { |self|
-		~cmpThread.isNil.if({ ~makeCmpThread.(self) });
+	~activateCmpThread = { 
+		~cmpThread.isNil.if({ ~makeCmpThread.value });
 		~cmpThreadActive.not.if({
 			AppClock.sched(0, ~cmpThread);
 			~cmpThreadActive = true;
 		});
 	};
 	
-	~makeCmpThread = { |self|
+	~makeCmpThread = { 
 		~cmpThread = CleanupEventStream(
 			Routine({
 				var	spec, lastspec, errors = 0, recoveredFrom;
@@ -948,7 +948,7 @@ PR(\transient_analysis_buffer).v.clone({
 					spec.notNil.if({
 						lastspec = spec;
 						try {
-							~doComparison.(self, spec);
+							~doComparison.(spec);
 						} { |error|
 							"\n\n\nERROR IN COMPARISON\n\n".postln;
 							error.reportError;
@@ -965,7 +965,7 @@ PR(\transient_analysis_buffer).v.clone({
 									.postf(~collIndex.asCompileString, errors,
 										(errors != 1).if($s, ""));
 							});
-							recoveredFrom = ~recoverErrors.(self, lastspec.buf);
+							recoveredFrom = ~recoverErrors.(lastspec.buf);
 							errors = errors - recoveredFrom;
 						});
 						(errors > 0).if({
@@ -976,13 +976,13 @@ PR(\transient_analysis_buffer).v.clone({
 							// if recording is over and cmpqueue is empty,
 							// pass to the play action
 						(lastspec.buf.status == \ready).if({
-							~doAction.(self, lastspec.buf);
+							~doAction.(lastspec.buf);
 						});
 						nil.yield;
 					});
 				}
 			}),
-			{ self[\cmpThreadActive] = false; },
+			{ ~cmpThreadActive = false; },
 			true);
 	};
 	
@@ -990,7 +990,7 @@ PR(\transient_analysis_buffer).v.clone({
 	
 		// PRIVATE METHOD -- must be called only in the context of the comparison thread
 		// can't think of a better way than brute force -- but, the nil check is very fast
-	~recoverErrors = { |self, buf|
+	~recoverErrors = { |buf|
 		var	success = 0, matrix, matrixsize, testsdone = 0, ok;
 		(matrix = buf.tryPerform(\at, \matrix)).notNil.if({
 			matrixsize = matrix.size;	// matrix may be extended while this is running
@@ -998,7 +998,7 @@ PR(\transient_analysis_buffer).v.clone({
 				for(row + 1, matrixsize - 1, { |col|
 					matrix[row][col].tryPerform(\at, \metric).isNil.if({
 						try {
-							~doComparison.(self, (buf: buf, index: row, cmpindex: col));
+							~doComparison.((buf: buf, index: row, cmpindex: col));
 							success = success + 1;
 						};	// if comparison fails again, second error is swallowed
 						testsdone = 0;	// reset and yield
@@ -1016,13 +1016,13 @@ PR(\transient_analysis_buffer).v.clone({
 	};
 
 		// note, this should be called only within the fftThread
-	~asyncHang = { |self|
+	~asyncHang = { 
 		~saveFFTThread = ~fftThread;
 		~fftThreadWaiting = true;
 		nil.yield;
 	};
 	
-	~asyncUnhang = { |self|
+	~asyncUnhang = { 
 		~fftThread = ~saveFFTThread;
 		~clock.sched(0, ~fftThread);
 		~fftThreadWaiting = false;
@@ -1030,7 +1030,7 @@ PR(\transient_analysis_buffer).v.clone({
 
 //////// FFT ANALYSIS ////////
 
-	~initFFT = { |self|
+	~initFFT = { 
 		var	resolution, melreso, mel, fhz, melNyquist;
 
 		~fftsize = nextPowerOfTwo(~fftsize ? 2048);
@@ -1038,32 +1038,32 @@ PR(\transient_analysis_buffer).v.clone({
 		~imag = Signal.fill(~fftsize, 0);
 		~cos = Signal.fftCosTable(~fftsize);
 		
-		resolution = ~sampleRate.(self) / ~fftsize;
+		resolution = ~sampleRate.value / ~fftsize;
 		~melfreqsize = (~fftsize * 0.125).nextPowerOfTwo.asInteger;
-		melreso = ~freqToMel.(self, ~sampleRate.(self) * 0.5) / ~melfreqsize;
+		melreso = ~freqToMel.(~sampleRate.value * 0.5) / ~melfreqsize;
 		
 			// melmap[mel_bin_index] == first bin index into fft
 		~melmap = Array.fill(~melfreqsize+1, { |i|
-			fhz = ~melToFreq.(self, melreso * i);
+			fhz = ~melToFreq.(melreso * i);
 			((fhz + (resolution * 0.5)) / resolution).asInteger
 		});
 		
-		~window = ~makeWindow.(self);
+		~window = ~makeWindow.value;
 	};
 
-	~doComparison = { |self, cmpspec|
+	~doComparison = { |cmpspec|
 		var	metric = cmpspec.buf.ffts[cmpspec.index]
 			.compareData(cmpspec.buf.ffts[cmpspec.cmpindex]);
-		~addToMatrix.(self, metric, cmpspec.index, cmpspec.cmpindex, cmpspec.buf.matrix,
+		~addToMatrix.(metric, cmpspec.index, cmpspec.cmpindex, cmpspec.buf.matrix,
 			cmpspec.buf.ffts, cmpspec.buf.ontimes);
 	};
 
 //////// DESTRUCTOR ////////
 
-	~freeCleanup = { |self|
-		~clearAsyncResponder.(self);
+	~freeCleanup = { 
+		~clearAsyncResponder.value;
 		~iMadeMixer.if({ ~chan.free });
-		~userFree.(self);
+		~userFree.value;
 		~bufs.do({ |b| b.buf.free });
 		[~fftbuf, ~triggerdevice].free;
 		~resp.remove;

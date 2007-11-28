@@ -177,7 +177,7 @@ PR(\abstractProcess).v.clone({
 
 	~iMadeMixer = false;
 
-	~prep = #{ |self|
+	~prep = #{ 
 			// user may supply a mixerchannel
 			// if so, ~iMadeMixer flag means the channel won't be freed
 		~chan.isNil.if({
@@ -188,56 +188,56 @@ PR(\abstractProcess).v.clone({
 			// this func is environment safe
 			// loadbufs is here for defPerc, which may need resources from postMCCreation
 		~chan.doWhenReady({ |chan| 
-			~postMCCreation.(self, chan);
-			~loadBufs.(self);
+			~postMCCreation.(chan);
+			~loadBufs.value;
 		});
-		self
+		currentEnvironment
 	};
 	~postMCCreation = nil;	// exit point to put in your own initialization
-	~loadBufs = #{ |self|
+	~loadBufs = #{ 
 		~buffers.notNil.if({ ~buffers.free });
 		~bufTimes = Array.newClear(~bufPaths.size);
 		~buffers = ~bufPaths.collect({ |path, i|
 			Buffer.readAndQuery(~chan.server, path, 
 				~bufCoords.wrapAt(i)[0], ~bufCoords.wrapAt(i)[1],
-				completionFunc: { |buf|
-					self.fixBufTime(i, buf)
+				completionFunc: e { |buf|
+					~fixBufTime.(i, buf)
 			});
 		});
 	};
 	
-	~listBufs = { |self|
+	~listBufs = { 
 		~buffers.do({ |buf, i| "%: %\n".postf(i, buf) })
 	};
 	
-	~replaceBuf = { |self, i, path, startFrame, numFrames|
+	~replaceBuf = { |i, path, startFrame, numFrames|
 		(i >= ~buffers.size).if({
-			~addBuf.(self, path, startFrame, numFrames);
+			~addBuf.(path, startFrame, numFrames);
 		}, {
 			~buffers[i].free;
-			~buffers[i] = Buffer.readAndQuery(~chan.server, path, startFrame, numFrames, { |buf|
-				self.fixBufTime(i, buf)
+			~buffers[i] = Buffer.readAndQuery(~chan.server, path, startFrame, numFrames, e { |buf|
+				~fixBufTime.(i, buf)
 			});
 			~buffers[i]
 		});
 	};
 	
-	~addBuf = { |self| "Not yet implemented.".warn; };
+	~addBuf = {  "Not yet implemented.".warn; };
 	
-	~fixBufTime = { |self, i, buf|
+	~fixBufTime = { |i, buf|
 			// this func is not environment safe
 			// try b/c a failure here shouldn't kill the buffer queue
-		try { self[\bufTimes][i] = buf.numFrames / buf.sampleRate }
+		try { ~bufTimes[i] = buf.numFrames / buf.sampleRate }
 			{ |error| error.reportError; }  // display error but continue
 	};
 	
-	~makeDeltaPattern = #{ |self|
+	~makeDeltaPattern = #{ 
 		var	current = 0, thisDelta, totalDelta, dStream, deltas;
-		self[\compactPatterns].if({
-			deltas = Array.new(self[\amps].size);
-			dStream = Pn(self[\divCycle].asPattern, inf).asStream;
+		~compactPatterns.if({
+			deltas = Array.new(~amps.size);
+			dStream = Pn(~divCycle.asPattern, inf).asStream;
 			thisDelta = totalDelta = 0;
-			self[\amps].do({ |step, i|
+			~amps.do({ |step, i|
 				(step > 0).if({	// there's a note here
 					(thisDelta > 0).if({
 						deltas.add(thisDelta);
@@ -248,23 +248,23 @@ PR(\abstractProcess).v.clone({
 				});
 				thisDelta = thisDelta + dStream.next;
 			});
-			(totalDelta < self[\beatsPerBar]).if({
-				deltas.add(self[\beatsPerBar] - totalDelta);
+			(totalDelta < ~beatsPerBar).if({
+				deltas.add(~beatsPerBar - totalDelta);
 			});
 			Pseq(deltas, 1)
-		}, { Pfin(self[\amps].size, Pn(self[\divCycle].asPattern, inf)) });
+		}, { Pfin(~amps.size, Pn(~divCycle.asPattern, inf)) });
 	};
-	~makeAmpPattern = #{ |self|
-		self[\compactPatterns].if({
-			Pseq(((self[\amps][0] == 0).if({ #[0] })) ++ self[\amps].select(_ > 0), 1);
+	~makeAmpPattern = #{ 
+		~compactPatterns.if({
+			Pseq(((~amps[0] == 0).if({ #[0] })) ++ ~amps.select(_ > 0), 1);
 		}, {
-			Pseq(self[\amps], 1)
+			Pseq(~amps, 1)
 		});
 	};
-	~makePatternFromArray = #{ |self, array, repeats, sourceKey|
+	~makePatternFromArray = #{ |array, repeats, sourceKey|
 		var amps, outArray, i;
-		self[\compactPatterns].if({
-			amps = self[\amps];
+		~compactPatterns.if({
+			amps = ~amps;
 			outArray = Array.new(amps.size);
 				// if first is a rest, need a placeholder
 			(sourceKey != \def and: { amps[0] == 0 }).if({ outArray.add(0) });
@@ -280,10 +280,10 @@ PR(\abstractProcess).v.clone({
 			Pseq(array, repeats)
 		});
 	};
-	~makePattern = #{ |self, sourceKey, repeats|
-		self[\makePatternFromArray].(self, self[sourceKey].asArray, repeats ? 1, sourceKey);
+	~makePattern = #{ |sourceKey, repeats|
+		~makePatternFromArray.(currentEnvironment[sourceKey].asArray, repeats ? 1, sourceKey);
 	};
-	~addArgPairs = { |self, out|
+	~addArgPairs = { |out|
 		out = out.grow(~argPairs.size);
 		~argPairs.pairsDo({ |key, value|
 			out.add(key);
@@ -292,48 +292,48 @@ PR(\abstractProcess).v.clone({
 			value.isSymbol.if({ value = value.envirGet });
 				// this is the only way to get values from the environment
 				// while the pattern is running
-			value.isFunction.if({ value = value.(self, out) });
+			value.isFunction.if({ value = value.(out) });
 			(value.size > 0).if({	// assume it's an array, use makePattern
-				value = ~makePatternFromArray.(self, value, 1)
+				value = ~makePatternFromArray.(value, 1)
 			});
 			out.add(value);
 		});
 		out
 	};
 	
-	~makePbindArray = { |self|
+	~makePbindArray = { 
 		~def = ~def.asArray;
-		[\amp, self[\makeAmpPattern].(self),
-			\bufIndex, self[\makePattern].(self, \bufs, inf),
+		[\amp, ~makeAmpPattern.value,
+			\bufIndex, ~makePattern.(\bufs, inf),
 			\bufnum, Pfunc({ |ev|
-				self[\buffers].wrapAt(ev[\bufIndex]).bufnum
+				~buffers.wrapAt(ev[\bufIndex]).bufnum
 			}),
-			\rate, self[\makePattern].(self, \rates, inf),
+			\rate, ~makePattern.(\rates, inf),
 // if user specifies times, they should be scaled by tempo. default times are in seconds
-			\time, self[\times].notNil.if({
-				(self[\makePattern].(self, \times, inf) / thisThread.clock.tempo)
+			\time, ~times.notNil.if({
+				(~makePattern.(\times, inf) / thisThread.clock.tempo)
 			}, {
 				Pfunc({ |ev|
-					self[\bufTimes].wrapAt(ev[\bufIndex]) / ev[\rate]
+					~bufTimes.wrapAt(ev[\bufIndex]) / ev[\rate]
 				});
 			}),
 				// rest if 0, else give synthdef name
-			\instrument, Pif(Pkey(\amp) > 0, ~makePattern.(self, \def, inf), \rest),
-			\chan, Pfunc({ self[\chan] }),
-			\latencyAdjust, Pfunc({ |ev| self[\deltaAdjust].wrapAt(ev[\bufIndex]) }),
+			\instrument, Pif(Pkey(\amp) > 0, ~makePattern.(\def, inf), \rest),
+			\chan, Pfunc({ ~chan }),
+			\latencyAdjust, Pfunc({ |ev| ~deltaAdjust.wrapAt(ev[\bufIndex]) }),
 			\latency, Pfunc({ |ev| (ev[\latency] ? 0) + (ev[\latencyAdjust] ? 0) }),
-			\delta, self[\makeDeltaPattern].(self),
-			\attack, self[\makePattern].(self, \attack, inf), // Pfunc({ self[\attack] }),
-			\decay, self[\makePattern].(self, \decay, inf), // Pfunc({ self[\decay] }),
+			\delta, ~makeDeltaPattern.value,
+			\attack, ~makePattern.(\attack, inf), // Pfunc({ ~attack }),
+			\decay, ~makePattern.(\decay, inf), // Pfunc({ ~decay }),
 			\time, Pfunc({ |ev|	// check for overlap if mono flag is true
 				var time = ev[\time];
 					// negative time value defaults to entire buffer dur
-				(time < 0).if({ time = self[\bufTimes].wrapAt(ev[\bufIndex]) / ev[\rate] });
+				(time < 0).if({ time = ~bufTimes.wrapAt(ev[\bufIndex]) / ev[\rate] });
 					// compensate for env ramp in/out
-				self[\mono].if({
+				~mono.if({
 					time = min(time, ev[\delta] / thisThread.clock.tempo)
 				});
-				self[\compensateEnv].if({
+				~compensateEnv.if({
 					(time - ev[\attack] - ev[\decay]).max(0.001)
 				}, { time });
 			})
@@ -343,41 +343,41 @@ PR(\abstractProcess).v.clone({
 	~pbindPreAction = nil;		// custom action to run before building Pbind can be written here
 	~pbindPostAction = nil;		// same, after building Pbind
 
-	~doPreAction = { |self|
+	~doPreAction = { 
 		(~pbindPreAction.isSymbol and: { Func(~pbindPreAction).exists }).if({
-			Func(~pbindPreAction).doAction(self)
+			Func(~pbindPreAction).doAction(currentEnvironment)
 		}, {
-			~pbindPreAction.(self)
+			~pbindPreAction.value
 		});
 	};
 
-	~doPostAction = { |self, out|
+	~doPostAction = { |out|
 		(~pbindPostAction.isSymbol and: { Func(~pbindPostAction).exists }).if({
-			Func(~pbindPostAction).doAction(self, out)
+			Func(~pbindPostAction).doAction(out)
 		}, {
-			~pbindPostAction.(self, out)
+			~pbindPostAction.(out)
 		});
 	};
 
-	~asPattern = { |self|
+	~asPattern = { 
 		var	out;
-		~prepareForPlay.value(self);	// one use is streams that must persist past 1 bar
-		~argPairs = ~argPairs.(self, out);
-		PnNilSafe(Plazy({
-			self.doPreAction;
-			out = self.makePbindArray;
-			(self[\argPairs].size > 0).if({
-				out = self.addArgPairs(out);
+		~prepareForPlay.value;	// one use is streams that must persist past 1 bar
+		~argPairs = ~argPairs.(out);
+		PnNilSafe(Plazy(e {
+			~doPreAction.value;
+			out = ~makePbindArray.value;
+			(~argPairs.size > 0).if({
+				out = ~addArgPairs.(out);
 			});
-			out = self.doPostAction(out) ? out;	// do postprocessing on pbind pairs
+			out = ~doPostAction.(out) ? out;	// do postprocessing on pbind pairs
 			Pbind(*out);
 		}), inf);
 	};
 	
-	~freeCleanup = #{ |self|
+	~freeCleanup = #{ 
 		~iMadeMixer.if({ ~chan.free });
 		~buffers.free;
-		~free.(self)	// did you make any other resources?
+		~free.value	// did you make any other resources?
 	};	
 }) => PR(\bufPerc);
 
@@ -400,76 +400,63 @@ PR(\bufPerc).v.clone({
 	~patchesToFree = List.new;
 		// now, instead of loading buffers, we load synthdefs
 		// using names defined in bufPerc, though
-	~loadBufs = #{ |self|
+	~loadBufs = #{ 
 		~buffers.notNil.if({ ~buffers.free });
-			// .value(self) allows function to create objects array dynamically
-		~buffers = ~objects.value(self).collect({ |obj| 
-			~makeDefForObject.(self, obj).asSymbol
+			// .value allows function to create objects array dynamically
+		~buffers = ~objects.value.collect({ |obj| 
+			~makeDefForObject.(obj).asSymbol
 		});
 	};
-	~makeDefForObject = #{ |self, obj|
+	~makeDefForObject = #{ |obj|
 		var return;
 		(return = ~classActions[obj.class]).notNil.if({
-			return = return.envirGet.(self, obj)
+			return = return.envirGet.(obj)
 		});
-		return ?? { obj }	// if nothing, return the object itself
+		return ?? { obj }	// if nothing, return the object itcurrentEnvironment
 	};
-	~makeFnDef = #{ |self, fn|
+	~makeFnDef = #{ |fn|
 		var def;
 		def = fn.asSynthDef(outClass: 
 			(~isFx ? false).if({ \ReplaceOut }, { \Out })).memStore;  // .send(~chan.server);
 		def.name
 	};
-	~makePatchDef = #{ |self, patch|
+	~makePatchDef = #{ |patch|
 		var def;
 		def = patch.asSynthDef.memStore;  // .send(~chan.server);
 		~patchesToFree.add(patch);
 		def.name
 	};
-	~makeSynthDef = #{ |self, def| def.memStore /*.send(~chan.server)*/ .name };
-	~replaceDef = { |self, i, obj|
+	~makeSynthDef = #{ |def| def.memStore /*.send(~chan.server)*/ .name };
+	~replaceDef = { |i, obj|
 		(i >= ~buffers.size).if({
-			~addBuf.(self, obj);
+			~addBuf.(obj);
 		}, {
 			~chan.server.sendMsg(\d_free, ~buffers[i]);
-			~buffers[i] = ~makeDefForObject.(self, obj).asSymbol;
+			~buffers[i] = ~makeDefForObject.(obj).asSymbol;
 			~buffers[i]
 		});
 	};
 	
-	~addBuf = { |self| "Not yet implemented.".warn; };
+	~addBuf = {  "Not yet implemented.".warn; };
 
-	~makePbindArray = { |self|
-		[\amp, self[\makeAmpPattern].(self),
+	~makePbindArray = { 
+		[\amp, ~makeAmpPattern.value,
 				// rest if 0, else give synthdef name
-			\defIndex, self[\makePattern].(self, \defs),
+			\defIndex, ~makePattern.(\defs),
 			\instrument, Pfunc({ |ev|
 				(ev[\amp] > 0).if({
-					self[\buffers].wrapAt(ev[\defIndex])
+					~buffers.wrapAt(ev[\defIndex])
 				}, { \rest });
 			}),
-			\chan, Pfunc({ self[\chan] }),
-			\delta, self[\makeDeltaPattern].(self)
+			\chan, Pfunc({ ~chan }),
+			\delta, ~makeDeltaPattern.value
 		]
 	};
 
-//	~asPattern = { |self|
-//		var	out;
-//		PnNilSafe(Plazy({
-//			self.pbindPreAction;
-//			out = ;
-//			(self[\argPairs].size > 0).if({
-//				out = self.addArgPairs(out);
-//			});
-//			out = self.pbindPostAction(out) ? out;	// do postprocessing on pbind pairs
-//			Pbind(*out);
-//		}), inf);
-//	};
-
 	~superfree = ~freeCleanup;
-	~freeCleanup = { |self|
+	~freeCleanup = { 
 		~patchesToFree.do(_.free);
-		~superfree.(self);
+		~superfree.value;
 	};
 
 }) => PR(\defPerc);
@@ -478,20 +465,20 @@ PR(\defPerc).v.clone({
 	~event = (eventKey: \singleSynthTrigger);
 	~alwaysReset = true;
 	~isFx = false;
-	~makePbindArray = { |self|
-		[\t_trig, self[\makeAmpPattern].(self),
+	~makePbindArray = { 
+		[\t_trig, ~makeAmpPattern.value,
 				// rest if 0, else give synthdef name
-			\defIndex, self[\makePattern].(self, \defs),
+			\defIndex, ~makePattern.(\defs),
 			\node, Pfunc({ |ev|
 				(ev[\t_trig] > 0).if({
-					self[\nodes].wrapAt(ev[\defIndex])
+					~nodes.wrapAt(ev[\defIndex])
 				}, { \rest });
 			}),
-			\chan, Pfunc({ self[\chan] }),
-			\delta, self[\makeDeltaPattern].(self)
+			\chan, Pfunc({ ~chan }),
+			\delta, ~makeDeltaPattern.value
 		]
 	};
-	~asPattern = { |self|
+	~asPattern = { 
 		Pseq([
 			Pfuncn({	// first, make nodes
 				var latency;
@@ -502,22 +489,22 @@ PR(\defPerc).v.clone({
 						~chan.server.sendBundle(latency, 
 							node.newMsg(~isFx.if({ ~chan.effectgroup }, { ~chan.synthgroup }), 
 								[\outbus, ~chan.inbus.index, \out, ~chan.inbus.index,
-								\i_out, ~chan.inbus.index] ++ ~initArgs.(self, node, i),
+								\i_out, ~chan.inbus.index] ++ ~initArgs.(node, i),
 								\addToTail));
 					})
 				});
 				(play: 0, delta: 0)
 			}, 1),
-			PnNilSafe(Plazy({
-				var out;
-				self.doPreAction;
-				out = self.makePbindArray;
-				(self[\argPairs].size > 0).if({
-					out = self.addArgPairs(out);
+			PnNilSafe(Plazy(e {
+				var	out;
+				~doPreAction.value;
+				out = ~makePbindArray.value;
+				(~argPairs.size > 0).if({
+					out = ~addArgPairs.(out);
 				});
-				out = self.doPostAction(out) ? out;  // do postprocessing on pbind pairs
+				out = ~doPostAction.(out) ? out;	// do postprocessing on pbind pairs
 				Pbind(*out);
-			}), inf)
+			}), inf);
 		]);
 	};
 	
@@ -543,65 +530,52 @@ PR(\bufPerc).v.clone({
 	~mono = true;
 	~compensateEnv = true;
 	
-	~makeStartTimes = { |self|
-		self[\makePatternFromArray].(self, self[\start].collect({ |st, i|
-				self[\segStart].wrapAt(self[\bufs].wrapAt(i)).wrapAt(st)
+	~makeStartTimes = { 
+		~makePatternFromArray.(~start.collect(e { |st, i|
+				~segStart.wrapAt(~bufs.wrapAt(i)).wrapAt(st)
 			}), 1);
 	};
 		
-	~makePbindArray = { |self|
-		[\amp, self[\makeAmpPattern].(self),
-			\bufIndex, self[\makePattern].(self, \bufs),
+	~makePbindArray = { 
+		[\amp, ~makeAmpPattern.value,
+			\bufIndex, ~makePattern.(\bufs),
 			\bufnum, Pfunc({ |ev|
-				self[\buffers][ev[\bufIndex]].bufnum
+				~buffers[ev[\bufIndex]].bufnum
 			}),
-			\rate, self[\makePattern].(self, \rates),
+			\rate, ~makePattern.(\rates),
 // if user specifies times, they should be scaled by tempo. default times are in seconds
-			\start, self[\makeStartTimes].(self),
-			\time, self[\times].notNil.if({
-				self[\makePattern].(self, \times) / thisThread.clock.tempo
+			\start, ~makeStartTimes.value,
+			\time, ~times.notNil.if({
+				~makePattern.(\times) / thisThread.clock.tempo
 			}, {
 				Pfunc({ |ev|
-					self[\bufTimes][ev[\bufIndex]]
+					~bufTimes[ev[\bufIndex]]
 				});
 			}),
 				// rest if 0, else give synthdef name
 			\instrument, Pfunc({ |ev|
-				(ev[\amp] > 0).if({ self[\def] }, { \rest });
+				(ev[\amp] > 0).if({ ~def }, { \rest });
 			}),
-			\chan, Pfunc({ self[\chan] }),
-			\latencyAdjust, Pfunc({ |ev| self[\deltaAdjust].wrapAt(ev[\bufIndex]) }),
+			\chan, Pfunc({ ~chan }),
+			\latencyAdjust, Pfunc({ |ev| ~deltaAdjust.wrapAt(ev[\bufIndex]) }),
 			\latency, Pfunc({ |ev| (ev[\latency] ? 0) + (ev[\latencyAdjust] ? 0) }),
-			\delta, self[\makeDeltaPattern].(self),
-			\attack, self[\makePattern].(self, \attack), // Pfunc({ self[\attack] }),
-			\decay, self[\makePattern].(self, \decay), // Pfunc({ self[\decay] }),
+			\delta, ~makeDeltaPattern.value,
+			\attack, ~makePattern.(\attack), // Pfunc({ ~attack }),
+			\decay, ~makePattern.(\decay), // Pfunc({ ~decay }),
 			\time, Pfunc({ |ev|	// check for overlap if mono flag is true
 				var time = ev[\time];
 					// negative time value defaults to entire buffer dur
-				(time < 0).if({ time = self[\bufTimes].wrapAt(ev[\bufIndex]) / ev[\rate] });
+				(time < 0).if({ time = ~bufTimes.wrapAt(ev[\bufIndex]) / ev[\rate] });
 					// compensate for env ramp in/out
-				self[\mono].if({
+				~mono.if({
 					time = min(time, ev[\delta] / thisThread.clock.tempo)
 				});
-				self[\compensateEnv].if({
+				~compensateEnv.if({
 					(time - ev[\attack] - ev[\decay]).max(0.001)
 				}, { time });
 			})
 		]
 	};
-//	~asPattern = { |self|
-//		var	out;
-//		~prepareForPlay.value(self);	// one use is streams that must persist past 1 bar
-//		PnNilSafe(Plazy({
-//			self.pbindPreAction;
-//			out = self.makePbindArray;
-//			(self[\argPairs].size > 0).if({
-//				out = self.addArgPairs(out);
-//			});
-//			out = self.pbindPostAction(out) ? out;	// do postprocessing on pbind pairs
-//			Pbind(*out)/*.postcs*/;
-//		}), inf)/*.trace*/;
-//	};
 }) => PR(\break);
 
 AbstractChuckArray.defaultSubType = saveSubType;
@@ -615,15 +589,15 @@ PR(\abstractProcess).v.clone({
 	~def = \bufGrain;
 	~bufCoords = #[[0, -1]];
 	~postMCCreation = nil;		// put in your own user preparation func here
-	~timeConversion = { |self, time, ev| time };
+	~timeConversion = { |time, ev| time };
 		// required: put in a pattern factory here
-	~asPattern = { |self|
+	~asPattern = { 
 		Pbind(\instrument, BPStream(\def),
 			\bufIndex, BPStream(\bufIndex),
 			\bufnum, Pfunc({ |ev| ~buffers[ev[\bufIndex]].bufnum }),
 			\startIndex, BPStream(\startIndex),
 			\start, BPStream(\start),
-			\time, BPStream(\time).collect({ |time, ev| ~timeConversion.(self, time, ev) }),
+			\time, BPStream(\time).collect(e { |time, ev| ~timeConversion.(time, ev) }),
 			\rate, BPStream(\rate),
 			\amp, BPStream(\amp),
 			\attack, BPStream(\attack),

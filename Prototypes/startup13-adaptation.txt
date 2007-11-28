@@ -350,7 +350,7 @@ AbstractChuckArray.defaultSubType = \chordFit;
 	}).sort({ |a, b| a[1] > b[1] });  // sort fitnesses descending
 		// transpose the whole chord
 		// revise the choose algorithm
-//		temp = ~transposeNotes.value(self, self.notes, transposeStats.oneOfTop(3)[0]);
+//		temp = ~transposeNotes.value(currentEnvironment.notes, transposeStats.oneOfTop(3)[0]);
 		// output
 /*temp=*/	Func(\fixNotesAboveTop).doAction(notes + transposeStats[0][0], top, mode);
 //"OUTPUT notes: %, midi: %, name: %\n".postf(temp.asFloat, temp.asFloat.unmapMode(mode), temp.asFloat.unmapMode(mode).asInteger.collect(_.asMIDINote));
@@ -478,8 +478,8 @@ AbstractChuckArray.defaultSubType = \chordFit;
 
 // for melodic processes
 // intra-phrase segmenter
-// notes, self is a bit odd, but necessary for error protection
-#{ |notes, self, nextNote, intervals, minSegSize, parms|
+// notes, currentEnvironment is a bit odd, but necessary for error protection
+#{ |notes, /*currentEnvironment,*/ nextNote, intervals, minSegSize, parms|
 		var	durs;
 		var	lastTrueIndex, largeInterval;
 
@@ -491,7 +491,7 @@ AbstractChuckArray.defaultSubType = \chordFit;
 								// has to be -1 because separate splits AFTER it sees true
 		largeInterval = { |i|		// determine if this is a large interval
 			(i < intervals.size).if({
-				(intervals[i].abs > self[\avgInterval]) or: { durs[i] > self[\avgDelta] }
+				(intervals[i].abs > ~avgInterval) or: { durs[i] > ~avgDelta }
 			}, {
 				true		// maybe this should be false?
 			});
@@ -511,7 +511,7 @@ AbstractChuckArray.defaultSubType = \chordFit;
 } => Func(\defaultMelSegmenter).subType_(\melPartition);
 
 // phrase splitter
-{ |notes, self|
+{ |notes, currentEnvironment|
 	var subsegs, phraseScores, avgScore, splitIndices;
 //"phrase splitter".debug;
 			// partition the melody into phrases
@@ -543,9 +543,9 @@ AbstractChuckArray.defaultSubType = \chordFit;
 // split notes into equal-length phrases
 // corner case not covered: if last phrase is too short, what do we do?
 // or, if last note exceeds bar length, there will be no compensation
-{ |notes, self, parms|
+{ |notes, /*currentEnvironment,*/ parms|
 	var	elapsed = 0, result = List.with(List.new),
-		barlength = parms.atBackup(\barLength, self) ? 4.0,
+		barlength = parms.atBackup(\barLength, currentEnvironment) ? 4.0,
 		overflow;
 	notes.do({ |note, i|
 		result.last.add(note);
@@ -573,8 +573,8 @@ AbstractChuckArray.defaultSubType = \chordFit;
 
 // user-defined phrase splits
 // give the size of each clump of notes
-{ |notes, self, parms|
-	var	splitsizes = parms.atBackup(\phrSplits, self);
+{ |notes, /*currentEnvironment,*/ parms|
+	var	splitsizes = parms.atBackup(\phrSplits, currentEnvironment);
 	(splitsizes.size > 0).if({
 		notes.clumps(splitsizes)
 	});	// ok to return nil on failure; Func will substitute the original note array
@@ -613,7 +613,7 @@ AbstractChuckArray.defaultSubType = \drumgenhelpers;
 	});
 } => Func(\shrinkKeys);
 
-{	|self, i, override|
+{ |i, override|
 	var	temp;
 	~usedKeys.do({ |key|
 		(temp = (override ?? { (key ++ "genStream").asSymbol.envirGet }).next(i)).notNil.if({
@@ -624,13 +624,13 @@ AbstractChuckArray.defaultSubType = \drumgenhelpers;
 
 { ~amps.collectIndicesOfItem(0) } => Func(\getRests);
 
-{ |self| ~genBase.(self); } => Func(\drumBasicPre);
+{  ~genBase.value; } => Func(\drumBasicPre);
 
-{ |self|
+{ 
 	var	action = ~driverEvent.tryPerform(\at, ~collIndex), func;
-	~genBase.(self);
+	~genBase.value;
 	(action.notNil and: { (func = Func(action)).exists }).if({
-		func.doAction(self);
+		func.doAction(currentEnvironment);
 	});
 	~driverEvent = nil;
 } => Func(\drumRespDriver);
@@ -640,7 +640,7 @@ AbstractChuckArray.defaultSubType = \drumgenhelpers;
 // for a rhythmic-adaptation prototype
 // this func assumes your process is modeled after flutefx and has the required variables
 
-{ |self, source, cross|
+{ |source, cross|
 	var	new, adaptKey;
 	(adaptKey = ~adaptStream.next(source)).notNil.if({
 		(new = Func(adaptKey).doAction(source, cross)).notNil.if({

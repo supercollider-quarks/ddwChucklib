@@ -1,0 +1,185 @@
+// I may have to deprecate rhythm profiles for now
+// there is some weird stuff, esp in cyclemap
+
+var saveSubType = AbstractChuckArray.defaultSubType;
+
+// rhythm profiles
+// each return value from the pattern should be of the form [delta, length]
+// rhythm is applied in PR(\melModeSeg).v[\asNotePattern]
+// calls to the pattern with next will be passed the SequenceNote object
+AbstractChuckArray.defaultSubType = \rhythmProfile;
+
+PR(\abstractProcess).v.clone({
+		// getQuant calls a method
+	~keysFromParent = #[rhythmQuant, getQuant, midiParse, rhythmProfileReset];
+
+	~prepare = #{ |buf, passInValue, parms, melBP|
+		var 	quant = parms.atBackup(\rhythmQuant, passInValue),
+			beatsPerBar = (parms[\quant] ?? { passInValue[\getQuant] }).quant,
+			needToParse = parms.atBackup(\midiParse, passInValue).not,
+			reset = parms.atBackup(\rhythmProfileReset, passInValue);
+
+		(needToParse ? false).if({ buf = buf.parse });  // assumes buffer has already been parsed
+		buf = buf.quantize(quant, beatsPerBar);  // simple quantize; deal w/ flexQuantize later?
+		~durLen = [buf.durs, buf.lengths].flop;
+		currentEnvironment
+	};
+
+	~asPattern = { 
+		Prand(~durLen, inf)
+	};
+	
+	
+}) => PR(\randRhythm);
+
+PR(\randRhythm).v.clone({
+	~prepare = #{ |buf, passInValue, parms|
+		var 	quant = parms.atBackup(\rhythmQuant, passInValue),
+			beatsPerBar = (parms[\quant] ?? { passInValue[\getQuant] }).quant,
+			needToParse = parms.atBackup(\midiParse, passInValue).not,
+			reset = parms.atBackup(\rhythmProfileReset, passInValue);
+		
+		(needToParse ? false).if({ buf = buf.parse });  // assumes buffer has already been parsed
+		buf = buf.quantize(quant, beatsPerBar);  // simple quantize; deal w/ flexQuantize later?
+
+			// may chuck in new material without overwriting previous analyses
+		(~durMarkov.isNil or: { reset ? false }).if({
+			~durMarkov = MarkovSet.new(updateSeeds: true);
+			~lenMarkov = MarkovSet.new(updateSeeds: true);
+		});
+
+		~durMarkov.parse(Pseq(buf.durs, inf), buf.size+1);
+			// associate dur to length
+		buf.notes.do({ |note| ~lenMarkov.read(note.dur, note.length) });
+		~durStream = ~durMarkov.asStream;
+		currentEnvironment
+	};
+
+	~asPattern = #{ 
+		var dur;
+		Pfunc({
+			[dur = ~durStream.next, ~lenMarkov.next(dur)].debug("markovRhythm output")
+		})
+	};
+	
+}) => PR(\markovRhythm);
+
+// useful for swing
+// specify a bar's worth of timepoints, or part of a bar to be repeated
+// e.g., #[0.28, 0.22] -- a rhythm stream 0.25, 0.25, 0.25, 0.25 turns into 0.28, 0.22, 0.28, 0.22
+// during play, map the current time point onto the bar according to rhythmCycle
+// and the clock's baseBeat and morph to the cycle
+
+// if the source rhythms aren't quantized, they will be when this process gets done with it
+
+// this will not adapt to a change in meter in the clock
+PR(\randRhythm).v.clone({
+		// rhythmCycle may be given in the main melody BP
+		// or clone this PR and write in a default
+		// my default will be basic 16th-note swing
+	~keysFromParent = #[\getQuant, \rhythmCycle, \rhythmProfileReset, \rhythmQuant];
+
+	~defaultCycle = #[0.28, 0.22];
+	~defaultTolerance = 0.0001;		// modulo arithmetic is inexact; how inexact is OK?
+	
+		// if cycle is longer than bar length, shorten cycle
+		// this should happen only if your cycle doesn't match your barLength
+		// results may not be predictable but maybe you want weird rhythm
+		// buf is not used!
+	~prepare = { |buf, passInValue, parms|
+		var	runningsum = 0, index;
+		~barLength = (parms[\quant] ?? { passInValue[\getQuant] }).quant;
+		~cycle = parms.atBackup(\rhythmCycle, passInValue) ? ~defaultCycle;
+		~cycleLength = ~cycle.sum;
+		~rhythmQuant = parms.atBackup(\rhythmQuant, passInValue);
+		~tolerance = parms.atBackup(\rhythmTolerance, passInValue) ?? ~defaultTolerance;
+		(~cycleLength < ~barLength).if({
+			~cycle = (~cycle ! ((~barLength div: ~cycleLength) + 1)).flat;
+			~cycleLength = ~cycle.sum;
+		});
+		(~cycleLength > ~barLength).if({
+			index = ~cycle.detectIndex({ |item|
+				runningsum = runningsum + item;
+				runningsum >= ~barLength
+			});
+			~cycle = ~cycle[..index];
+			~cycleLength = ~cycle.sum;
+			~cycle[index] = ~cycle.last - (~cycleLength - ~barLength);
+		});
+		runningsum = 0;
+		~outpoints = ~cycle.collect({ |item| runningsum <! (runningsum = runningsum + item) })
+			++ ~cycleLength;
+// I'm not really happy with either of these
+//		~inpoints = Array.series(~cycle.size, 0, ~rhythmQuant);
+		~inpoints = ~outpoints.round(~rhythmQuant);
+		currentEnvironment
+	};
+	
+	~timeWithinBar = { |time|
+		((time - thisThread.clock.baseBarBeat) % ~barLength)
+	};
+
+	~mapToCycle = { |time|
+		var	timeinbar = ~timeWithinBar.(time),
+			nearest = timeinbar.nearestInList(~inpoints),
+			index = ~inpoints.indexOfEqual(nearest),
+			index2;
+//[nearest, timeinbar, index].debug("nearest, time");
+		(nearest == timeinbar).if({
+			~outpoints[index]		// spot on, no interpolation needed
+		}, {
+			(timeinbar < nearest).if({
+				index2 = index;
+				index = index - 1;
+			}, {
+				index2 = index + 1;
+			});
+				// interpolate beyond last item in array
+			(index2 == ~inpoints.size).if({
+				index = 0;	// last item in points arrays <--> first item
+				index2 = 1;
+				timeinbar = timeinbar - ~barLength;
+			});
+			timeinbar.linlin(~inpoints[index], ~inpoints[index2],
+				~outpoints[index], ~outpoints[index2]);
+		});
+	};
+
+		// note, because of FuncStreamEnvir, currentEnvironment here is the master BP
+		// NOT the rhythm profile - use currentEnvironment for all local environment vars
+		// I need latency from the BP so this is (strangely) good
+		// currentEnvironment. enters the local environment for calculations
+	~asPattern = { 
+		Prout({ |note|
+			var	now = thisThread.clock.beats + ~latency,
+				nowmap = currentEnvironment.mapToCycle(now),
+				then, thenmap, deltamap;
+			loop {
+//thisThread.clock.beats.debug;
+//[now, nowmap].debug("now");
+//"input note: ".post; note.postln;
+				then = now + note.dur;
+				thenmap = currentEnvironment.mapToCycle(then);
+				deltamap = (thenmap - nowmap) % ~barLength;
+				note = [deltamap, note.length * (deltamap / note.dur)]
+//.debug("rhythm output")
+				.yield;
+					// if the process was paused, state variables must be reset
+					// if no pause, clock should be in sync with then
+//"\nafter return".debug;
+//[thisThread.clock.beats, ~latency, thisThread.clock.beats + ~latency].debug("now, latency");
+//currentEnvironment.timeWithinBar(thisThread.clock.beats + ~latency).debug/*("current time in bar")*/;
+//currentEnvironment.timeWithinBar(thenmap).debug("thenmap in bar");
+				((currentEnvironment.timeWithinBar(thisThread.clock.beats + ~latency).round(~tolerance))
+						!= currentEnvironment.timeWithinBar(thenmap).round(~tolerance)).if({
+					then = thisThread.clock.beats + ~latency;
+					thenmap = currentEnvironment.mapToCycle(then);
+				});
+				now = then;
+				nowmap = thenmap;
+			}
+		});
+	};
+}) => PR(\cycleMapRhythm);
+
+AbstractChuckArray.defaultSubType = saveSubType;

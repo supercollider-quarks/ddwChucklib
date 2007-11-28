@@ -7,24 +7,24 @@ AbstractChuckArray.defaultSubType = \chordStorage;
 // chord segment
 // no modal stuff, just raw midi notes
 PR(\abstractProcess).v.clone({
-	~prepare = #{ |self, notes, modeOverride|
+	~prepare = #{ |notes, modeOverride|
 			// notes should be in the format [note, note, note]
 			// but they might come in as [SeqChordNote(..., [....]), ...]
 		~modeOverride = modeOverride;
 		~notes = notes.asArray.collect({ |n| n.asNoteArray }).flat;
 //		~analyzeNotes.value;	// collect stats on chord -- user definable
-		self
+		currentEnvironment
 	};
 	
 		// subclasses will use keys in inEvent to adapt to topnote, etc.
-	~asPattern = #{ |self, inEvent|
+	~asPattern = #{ |inEvent|
 //"chord-asPattern".postln;
 //inEvent.postln;
 		ArpegPat(inEvent[\arpegType]).asPattern(~notes, inEvent)
 	};
 }) => PR(\basicChordSeg);
 
-// modal chord segment that adapts itself to bass and topnote
+// modal chord segment that adapts itcurrentEnvironment to bass and topnote
 
 // fitnesses of chord notes, assuming root is 0
 // you can set this in a chordsegment instanceto override.
@@ -51,21 +51,21 @@ PR(\abstractModeSeg).v.clone({
 		// by default, use the mode of the calling event
 		// set to true to force the notes to play back using the mode analyzed here
 	~useOwnMode = false;
-	~prepare = #{ |self, notes, mode, rawMIDI = true, parms|
+	~prepare = #{ |notes, mode, rawMIDI = true, parms|
 			// notes should be in the format [note, note, note]
-//[self, notes, mode, rawMIDI, parms].debug("enter chord seg prepare");
+//[/*currentEnvironment,*/ notes, mode, rawMIDI, parms].debug("enter chord seg prepare");
 		~notes = notes.asArray;
-		{ (rawMIDI ? true).if({ ~mapToMode.value(self, mode) }) }.try({ |error|
+		{ (rawMIDI ? true).if({ ~mapToMode.value(mode) }) }.try({ |error|
 //			Error("Error translating MIDI to modal. Check to see if default mode is defined.")
 error
 				.throw;
 		});
-		~analyzeNotes.value(self, rawMIDI);	// collect stats on chord -- user definable
-		~useOwnMode = parms.atBackup(\useOwnMode, self);
-		self
+		~analyzeNotes.value(rawMIDI);	// collect stats on chord -- user definable
+		~useOwnMode = parms.atBackup(\useOwnMode, currentEnvironment);
+		currentEnvironment
 	};
 	
-	~mapToMode = #{ |self, mode|
+	~mapToMode = #{ |mode|
 		var	bestMode, bestFit = -1e10, bestMap, modeFit, notesTemp, modeObj;
 			// is it a single mode, or a mode pool?
 //mode.debug("chordModePoolSeg-mapToMode");
@@ -86,32 +86,32 @@ error
 			~notes = ~notes.mapMode(mode);
 			~mode = mode;
 		};
-		self
+		currentEnvironment
 	};
 	
-	~mapToMIDI = #{ |self, mode|
+	~mapToMIDI = #{ |mode|
 		~notes = ~notes.unmapMode(mode);
-		self
+		currentEnvironment
 	};
 	
-	~analyzeNotes = #{ |self|
+	~analyzeNotes = #{ 
 			// sort notes in descending order
 			// array should already be copied by asNoteArray
 			// no longer needed because chordFitInt sorts the array internally
 //		~notes = ~notes.sort({ |a, b| a > b });
 		~hiNote = ~notes.maxItem;
 		~loNote = ~notes.minItem;
-		self
+		currentEnvironment
 	};
 	
-	~modeForEvent = { |self, ev|
+	~modeForEvent = { |ev|
 		~modeOverride ?? { ~useOwnMode.if({ ~mode }, { ev[\mode] }) };
 	};
 
-	~getFit = #{ |self| self[\fitFactors] ? Library.at(\fitFactors); };
+	~getFit = #{  ~fitFactors ? Library.at(\fitFactors); };
 
-	~asPattern = #{ |self, inEvent, fitFunc|
-		var result = Func(fitFunc).doAction(self, inEvent, ~getFit.value(self));
+	~asPattern = #{ |inEvent, fitFunc|
+		var result = Func(fitFunc).doAction(currentEnvironment, inEvent, ~getFit.value);
 //"chord-asPattern".postln;
 //inEvent.postln;
 		result.notNil.if({
@@ -140,7 +140,7 @@ AbstractChuckArray.defaultSubType = \chordChildProc;
 PR(\abstractProcess).v.clone({
 		// give keys for prototypes
 		// should these simply be defined by subclasses?
-//	~prepare = #{ |self, chordProto|
+//	~prepare = #{ |chordProto|
 //		~chordProto = chordProto;	// just save key
 //	};
 
@@ -151,19 +151,19 @@ PR(\abstractProcess).v.clone({
 
 	~event = (eventKey: \voicerNote);
 	
-	~preparePlay = #{ |self|
-		~chordStream = ~chordStream ?? { ~makeChordPattern.value(self).asStream };
-		self
+	~preparePlay = #{ 
+		~chordStream = ~chordStream ?? { ~makeChordPattern.value.asStream };
+		currentEnvironment
 	};
 	
-	~reset = #{ |self|
+	~reset = #{ 
 		~chordStream = nil;
-		~preparePlay.value(self);	// should return self
+		~preparePlay.value;	// should return currentEnvironment
 	};
 
-	~getFit = #{ |self| self[\fitFactors] ? Library.at(\fitFactors); };
+	~getFit = #{  ~fitFactors ? Library.at(\fitFactors); };
 
-	~makeChordPattern = #{ |self| Pseq(~chords, inf) };
+	~makeChordPattern = #{  Pseq(~chords, inf) };
 
 		// you can change fitToBassAndTop behavior by changing this symbol
 		// funcs are defined in Func()
@@ -171,7 +171,7 @@ PR(\abstractProcess).v.clone({
 
 // what if this is in response to a bass note (no inEvent)? address in subclass
 // update method should modify the value of ~noteStream without updating anything else
-	~nextNotePattern = #{ |self, inEvent|
+	~nextNotePattern = #{ |inEvent|
 			// if there is an event, we need to move to the next chord
 //"child-nextNotePattern".postln;
 //inEvent.postln;
@@ -181,41 +181,42 @@ PR(\abstractProcess).v.clone({
 //		~currentChord.asPattern(inEvent, ~fitFunc);
 	};
 	
-	~updateNoteStream = #{ |self, inEvent, bassID|
+	~updateNoteStream = #{ |inEvent, bassID|
 //"\nupdateNoteStream".debug;
 //inEvent.postln;
 //inEvent[\top].postln;
 //"chord pattern".postln;
 		bassID !? { inEvent.put(\bassID, bassID) };
-		~noteStream = (~notePattern = ~currentChord.asPattern(inEvent, self[\fitFunc]))
+		~noteStream = (~notePattern = ~currentChord.asPattern(inEvent, ~fitFunc))
 //.postcs
 			.asStream;
 	};
 	
-	~updateBass = #{ |self, lastEvent, bassID|
+	~updateBass = #{ |lastEvent, bassID|
 			// maybe you don't want the process to update every bass note
 		(lastEvent.tryPerform(\at, \updateOnBass) ? true).if({
-			~updateNoteStream.value(self, lastEvent, bassID)
+			~updateNoteStream.value(lastEvent, bassID)
 		});
 	};
 	
-	~nextNoteStream = #{ |self, inEvent|
+	~nextNoteStream = #{ |inEvent|
 //"child-nextNoteStream".debug;
 //inEvent.postln;
 //		(inEvent[\midi] ? false).if({
 //			~noteStream = ArpegPat(inEvent[\arpegType]).asPattern(inEvent[\note]).asStream;
 //		}, {
-			~nextNotePattern.value(self, inEvent);
-			~updateNoteStream.value(self, inEvent);
+			~nextNotePattern.value(inEvent);
+			~updateNoteStream.value(inEvent);
 //		});
 		Prt({ |event|
-			self.use({
+//~noteStream.debug("inside notestream routine");
+//			currentEnvironment.use({
 				{ event = ~noteStream.next(event).yield }.loop
-			});
+//			});
 		});
 	};
 
-	~asPattern = #{ |self, inEvent|
+	~asPattern = #{ |inEvent|
 		var	out, argPairs;
 //"child-asPattern".debug;
 //inEvent.debug;
@@ -224,24 +225,24 @@ PR(\abstractProcess).v.clone({
 				(~chords.size == 0).if({
 					Error("Cannot play -- no chords have been provided to arpeg process").throw;
 				}, {
-					~nextNoteStream.value(self, inEvent)
+					~nextNoteStream.value(inEvent)
 				});
 			}, {
 // BUG HERE: ~notePattern needs to be populated
 					// fall back for midi input
 				ArpegPat(inEvent[\arpegType]).asPattern(
-					Func(~fitFunc).doAction((notes:~notes), inEvent, ~getFit.value(self)),
+					Func(~fitFunc).doAction((notes:~notes), inEvent, ~getFit.value),
 					inEvent)
 			}),
 			#[\delta, \length, \gate], MicRh(inEvent[\microRhythm])
 				.asPattern(~notePattern, inEvent),
-			\mode, Pfunc({
-//				self[\currentChord].mode.debug("mode in chord object");
-				self[\currentChord].modeForEvent(inEvent) // .debug("modeForEvent");
-			})
+			\mode, (Pfunc({
+//				~currentChord.mode.debug("mode in chord object");
+				~currentChord.modeForEvent(inEvent) // .debug("modeForEvent");
+			}))
 		);
 			// note, argpairs will reset every chord -- is that a good idea?
-		argPairs = ~argPairs.(self, inEvent);		// if simple array, this will have no effect
+		argPairs = ~argPairs.(inEvent);		// if simple array, this will have no effect
 //		(argPairs.size > 0).if({
 //			Pbindf(out, \argKeys, argPairs[0, 2..], *argPairs)
 //		}, { out }).trace(prefix: "arp child event: ");
@@ -249,26 +250,26 @@ PR(\abstractProcess).v.clone({
 			out = Pbindf(out, \argKeys, argPairs[0, 2..], *argPairs)
 		});
 		out
-//		(BP(\arp).exists and: { BP(\arp).v.tryPerform(\child) === self }).if({
+//		(BP(\arp).exists and: { BP(\arp).v.tryPerform(\child) === currentEnvironment }).if({
 //			out.trace(prefix: "arp child event: ");
 //		}, { out });
 	};
 	
-	~acceptMIDIBuf = #{ |self, buf, adverb, parms|
-//[self, buf, adverb, parms].debug("enter arpeggiator-acceptMIDIBuf");
-		~chords = ~prepareSequence.value(self, buf, parms);
-		~chordStream = ~makeChordPattern.value(self).asStream;   // reset the chord stream
+	~acceptMIDIBuf = #{ |buf, adverb, parms|
+//[/*currentEnvironment,*/ buf, adverb, parms].debug("enter arpeggiator-acceptMIDIBuf");
+		~chords = ~prepareSequence.value(buf, parms);
+		~chordStream = ~makeChordPattern.value.asStream;   // reset the chord stream
 	};
 	
-	~prepareSequence = #{ |self, buf, parms|
+	~prepareSequence = #{ |buf, parms|
 		var 	notes, avgDur;
-//[self, buf, parms].debug("enter arpeg-prepareSeq");
+//[/*currentEnvironment,*/ buf, parms].debug("enter arpeg-prepareSeq");
 			// why I'm using a parms dictionary: grab more parameters without changing method args
 		parms.tryPerform(\at, \fitFunc).notNil.if({ ~fitFunc = parms[\fitFunc] });
 			// partition on rhythm - in general, notes belonging to the same chord will have
 			// a duration less than the mean
 		avgDur = buf.durs.mean;
-			// if note is a SeqChordNote, it's a chord unto itself
+			// if note is a SeqChordNote, it's a chord unto itcurrentEnvironment
 			// otherwise, use average duration to determine when to break
 			// should be possible to play slowly arpeggiated chords with some gracenotes
 			// and have them preserved
@@ -278,7 +279,7 @@ PR(\abstractProcess).v.clone({
 		notes.collect({ |ch|
 				// true = unmap notes to mode
 			PR(~chordProto).v.copy.prepare(ch.asNoteArray,
-				parms.atBackup(\mode, buf.properties, self), true, parms)
+				parms.atBackup(\mode, buf.properties, currentEnvironment), true, parms)
 		})
 	};
 }, nil, #[\chordProto]) => PR(\arpeg1);
@@ -305,7 +306,7 @@ PR(\abstractProcess).v.clone({
 	~canWrap = true;
 	~respondsToBass = false;
 
-	~acceptMIDIBuf = #{ |self, buf, adverb, parms|
+	~acceptMIDIBuf = #{ |buf, adverb, parms|
 //"\nmacroRh-acceptMIDIBuf".postln; buf.dumpSeq;
 		(#[\ch, nil].includes(adverb)).if({
 //"delegating to child".postln;
@@ -314,23 +315,23 @@ PR(\abstractProcess).v.clone({
 		}, {
 			"This process does not accept a melody sequence.".warn;
 		});
-		self
+		currentEnvironment
 	};
 	
-	~update = #{ |self, obj, changer|
+	~update = #{ |obj, changer|
 //"\nupdate - ".post; changer.postln;
-		(self[\isPlaying] and: { changer == self[\bassID] and: { self[\lastEvent].notNil } })
+		(~isPlaying and: { changer == ~bassID and: { ~lastEvent.notNil } })
 		.if({
-			self[\child].updateBass(self[\lastEvent], changer);
+			~child.updateBass(~lastEvent, changer);
 		});
-		self
+		currentEnvironment
 	};
 	
 	~bindSimpleNumber = #{ |num, adverb|
 		adverb.envirPut(num);
 	};
 	
-	~makeStreamForKey = #{ |self, key, streamKey, envir|
+	~makeStreamForKey = #{ |key, streamKey, envir|
 		var	stream = key.envirGet;
 		envir.notNil.if({
 			stream = envir.use({ stream = stream.asStream });
@@ -342,37 +343,37 @@ PR(\abstractProcess).v.clone({
 	};
 
 		// to allow streams to be changed behind the scenes
-	~makeProut = #{ |self, key, protoEvent, envir|
+	~makeProut = #{ |key, protoEvent, envir|
 		var	streamKey;
 			// create stream if it doesn't exist
-		~makeStreamForKey.value(self, key, streamKey = (key ++ "Stream").asSymbol, envir);
+		~makeStreamForKey.value(key, streamKey = (key ++ "Stream").asSymbol, envir);
 			// if a protoevent is supplied, use it in next()
 			// that's for topNote (not in this process, but subclasses)
 			// otherwise use the event passed at evaluation time
 		protoEvent.notNil.if({
 			Prt({
-				self.use({
+//				currentEnvironment.use({
 					{ streamKey.envirGet.next(protoEvent).yield }.loop
-				});
+//				});
 			});
 		}, {
 			Prt({ |inEvent|
-				self.use({
+//				currentEnvironment.use({
 					{ 
 //inEvent.debug('event received by chord process component');
 					inEvent = streamKey.envirGet.next(inEvent).yield }.loop
-				});
+//				});
 			});
 		});
 	};
 	
-	~preparePlay = #{ |self|
+	~preparePlay = #{ 
 		~child.tryPerform(\preparePlay);
-		self
+		currentEnvironment
 	};
-	~reset = #{ |self|
+	~reset = #{ 
 		~child.reset;
-		self
+		currentEnvironment
 	};
 	
 	~event = (eventKey: \macroRh);
@@ -381,14 +382,14 @@ PR(\abstractProcess).v.clone({
 	~requiredKeys = #[\macro, \micro, \arpeg];
 	~rewrapKeys = ~requiredKeys;
 	
-	~asPattern = #{ |self, inEvent|
+	~asPattern = #{ |inEvent|
 		var	out;
 			// if length is nil, it picks up delta; sim. for arpegType
-		PbindMultiChan(#[\delta, \length], ~makeProut.value(self, \macro),
+		PbindMultiChan(#[\delta, \length], ~makeProut.value(\macro),
 			#[\microRhythm, \arpegType], Ptuple([
-				~makeProut.value(self, \micro),
-				~makeProut.value(self, \arpeg)], inf))
-		.collect({ |ev| self.put(\lastEvent, ev); ev });
+				~makeProut.value(\micro),
+				~makeProut.value(\arpeg)], inf))
+		.collect(e { |ev| currentEnvironment.put(\lastEvent, ev); ev });
 		(~argPairs.size > 0).if({
 			Pbindf(out, \argKeys, ~argPairs[0, 2..], * ~argPairs)
 		}, { out });
@@ -402,7 +403,7 @@ PR(\basicMacroRh).v.clone({
 	~respondsToBass = true;
 	~bassUpdate = true;
 
-	~acceptMIDIBuf = #{ |self, buf, adverb, parms|
+	~acceptMIDIBuf = #{ |buf, adverb, parms|
 		var	parmsplus;
 //"\nmacroRh-acceptMIDIBuf".postln; buf.dumpSeq;
 //		var	modeToUse;
@@ -423,29 +424,29 @@ PR(\basicMacroRh).v.clone({
 				{ ~child.acceptMIDIBuf(buf, adverb, parmsplus) }
 			{ #[\mel, \adapt].includes(adverb) }
 				{	~topNote.isNil.if({ ~topNote = PR(~melodyProto).v.copy });
-					~topNote.mode = parms.atBackup(\mode, self);
+					~topNote.mode = parms.atBackup(\mode, currentEnvironment);
 					~topNote.acceptMIDIBuf(buf, adverb, parmsplus)
 				}
 			{ "Invalid adverb.".warn; };
-		self
+		currentEnvironment
 	};
 
-	~bindPattern = #{ |self, pattern, adverb|
+	~bindPattern = #{ |pattern, adverb|
 		case { adverb == \adapt } { ~topNote.notNil.if({ ~topNote.bindPattern(pattern, adverb) }) }
 //			{	(adverb ++ "Pattern").asSymbol.envirPut(pattern.asPattern);
-//				~makeStreamForKey.value(self, adverb);
+//				~makeStreamForKey.value(adverb);
 //			};
 			{	adverb.envirPut(pattern.asPattern);
-				~makeStreamForKey.value(self, adverb);
+				~makeStreamForKey.value(adverb);
 			};
-		self		// return
+		currentEnvironment		// return
 	};
 	
 	~getMode = PR(\aiMel).v[\getMode];
-	~mode_ = #{ |self, mode|
+	~mode_ = #{ |mode|
 		mode = mode.tryPerform(\collIndex) ? mode ? \default;  // pass a symbol in as the mode
-		self[\child] !? { self[\child].mode = mode };
-		self.put(\mode, mode);
+		~child !? { ~child.mode = mode };
+		currentEnvironment.put(\mode, mode);
 	};
 	
 //	~requiredKeys = ~requiredKeys ++ #[\topNote];
@@ -456,43 +457,43 @@ PR(\basicMacroRh).v.clone({
 
 		// more modularization
 		// sans top is to allow MIDI input when top melody is not already given
-	~patternSansTop = #{ |self, inEvent|
-		PbindMultiChan(#[\delta, \length], ~makeProut.value(self, \macro),
-			\arpegType, ~makeProut.value(self, \arpeg),
-			\microRhythm,	~makeProut.value(self, \micro),
-			\bassID, Pfunc({ self[\bassID] ? \currentBassNote }),
-			\updateOnBass, Pfunc({ self[\bassUpdate] }),
-			\convertTopFunc, Pfunc({ self[\convertTopFunc] ? \convertMode }),
-			\mode, Pfunc({ self[\getMode].value(self) }))
-		.collect({ |ev| self.put(\lastEvent, ev); ev });
+	~patternSansTop = #{ |inEvent|
+		PbindMultiChan(#[\delta, \length], ~makeProut.value(\macro),
+			\arpegType, ~makeProut.value(\arpeg),
+			\microRhythm,	~makeProut.value(\micro),
+			\bassID, Pfunc({ ~bassID ? \currentBassNote }),
+			\updateOnBass, Pfunc({ ~bassUpdate }),
+			\convertTopFunc, Pfunc({ ~convertTopFunc ? \convertMode }),
+			\mode, Pfunc({ ~getMode.value }))
+		.collect(e { |ev| currentEnvironment.put(\lastEvent, ev); ev });
 	};
 	
-	~patternAvecTop = #{ |self, inEvent|
+	~patternAvecTop = #{ |inEvent|
 //		~topNotePattern = ~topNote.asNotePattern;
 		~topNotePattern = ~topNote.asPattern;
-		PbindMultiChan(#[\delta, \length], ~makeProut.value(self, \macro),
-			\arpegType, ~makeProut.value(self, \arpeg),
-			\microRhythm,	~makeProut.value(self, \micro),
-			\top, ~makeProut.value(self, \topNotePattern, ~topNote[\event], ~topNote),
-			\bassID, Pfunc({ self[\bassID] ? \currentBassNote }),
-			\updateOnBass, Pfunc({ self[\bassUpdate] }),
-			\convertTopFunc, Pfunc({ self[\convertTopFunc] ? \convertMode }),
-			\mode, Pfunc({ self[\getMode].value(self) }))
-		.collect({ |ev|
+		PbindMultiChan(#[\delta, \length], ~makeProut.value(\macro),
+			\arpegType, ~makeProut.value(\arpeg),
+			\microRhythm,	~makeProut.value(\micro),
+			\top, ~makeProut.value(\topNotePattern, ~topNote[\event], ~topNote),
+			\bassID, Pfunc({ ~bassID ? \currentBassNote }),
+			\updateOnBass, Pfunc({ ~bassUpdate }),
+			\convertTopFunc, Pfunc({ ~convertTopFunc ? \convertMode }),
+			\mode, Pfunc({ ~getMode.value }))
+		.collect(e { |ev|
 //(~collIndex == \arp).if({ ev.debug("arp macro event"); });
 //"% macro event: %\n".postf(~collIndex, ev);
-			self.put(\lastEvent, ev);
+			currentEnvironment.put(\lastEvent, ev);
 			ev
 		});
 	};
 
-	~asPattern = #{ |self, inEvent|
+	~asPattern = #{ |inEvent|
 		var	out;
 			// topNote may be supplied by MIDI; in that case, don't include in Pbind
 		~topNote.isNil.if({
-			out = ~patternSansTop.value(self, inEvent)
+			out = ~patternSansTop.value(inEvent)
 		}, {
-			out = ~patternAvecTop.value(self, inEvent)
+			out = ~patternAvecTop.value(inEvent)
 		});
 		(~argPairs.size > 0).if({
 				// ~argPairs[0, 2..] gets every even index (e.g. symbolic keys)
@@ -505,35 +506,35 @@ PR(\basicMacroRh).v.clone({
 PR(\macroRh).v.clone({
 	~requiredKeys = ~requiredKeys.copy;
 	~requiredKeys.remove(\macro);
-	~patternSansTop = #{ |self, inEvent|
+	~patternSansTop = #{ |inEvent|
 		PbindMultiChan(#[\delta, \length], inf,	// for midi input, we don't know the length yet
-			\arpegType, ~makeProut.value(self, \arpeg),
-			\microRhythm,	~makeProut.value(self, \micro),
-			\bassID, Pfunc({ self[\bassID] ? \currentBassNote }),
-			\updateOnBass, Pfunc({ self[\bassUpdate] }),
+			\arpegType, ~makeProut.value(\arpeg),
+			\microRhythm,	~makeProut.value(\micro),
+			\bassID, Pfunc({ ~bassID ? \currentBassNote }),
+			\updateOnBass, Pfunc({ ~bassUpdate }),
 //			\root, Pfunc({ Library.at(\currentBassNote) ? 0 }),
-			\convertTopFunc, Pfunc({ self[\convertTopFunc] ? \convertMode }),
-			\mode, Pfunc({ self[\getMode].value(self) }))
-		.collect({ |ev| self.put(\lastEvent, ev); ev });
+			\convertTopFunc, Pfunc({ ~convertTopFunc ? \convertMode }),
+			\mode, Pfunc({ ~getMode.value }))
+		.collect(e { |ev| currentEnvironment.put(\lastEvent, ev); ev });
 	};
 	
-	~patternAvecTop = #{ |self, inEvent|
+	~patternAvecTop = #{ |inEvent|
 //		~topNotePattern = ~topNote.asNotePattern;
 		~topNotePattern = ~topNote.asPattern;
 		PbindMultiChan(
-			#[\top, \delta, \length], ~makeProut.value(self, \topNotePattern,
+			#[\top, \delta, \length], ~makeProut.value(\topNotePattern,
 				~topNote[\event], ~topNote)
 				.collect({ |ev|	// from topEvent, make an array with delta and length
 					[ev, ev[\delta], ev[\length] ?? { ev[\note].length }]
 				}),
-			\arpegType, ~makeProut.value(self, \arpeg),
-			\microRhythm,	~makeProut.value(self, \micro),
-			\bassID, Pfunc({ self[\bassID] ? \currentBassNote }),
-			\updateOnBass, Pfunc({ self[\bassUpdate] }),
+			\arpegType, ~makeProut.value(\arpeg),
+			\microRhythm,	~makeProut.value(\micro),
+			\bassID, Pfunc({ ~bassID ? \currentBassNote }),
+			\updateOnBass, Pfunc({ ~bassUpdate }),
 //			\root, Pfunc({ Library.at(\currentBassNote) ? 0 }),
-			\convertTopFunc, Pfunc({ self[\convertTopFunc] ? \convertMode }),
-			\mode, Pfunc({ self[\getMode].value(self) }))
-		.collect({ |ev| self.put(\lastEvent, ev); ev });
+			\convertTopFunc, Pfunc({ ~convertTopFunc ? \convertMode }),
+			\mode, Pfunc({ ~getMode.value }))
+		.collect(e { |ev| currentEnvironment.put(\lastEvent, ev); ev });
 	};			
 }) => PR(\chTop);
 

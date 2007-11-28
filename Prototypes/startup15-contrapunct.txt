@@ -29,27 +29,27 @@ AbstractChuckArray.defaultSubType = \contrapunct;
 // updatePattern -- modify each child event before returning
 // quant -- when to start child if coordinator is playing and child is not
 PR(\abstractProcess).v.clone({
-	~prepare = { |self, bp, parms|
+	~prepare = { |bp, parms|
 		var	parmsToInsert;
 		~bp = bp;
 			// scorched-earth handling of parms; eventually I'll add safety checks?
 		parmsToInsert = bp.v.coordParms ?? { IdentityDictionary.new };
 		parms.respondsTo(\keysValuesDo).if({ parmsToInsert.putAll(parms); });
-		self.putAll(parmsToInsert);
+		currentEnvironment.putAll(parmsToInsert);
 		(bp.v.alwaysReset == true).if({ ~doReset = true });
-		~makeStreamForKey.(self, \swrap);
-		~makeStreamForKey.(self, \pwrap);
-		~makeStreamForKey.(self, \update);
+		~makeStreamForKey.(\swrap);
+		~makeStreamForKey.(\pwrap);
+		~makeStreamForKey.(\update);
 		bp.v.isDriven = true;
 		~wasPlaying = bp.isPlaying;
 		bp.v.isPlaying = false;
 		~inited = false;
-		bp.addDependant(self);	// get notifications from child process
+		bp.addDependant(currentEnvironment);	// get notifications from child process
 		bp.changed(\driven);
-		self
+		currentEnvironment
 	};
 
-	~prepForPlay = { |self|
+	~prepForPlay = { 
 		~inited.not.if({
 			~bp.v.eventStreamPlayer.isNil.if({
 				~bp.prepareForPlay;
@@ -58,7 +58,7 @@ PR(\abstractProcess).v.clone({
 			});
 		});
 		~inited = true;
-		self
+		currentEnvironment
 	};
 
 	
@@ -67,8 +67,8 @@ PR(\abstractProcess).v.clone({
 	~pwrap = \defaultPatternWrapper.asPattern;
 	
 		// =>.swrap for func to wrap the child stream in a pattern
-	~wrapChildStream = { |self, driverEvent|
-		var	pattern = Func(~swrapStream.next(driverEvent)).doAction(self, driverEvent);
+	~wrapChildStream = { |driverEvent|
+		var	pattern = Func(~swrapStream.next(driverEvent)).doAction(driverEvent);
 			// if the next child event was supposed to happen some time after the sync point,
 			// add a dummy event to compensate
 			// nextSync is unchanged from the last driver event
@@ -83,17 +83,17 @@ PR(\abstractProcess).v.clone({
 	};
 	
 		// user hook to provide a Pbindf or other processing
-	~wrapPattern = { |self, pattern, driverEvent|
+	~wrapPattern = { |pattern, driverEvent|
 		pattern
 	};
 	
 		// =>.pwrap for func to wrap the pattern holding the stream
 		// modifyDriver should set offset
-	~prWrapPattern = { |self, pattern, driverEvent|
+	~prWrapPattern = { |pattern, driverEvent|
 		var	deltaToNextSync = driverEvent.deltaToNextSync;
 		pattern = Func(~pwrapStream.next(driverEvent)).doAction(pattern, driverEvent)
 			? pattern;
-		pattern = ~wrapPattern.(self, pattern, deltaToNextSync);
+		pattern = ~wrapPattern.(pattern, deltaToNextSync);
 //		((~truncatePattern ? true) and: { deltaToNextSync.notNil }).if({
 		deltaToNextSync.notNil.if({
 			Pfindur(deltaToNextSync, pattern)
@@ -104,14 +104,14 @@ PR(\abstractProcess).v.clone({
 	
 	~event = { ~bp.v.event };
 
-	~getEvent = { |self, inEvent, driverEvent|
+	~getEvent = { |inEvent, driverEvent|
 		var	event = ~bp.v.eventStream.next(~event.value);
 //thisThread.clock.beats.debug("bpholder-getEvent");
 //event.debug("bpholder-getEvent");
 //event[\note].postcs;
 //event[\play].postcs;
 		event = event !? { Func(~updateStream.next(driverEvent))
-			.doAction(event, self, driverEvent)/*.debug("return value from func")*/ ? event };
+			.doAction(event, /*currentEnvironment,*/ driverEvent)/*.debug("return value from func")*/ ? event };
 		~nextChildEventTime = event.notNil.if({ thisThread.clock.beats + event.delta }, { nil });
 //event.debug("output event");
 		event
@@ -123,16 +123,16 @@ PR(\abstractProcess).v.clone({
 	~offset = 0;
 	~lastOffset = 0;	// this is the offset from the previous event
 
-	~doEvent = { |self, driverEvent, childMetaEvent|
+	~doEvent = { |driverEvent, childMetaEvent|
 		var	inEvent, /*event, */pattern;
 
 			// processDriverEvent goes false when the child is released by .stop or .play
 			// in that case, we should ignore the driver event
 		(~processDriverEvent ? true)/*.debug("child event for %".format(~bp.collIndex))*/.if({
-			~prepForPlay.(self);
+			~prepForPlay.value;
 				// modifyDriver must set the offset
 			~lastDriverEventID = driverEvent[\ID];
-			driverEvent = ~modifyDriver.(self, driverEvent.copy, childMetaEvent) ? driverEvent;
+			driverEvent = ~modifyDriver.(driverEvent.copy, childMetaEvent) ? driverEvent;
 //[thisThread.clock.beats, driverEvent.delta, ~offset, ~lastOffset, driverEvent.delta + ~offset - ~lastOffset].debug("now, delta, offset, lastOffset, deltaToNextSync");
 			driverEvent.put(\deltaToNextSync, driverEvent.delta + ~offset - ~lastOffset);
 //driverEvent.debug("driverEvent");
@@ -141,9 +141,9 @@ PR(\abstractProcess).v.clone({
 				~bp.v.driverEvent = driverEvent;
 //inEvent.debug("inEvent");
 
-				pattern = ~wrapChildStream.(self, driverEvent, childMetaEvent);
+				pattern = ~wrapChildStream.(driverEvent, childMetaEvent);
 //pattern.asCompileString.debug("wrapChildStream result");
-				pattern = ~prWrapPattern.(self, pattern, driverEvent, childMetaEvent);
+				pattern = ~prWrapPattern.(pattern, driverEvent, childMetaEvent);
 //pattern.asCompileString.debug("prWrapPattern result");
 
 // what is the termination condition? may have to use CleanupStream
@@ -166,7 +166,7 @@ PR(\abstractProcess).v.clone({
 		~eventStreamPlayer.stop;
 	};
 
-	~update = { |self, obj, changer|
+	~update = { |obj, changer|
 //this.dumpBackTrace;
 //[obj.asCompileString, changer].debug("bpholder-update");
 		case { #[\play, \stop].includes(changer) } {
@@ -174,7 +174,7 @@ PR(\abstractProcess).v.clone({
 					~processDriverEvent = false;
 					~wasPlaying = (changer == \play);
 					~wasTriggeredExternally = true;
-					self.changed(\lostChild);
+					currentEnvironment.changed(\lostChild);
 				}
 			{ changer == \driven } {
 					~processDriverEvent = true;
@@ -184,7 +184,7 @@ PR(\abstractProcess).v.clone({
 					~wasPlaying = false;
 					~wasTriggeredExternally = true;
 					~processDriverEvent = false;
-					self.changed(\lostChild);
+					currentEnvironment.changed(\lostChild);
 				}
 	};
 	
@@ -197,18 +197,18 @@ PR(\abstractProcess).v.clone({
 	~event = (eventKey: \dummy);
 		// using PQ because children may offset their sync points
 		// and occur earlier or later than the next driver event
-	~prep = { |self|
+	~prep = { 
 		~children = IdentityDictionary.new;
 		~queue = PriorityQueue.new;
 		~driverEventID = 0;
 	};
 	
 		// what else? prepare for play?
-	~driver_ = { |self, bp|
+	~driver_ = { |bp|
 		var syncTime;
 		(~driver !== bp).if({
 			~driver.notNil.if({
-				~releaseDriver.(self);
+				~releaseDriver.value;
 			});
 			~driver = bp;
 			~clock.isNil.if({
@@ -234,23 +234,23 @@ PR(\abstractProcess).v.clone({
 	//			bp.stopNow(notify: false, doCleanup: false);
 			});
 			bp.changed(\driven);
-			bp.addDependant(self);
+			bp.addDependant(currentEnvironment);
 		});
-		self
+		currentEnvironment
 	};
 	
 		// release driver from control -- should not be called directly by user
-	~releaseDriver = { |self, doReplay|
+	~releaseDriver = { |doReplay|
 		var	syncTime, nextEvent, oldStream;
 		~driver.notNil.if({
-			~driver.removeDependant(self);
+			~driver.removeDependant(currentEnvironment);
 			~driver.v.isDriven = false;
 			~driver.v.eventStream = Pevent(Pseq([~nextEvent, ~driver.v.eventStream], 1),
 				~driver.v.event).asStream;
 			~driver.v.eventStreamPlayer = PausableEventStreamPlayer(~driver.v.eventStream,
 				~driver.v.event).refresh;
 			((doReplay ? true) and: { ~driver.v.eventStream.notNil
-				and: { (syncTime = ~nextSyncTime.(self, ~saveCurrentEvent)).notNil
+				and: { (syncTime = ~nextSyncTime.(~saveCurrentEvent)).notNil
 				and: { syncTime >= ~driver.v.clock.beats } } }).if({
 //~nextEvent[\note].asString.debug("nextevent's note");
 //"making new event stream".debug;
@@ -262,19 +262,19 @@ PR(\abstractProcess).v.clone({
 			~driver.changed(#[stop, play][~driver.isPlaying.binaryValue]);
 			~driver = nil;
 		});
-		self
+		currentEnvironment
 	};
 	
-	~add = { |self, bp, parms|
-		var	nextSync, childObj, proto = parms.atBackup(\childProto, self);
+	~add = { |bp, parms|
+		var	nextSync, childObj, proto = parms.atBackup(\childProto, currentEnvironment);
 		(bp.exists and: { bp !== ~driver }).if({
 			~children.put(bp.collIndex, childObj = PR(proto).v.copy.prepare(bp, parms));
-			childObj.addDependant(self);
+			childObj.addDependant(currentEnvironment);
 			(~clock != bp.v.clock).if({
 				"Clocks do not match. There may be scheduling problems.".warn;
 			});
 				// if I am playing and I know when I am going to fire next
-			(~isPlaying and: { (nextSync = ~nextSyncTime.(self)).notNil }).if({
+			(~isPlaying and: { (nextSync = ~nextSyncTime.value).notNil }).if({
 					// is the bp playing? if so, help it make the transition
 				childObj.wasPlaying.if({
 					~clock.schedAbs(nextSync - 0.05, {
@@ -285,21 +285,21 @@ PR(\abstractProcess).v.clone({
 					});
 //nextSync.debug("nextSync");
 //thisThread.clock.beats.debug("current LT");
-					~addChildToQueue.(self, childObj, nextSync);
+					~addChildToQueue.(childObj, nextSync);
 				}, {		// else start the child on its normal quant
 						// run normally until the following sync point
 //bp.eventSchedTime(childObj.quant).debug("starting % play at".format(bp.collIndex));
 					bp.play(childObj.quant, ~clock, childObj.doReset, notify: false);
-					~clock.schedAbs(bp.eventSchedTime(childObj.quant) - 0.05, {
-						self.use({
-							(nextSync = ~nextSyncTime.(self)).notNil.if({
+					~clock.schedAbs(bp.eventSchedTime(childObj.quant) - 0.05, e {
+//						currentEnvironment.use({
+							(nextSync = ~nextSyncTime.value).notNil.if({
 //thisThread.clock.beats.debug("now");
 //nextSync.debug("adding child to queue for sync time");
-								~addChildToQueue.(self, childObj, nextSync);
+								~addChildToQueue.(childObj, nextSync);
 							}, {
 								bp.stopNow;
 							});
-						});
+//						});
 					});
 				});
 			});
@@ -310,11 +310,11 @@ PR(\abstractProcess).v.clone({
 	
 		// this is sufficient because routine will not refresh the child in the queue
 		// if it can't find it in the ~children dictionary
-	~removeChild = { |self, key, freeing|
+	~removeChild = { |key, freeing|
 		var bpwrap = ~children.removeAt(key), syncTime, esp;
 		bpwrap.notNil.if({
 			bpwrap.bp.removeDependant(bpwrap);
-			bpwrap.removeDependant(self);
+			bpwrap.removeDependant(currentEnvironment);
 			bpwrap.bp.v.isDriven = false;
 				// to restart the child's native stream,
 				// - I must be playing (or been freed at this logical time)
@@ -325,7 +325,7 @@ PR(\abstractProcess).v.clone({
 						// wasTriggeredExternally == true on .play or .stop on the child BP
 					bpwrap.wasTriggeredExternally/*.debug("wasTriggeredExternally")*/.if({
 							// there's some time left before the .play kicks in
-						((syncTime = ~nextSyncTime.(self)/*.debug("nextSync")*/) < bpwrap.bp.eventSchedTime/*.debug("eventSchedTime")*/)
+						((syncTime = ~nextSyncTime.value/*.debug("nextSync")*/) < bpwrap.bp.eventSchedTime/*.debug("eventSchedTime")*/)
 						/*.debug("there is time remaining")*/.if({
 								// run the stream in the interim
 								// by copying the eventstreamplayer, I ensure that the
@@ -358,19 +358,19 @@ PR(\abstractProcess).v.clone({
 				
 			bpwrap.bp.changed(#[stop, play][bpwrap.bp.isPlaying.binaryValue]);
 		});
-		self
+		currentEnvironment
 	};
 	
-	~bindBP = { |self, bp, adverb, parms|
+	~bindBP = { |bp, adverb, parms|
 		(adverb == \driver).if({
-			~driver_.(self, bp);
+			~driver_.(bp);
 		}, {
-			~add.(self, bp, parms);
+			~add.(bp, parms);
 		});
-		self
+		currentEnvironment
 	};
 	
-	~nextSyncTime = { |self, event|
+	~nextSyncTime = { |event|
 		event = event ? ~currentEvent;
 		event !? {
 			event.nextSyncTime
@@ -379,7 +379,7 @@ PR(\abstractProcess).v.clone({
 		};
 	};
 	
-	~addChildToQueue = { |self, child, time|
+	~addChildToQueue = { |child, time|
 		var	nextChildEventTime;
 			// take the bp out of the clock's queue; don't notify dependents
 			// but only do it if the child is still accepting events
@@ -412,9 +412,9 @@ PR(\abstractProcess).v.clone({
 	};
 
 		// should be called only in the context of my event stream
-	~prepareQueue = { |self, time|
+	~prepareQueue = { |time|
 		~children.keysValuesDo({ |key, bp|
-			~addChildToQueue.(self, bp, time ? ~nextSyncTime.(self) ? thisThread.clock.beats);
+			~addChildToQueue.(bp, time ? ~nextSyncTime.value ? thisThread.clock.beats);
 		});
 		~stream = (~driver.v.eventStream ?? { ~driver.asStream });
 //(time ? thisThread.clock.beats).debug("adding driver to queue");
@@ -422,7 +422,7 @@ PR(\abstractProcess).v.clone({
 		(play:0, delta:0)
 	};
 	
-	~popEvents = { |self|
+	~popEvents = { 
 		var	out = List.new, time;
 		~queue.notEmpty/*.debug("queue has items")*/.if({
 				// if there are stray events in the queue, drop them
@@ -444,7 +444,7 @@ PR(\abstractProcess).v.clone({
 	
 	~nextDriverID = { ~driverEventID = ~driverEventID + 1 };
 	
-	~doDriverEvent = { |self|
+	~doDriverEvent = { 
 		var	event;
 		(~driver.notNil and: { (event = ~stream.next(
 				~driver.v.event.copy.put(\children, ~children.copy))).notNil }).if({
@@ -474,7 +474,7 @@ PR(\abstractProcess).v.clone({
 		});
 	};
 	
-	~doChildEvent = { |self, evt|
+	~doChildEvent = { |evt|
 		var	child = ~children[evt.process];
 		child.notNil.if({
 				// child's job to return the metaevent for my PQ, including offset
@@ -484,28 +484,28 @@ PR(\abstractProcess).v.clone({
 		});
 	};
 
-	~asPattern = { |self|
+	~asPattern = { 
 		// how to initialize the child streams just before play?
 		~eventSchedTime/*.debug("bpdriver-aspattern-eventschedtime")*/.notNil.if({
-			~clock.schedAbs(~eventSchedTime - 0.05, {
+			~clock.schedAbs(~eventSchedTime - 0.05, e {
 //"calling prepareQueue".debug;
-				self.prepareQueue(self[\eventSchedTime]/*.debug("eventSchedTime")*/);
+				~prepareQueue.(~eventSchedTime/*.debug("eventSchedTime")*/);
 			});
 		});
 		Prt({
 			var	queueList, event;
 //			~driverWasPlaying = true;
 			loop {
-				((queueList = ~popEvents.(self)).size > 0).if({
+				((queueList = ~popEvents.value).size > 0).if({
 //queueList.postcs;
 					queueList.do({ |evt|
 						(evt.process == \driver).if({
-							event = ~doDriverEvent.(self);
+							event = ~doDriverEvent.value;
 						}, {
-							event = ~doChildEvent.(self, evt);
+							event = ~doChildEvent.(evt);
 							event.isNil.if({
 "removing child % because event was nil".debug(evt.process.tryPerform(\at, \bp).value.tryPerform(\at, \collIndex));
-								~removeChild.(self, evt.process);
+								~removeChild.(evt.process);
 							});
 						});
 						
@@ -533,36 +533,36 @@ PR(\abstractProcess).v.clone({
 		});
 	};
 	
-	~stopCleanup = { |self, auto|
+	~stopCleanup = { |auto|
 //"bpdriver-stopCleanup".debug;
 //		auto.if({
-//			~resumeChildren.(self);
+//			~resumeChildren.value;
 //		});
 		~children.do(_.abortStream);
 		~queue.clear;  // events in the queue are now invalid
-		~stopAction.(self);	// user-definable
+		~stopAction.value;	// user-definable
 		~saveCurrentEvent = ~currentEvent;	// for restarting driver & children upon free
 		~currentEvent = nil;
-		self
+		currentEnvironment
 	};
 	
-	~freeCleanup = { |self|
+	~freeCleanup = { 
 "bpdriver-freeCleanup".debug;
 		~children.keys.do({ |key|
 //key.debug("setting wasPlaying, removing child");
 			~children[key].wasPlaying = ~wasPlayingWhenFreed;
-			~removeChild.(self, key, true);	// true == removing child on free
+			~removeChild.(key, true);	// true == removing child on free
 		});
 //"releasing driver".debug;
-		~releaseDriver.(self);
-		self
+		~releaseDriver.value;
+		currentEnvironment
 	};
 	
-	~update = { |self, changer, what|
+	~update = { |changer, what|
 		switch(what)
 			{ \lostChild } { 
 "removing child because of lostChild".debug(changer.bp.collIndex);
-			~removeChild.(self, changer.bp.collIndex) }
+			~removeChild.(changer.bp.collIndex) }
 			{ \reset } {   // resync current/next events
 				(changer === ~driver).if({	// but only if the driver was reset
 					~nextEvent = nil
@@ -570,7 +570,7 @@ PR(\abstractProcess).v.clone({
 			}
 			{ \free } {
 				(changer === ~driver).if({
-					~releaseDriver.(self);
+					~releaseDriver.value;
 				});
 			}
 	};
@@ -587,16 +587,16 @@ PR(\bpHolder).v.clone({
 		~inited = true;
 	};
 	
-	~doEvent = { |self, driverEvent, childMetaEvent|
+	~doEvent = { |driverEvent, childMetaEvent|
 		var	inEvent, pattern;
 
 			// processDriverEvent goes false when the child is released by .stop or .play
 			// in that case, we should ignore the driver event
 		(~processDriverEvent ? true).if({
-			~prepForPlay.(self);
+			~prepForPlay.value;
 				// modifyDriver must set the offset
 			~lastDriverEventID = driverEvent[\ID];
-			driverEvent = ~modifyDriver.(self, driverEvent.copy, childMetaEvent) ? driverEvent;
+			driverEvent = ~modifyDriver.(driverEvent.copy, childMetaEvent) ? driverEvent;
 			driverEvent.put(\deltaToNextSync, driverEvent.delta + ~offset - ~lastOffset);
 			(driverEvent.skipChildren.tryPerform(\includes, ~bp.collIndex) ? false).not.if({
 				inEvent = ~bp.v.event.copy.put(\driver, driverEvent);
@@ -605,8 +605,8 @@ PR(\bpHolder).v.clone({
 				~bp.v.preparePlay;
 				~bp.v.eventStream = ~bp.v.asPattern(driverEvent).asStream;
 
-				pattern = ~wrapChildStream.(self, driverEvent, childMetaEvent);
-				pattern = ~prWrapPattern.(self, pattern, driverEvent, childMetaEvent);
+				pattern = ~wrapChildStream.(driverEvent, childMetaEvent);
+				pattern = ~prWrapPattern.(pattern, driverEvent, childMetaEvent);
 
 					// play the child until the next sync point
 				thisThread.clock.sched(0,

@@ -7,13 +7,13 @@
 
 /****** updateBuffer definitions to fix
 
-./MPCF-Anniversary-2006/mpcf8-init.rtf: ~updateBuffer = \{ \cf4 |self, buffer, node|\cf2 \
-./MPCF-Anniversary-2006/tests1.rtf:     ~updateBuffer = \{ \cf3 |self, buffer, node|\cf2 \
-./MPCF-Anniversary-2006/xmas-version-init.rtf:  ~updateBuffer = \{ \cf4 |self, buffer, node|\cf2 \
+./MPCF-Anniversary-2006/mpcf8-init.rtf: ~updateBuffer = \{ \cf4 |buffer, node|\cf2 \
+./MPCF-Anniversary-2006/tests1.rtf:     ~updateBuffer = \{ \cf3 |buffer, node|\cf2 \
+./MPCF-Anniversary-2006/xmas-version-init.rtf:  ~updateBuffer = \{ \cf4 |buffer, node|\cf2 \
 ./tech1/granulators.rtf:                \cf3 BP\cf0 (~collIndex).v.updateBuffer(~buffer, node);\
-./tech1/granulators.rtf:        ~updateBuffer = \{ \cf3 |self, buffer, node|\cf0 \
+./tech1/granulators.rtf:        ~updateBuffer = \{ \cf3 |buffer, node|\cf0 \
 ./tech1/leadmangler.rtf:                \cf4 BP\cf3 (~collIndex).v.updateBuffer(~buffer, node);\
-./tech1/leadmangler.rtf:        ~updateBuffer = \{ \cf4 |self, buffer, node|\cf3 \
+./tech1/leadmangler.rtf:        ~updateBuffer = \{ \cf4 |buffer, node|\cf3 \
 
 ******/
 
@@ -36,59 +36,59 @@ AdhocClass({
 	~bindPatDefault = \a;	// aPattern, aStream -- clones should override
 
 		// mainly used for adaptPattern, but other uses are conceivable
-	~bindPattern = #{ |self, pat, adverb|
+	~bindPattern = #{ |pat, adverb|
 		adverb = adverb ? ~bindPatDefault;
-//		self.put(adverb ++ "Pattern").asSymbol, pat = pat.asPattern);
-		self.put(adverb.asSymbol, pat = pat.asPattern);
-		self.put((adverb ++ "Stream").asSymbol, pat.asStream);
-		self
+//		currentEnvironment.put(adverb ++ "Pattern").asSymbol, pat = pat.asPattern);
+		currentEnvironment.put(adverb.asSymbol, pat = pat.asPattern);
+		currentEnvironment.put((adverb ++ "Stream").asSymbol, pat.asStream);
+		currentEnvironment
 	};
 
-	~bindSymbol = #{ |self, sym, adverb|
+	~bindSymbol = #{ |sym, adverb|
 		var	pat;
 		((pat = Pdefn(sym)).pattern != Pdefn.default).if({
 				// asPattern gets called in ~bindPattern
-			~bindPattern.value(self, pat, adverb)
+			~bindPattern.value(pat, adverb)
 		}, {
-			~bindPattern.value(self, sym, adverb)
+			~bindPattern.value(sym, adverb)
 		});
-		self
+		currentEnvironment
 	};
 	
 		// special case for Synth Args
-	~bindSA = #{ |self, sa, adverb|
+	~bindSA = #{ |sa, adverb|
 		~argsStream = sa.asPattern.asStream;
 		~argKeys = sa.argKeys;
-		self
+		currentEnvironment
 	};
 
 		// these next two are deprecated -- BPStream(key) is a better solution
 		// retained for backward compatibility
 
-	~makeStreamForKey = #{ |self, key, streamKey|
+	~makeStreamForKey = #{ |key, streamKey|
 			// output, and stream gets replaced so that playing stream picks it up:
 		(streamKey = streamKey ?? { key ++ "Stream" }).asSymbol.envirPut(key.envirGet.asStream)
 	};
 
-	~makeProut = #{ |self, key, reset|
+	~makeProut = #{ |key, reset|
 		var	streamKey;
 			// create stream if it doesn't exist
 		streamKey = (key ++ "Stream").asSymbol;
 		(streamKey.envirGet.isNil or: { reset ? true }).if({
-			~makeStreamForKey.value(self, key, streamKey);
+			~makeStreamForKey.value(key, streamKey);
 		});
 
 		Prt({ |inEvent|
-			self.use({
+//			currentEnvironment.use({
 				{ inEvent = streamKey.envirGet.next(inEvent).yield }.loop
-			});
+//			});
 		});
 	};
 	
 		// temporary override of a pattern used with BPStream
 		// ref means, if the pattern returns a symbol, look up the target stream
 		// revertAction is run when control returns to the main stream
-	~override = { |self, key, pat, ref = true, revertAction|
+	~override = { |key, pat, ref = true, revertAction|
 		var	streamkey = (key ++ "Stream").asSymbol,
 			savekey = ("save" ++ streamkey).asSymbol,
 			overkey = ("override" ++ streamkey).asSymbol,
@@ -104,7 +104,7 @@ AdhocClass({
 			// to the original stream; cleanupstream returns nil and stops the parent stream
 		overstream = Routine({ |inval|
 			var	nextval;
-			self.use({
+//			currentEnvironment.use({
 				while { (nextval = overkey.envirGet.next(inval)).notNil }
 					{	ref.if({
 							(nextval.isSymbol and: { nextval.envirGet.notNil }).if({
@@ -120,14 +120,14 @@ AdhocClass({
 				streamkey.envirPut(savekey.envirGet);
 				savekey.envirPut(nil);
 				overkey.envirPut(nil);
-				revertAction.value(self);
+				revertAction.value;
 				streamkey.envirGet.next(inval).yield;
-			});
+//			});
 		});
 		
 		streamkey.envirPut(overstream);
 
-		self
+		currentEnvironment
 	};
 
 	~midiParse = true;		// flag whether to group notes together or use the midi buf as is
@@ -148,11 +148,11 @@ AdhocClass({
 	~barLength = 4;
 	~path = #[baseBeat];	// may override
 		// run this action when resuming rhythmic patterns
-	~doAction = { |self, path|
+	~doAction = { |path|
 		Library.global.putAtPath(path ? ~path, thisThread.clock.beats.roundUp(~barLength));
 //		thisThread.clock.setMeterAtBeat(newBeatsPerBar, beats);
 	};
-	~freeCleanup = { |self|
+	~freeCleanup = { 
 		Library.global.removeAtPath(~path)
 	};
 }) => PR(\setBase);
@@ -415,7 +415,7 @@ ProtoEvent(\polySynthPlayer).v.copy.putAll((
 (	// args: [],
 		// maybe you want to use non-equal-temperament. override this func
 		// or, if you are using modally-mapped values, include the cpsFunc or EqualTemperament derivative
-		// in the ModalSpec itself
+		// in the ModalSpec itcurrentEnvironment
 	midiNoteToFreq: #{ |notenum|
 //~mode.debug("mode in note player");
 //[~freq, notenum].debug("~freq, notenum");
@@ -624,8 +624,10 @@ ProtoEvent(\voicerNote).v.copy.putAll((
 //childEvent.debug;
 
 		~child.preparePlay;
-		~child.put(\eventStream, CleanupStream(
-			~wrapPattern.value(~child.asPattern(currentEnvironment)).asStream,
+		childStreamTemp = ~wrapPattern.value(~child.asPattern(currentEnvironment));
+			// child stream should run within the child environment
+		~child.use({ childStreamTemp = childStreamTemp.asStream });
+		~child.put(\eventStream, CleanupStream(childStreamTemp,
 				// maybe somebody else needs to know that you stopped?
 				// this doesn't handle manual stop, but parent should stop too
 			{ NotificationCenter.notify(child, \childStop); }
@@ -700,12 +702,12 @@ PR(\abstractProcess).v.clone({
 
 		// synthdef preparation might depend on the mixerchannel and user-defined resources
 		// note the order of initialization carefully
-	~prep = { |self|
+	~prep = { 
 		~chan = MixerChannel(~collIndex, s, ~inChannels, ~outChannels,
 			postSendReady: ~postSendReady, outbus: ~master, completionFunc: { |chan|
-				~userpreps.do(_.value(self));
-				~userprep.(self);		// preparation specified in chuck parameters
-				~makeSynthDefs.(self);
+				~userpreps.do(_.value);
+				~userprep.value;		// preparation specified in chuck parameters
+				~makeSynthDefs.value;
 			});
 		
 		~delta = 1.0;
@@ -714,7 +716,7 @@ PR(\abstractProcess).v.clone({
 		~synth = Pfunc({ ~objects.keys.choose });
 	};
 	
-		// when you clone, if you need extra preparation, do ~userpreps = ~userpreps.copy.add({ |self| ... });
+		// when you clone, if you need extra preparation, do ~userpreps = ~userpreps.copy.add({  ... });
 	~userpreps = List.new;
 	
 		// chuck-time parameter for user preparation
@@ -733,64 +735,64 @@ PR(\abstractProcess).v.clone({
 
 
 		// support code follows
-	~makeSynthDefs = { |self|
+	~makeSynthDefs = { 
 		var	sdef;
-		~objects = ~objects.value(self);
+		~objects = ~objects.value;
 		~objects.keysValuesDo({ |id, def|
 			def[\synthdef].isNil.if({
-				~makeOneSynthDef.(self, id, def);
+				~makeOneSynthDef.(id, def);
 			});
 		});
 	};
 
-	~makeOneSynthDef = { |self, id, def|
+	~makeOneSynthDef = { |id, def|
 		var	sdef, reference;
 			// allow references to other items in ~objects
 			// that is, you can reuse a patch but supply a different argument array
 		(def[\def].isSymbol and: { (reference = ~objects[def[\def]]).notNil }).if({
 				// has the reference already been prepared?
 			reference[\synthdef].isNil.if({
-				~makeOneSynthDef.(self, def[\def], reference);
+				~makeOneSynthDef.(def[\def], reference);
 			});
 			def[\synthdef] = reference[\synthdef];
 			def[\name] = reference[\name];
 				// no need to resend synthdef
 		}, {
-			sdef = ~makeDefForObject.(self, def[\def], id);
+			sdef = ~makeDefForObject.(def[\def], id);
 			def[\synthdef] = sdef;
 			def[\name] = sdef.tryPerform(\name) ? sdef;
 //sdef.insp;
 			sdef.tryPerform(\send, ~chan.server);
 			sdef.tryPerform(\memStore);
 		});
-		~prepareArgsForOneDef.(self, id);
+		~prepareArgsForOneDef.(id);
 	};
 
-	~makeDefForObject = #{ |self, obj, id|
+	~makeDefForObject = #{ |obj, id|
 		var return, reference;
 		(return = ~classActions[obj.class]).notNil.if({
-			return = return.envirGet.(self, obj, id)
+			return = return.envirGet.(obj, id)
 		});
-		return ?? { obj }	// if nothing, return the object itself
+		return ?? { obj }	// if nothing, return the object itcurrentEnvironment
 	};
-	~makeFnDef = #{ |self, fn|
+	~makeFnDef = #{ |fn|
 		fn.asSynthDef(outClass: (~isFx ? false).if({ \ReplaceOut }, { \Out }));
 	};
-	~makePatchDef = #{ |self, patch, id|
+	~makePatchDef = #{ |patch, id|
 		var	sdef = patch.asSynthDef;
 			// I saw a scenario where InstrSynthDef did not come up with a unique name based on args
 			// dictionary id must be unique
 		sdef.name = id.asString;
 		sdef
 	};
-	~makeSynthDef = #{ |self, def| def };
+	~makeSynthDef = #{ |def| def };
 	~classActions = IdentityDictionary[
 		SynthDef -> \makeSynthDef,
 		Function -> \makeFnDef,
 		Patch -> \makePatchDef
 	];
 
-	~prepareArgsForOneDef = { |self, id|
+	~prepareArgsForOneDef = { |id|
 		var	streamarray = Array.new(~objects[id][\args].size), fullname;
 		~objects[id][\args].pairsDo({ |name, pattern|
 				// assigning a Pattern to a BP environment variable automatically creates the stream
@@ -801,7 +803,7 @@ PR(\abstractProcess).v.clone({
 		~objects[id][\argStreams] = streamarray;
 	};
 
-	~basePattern = { |self|
+	~basePattern = { 
 		(~debug ? false).if(DebugPbind, Pbind)
 		.new(
 			\synthKey, BPStream(\synth),
@@ -814,15 +816,15 @@ PR(\abstractProcess).v.clone({
 		)
 	};
 
-	~asPattern = { |self|
-		~basePattern.(self).collect({ |ev|
+	~asPattern = { 
+		~basePattern.value.collect(e { |ev|
 			(ev[\synthKey] != \rest).if({
-				self.use({ ~getUserArgs.(self, ev) });
+				/*currentEnvironment.use({*/ ~getUserArgs.(ev) /*})*/;
 			}, { ev });
 		});
 	};
 	
-	~getUserArgs = { |self, event|
+	~getUserArgs = { |event|
 		var key = event[\synthKey], streamout;
 		block { |break|
 			~objects[key][\argStreams].pairsDo({ |name, stream|
@@ -843,20 +845,20 @@ PR(\abstractProcess).v.clone({
 		}
 	};
 	
-		// when you clone, if you need extra preparation, do ~userfrees = ~userfrees.copy.add({ |self| ... });
+		// when you clone, if you need extra preparation, do ~userfrees = ~userfrees.copy.add({  ... });
 	~userfrees = List.new;
 	
 		// chuck-time parameter for user preparation
 	~userfree = nil;
 	
-	~freeCleanup = { |self|
+	~freeCleanup = { 
 		~chan.free;
 			// should free patches
 		~objects.do({ |def|
 			def[\def].isKindOf(AbstractPlayer).if({ def[\def].free });
 		});
-		~userfree.(self);
-		~userfrees.do(_.value(self));
+		~userfree.value;
+		~userfrees.do(_.value);
 	};
 
 }) => PR(\basicSynthChooser);

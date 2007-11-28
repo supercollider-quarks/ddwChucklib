@@ -86,7 +86,7 @@ PR(\abstractProcess).v.clone({
 	~mode = \default;
 	~delta = 1;	// need defaults (will be ignored for macrorhythm chord processes)
 	~length = 1;
-	~asPattern = { |self|
+	~asPattern = { 
 		Pbind(
 			\freq, BPStream(\deg),
 			\delta, BPStream(\delta),
