@@ -16,8 +16,9 @@ AbstractChuckArray {
 	classvar	collection,	// each chuckable is a collection of related objects
 			<lastIndex,	// indexed by name or symbol
 			<>directories,
-			<>defaultSubType = \basic;	// set this when loading a piece to differentiate
+			<>defaultSubType = \basic,	// set this when loading a piece to differentiate
 									// in the browser
+			<>passThru = true;		// pass not-understood messages thru to the target object?
 	
 	var	<collIndex,	// the instance is stored at this.class(collIndex)
 		<>value,		// what I'm pointing to
@@ -215,6 +216,10 @@ AbstractChuckArray {
 		GetFileDialog.new({ |ok, path|
 			ok.if({ path.loadPath });
 		});
+	}
+	
+	doesNotUnderstand { |selector ... args|
+		passThru.if({ ^value.performList(selector, args) }, { ^super.doesNotUnderstand(selector, *args) });
 	}
 }
 
@@ -426,9 +431,12 @@ Fact : AbstractChuckNewDict {
 		});
 	}
 	
+		// convention: the first item in args should be the name of the target object
+		// make and makev supply a default automatically, which is the name of the Fact
 	make { |argEnv ... args|
 		var	env;
 		env = this.prepareEnv(argEnv);
+		args.first.isNil.if({ args = args.copy.extend(max(1, args.size)).put(0, collIndex) });
 		try {
 			env.make({
 				~value = ~make.value(*args);
@@ -448,6 +456,7 @@ Fact : AbstractChuckNewDict {
 	makev { |argEnv ... args|
 		var	env, result;
 		env = this.prepareEnv(argEnv);
+		args.first.isNil.if({ args = args.copy.extend(max(1, args.size)).put(0, collIndex) });
 		result = env.use({
 			~make.value(*args);
 		});
@@ -664,35 +673,35 @@ PR : AbstractChuckNewDict {
 	*initClass {
 			// sometime I might put default pseudo-methods into parent environment
 		defaultEnv = Environment.make({
-				~canStream = { |self|
-					var out;
-					out = true;
-					~requiredKeys.do({ |key|
-						key.envirGet.isNil.if({ out = false });
-					});
-						// if this is a wrapper process,
-					~canWrap.if({
-							// result depends on whether child exists and can stream
-						out and: #{ ~child.tryPerform(\canStream, ~child) ? false }
-					}, {
-						out		// if not, result is whether the required keys are there
-					});
-				};
-				~getQuant = { |self|
-						// not ideal to replicate this code from BP-quant
-						// but I may not have a collIndex in my environment
-						// so I can't call BP-quant
-					(self[\quant] ?? { BP.defaultQuant }).dereference.asTimeSpec
-				};
-					// this is done after putting a new value into the AdhocClass
-					// should not be global for AdhocClass, but yes for PR/BP
-				~putAction = { |self, key, value|
-					var	streamKey = (key ++ "Stream").asSymbol;
-					streamKey.envirGet.notNil.if({
-						self.put(streamKey, value.asStream);
-					});
-				};
-			});
+			~canStream = {
+				var out;
+				out = true;
+				~requiredKeys.do({ |key|
+					key.envirGet.isNil.if({ out = false });
+				});
+					// if this is a wrapper process,
+				~canWrap.if({
+						// result depends on whether child exists and can stream
+					out and: #{ ~child.tryPerform(\canStream, ~child) ? false }
+				}, {
+					out		// if not, result is whether the required keys are there
+				});
+			};
+			~getQuant = {
+					// not ideal to replicate this code from BP-quant
+					// but I may not have a collIndex in my environment
+					// so I can't call BP-quant
+				(~quant ?? { BP.defaultQuant }).dereference.asTimeSpec
+			};
+				// this is done after putting a new value into the AdhocClass
+				// should not be global for AdhocClass, but yes for PR/BP
+			~putAction = { |key, value|
+				var	streamKey = (key ++ "Stream").asSymbol;
+				(value.isPattern or: { streamKey.envirGet.notNil }).if({
+					streamKey.envirPut(value.asStream);
+				});
+			};
+		});
 	}
 
 	bindAdhocClass { |ad|
@@ -706,9 +715,9 @@ PR : AbstractChuckNewDict {
 		value.isPrototype = true;	// protect this Adhoc from accidental direct use in BP
 		value.putAction = { |key, value, self|
 			(currentEnvironment !== self).if({
-				self.use({ ~putAction.(self, key, value) })
+				self.use({ ~putAction.(key, value) })
 			}, {
-				~putAction.(self, key, value)
+				~putAction.(key, value)
 			});
 		};
 	}
@@ -732,15 +741,6 @@ PR : AbstractChuckNewDict {
 		});
 	}
 
-//// rewrite? Avoid while	
-//	addDefaultMethods {
-//		var	e = value.parent, laste = value;
-//		{ e.notNil and: { e !== defaultEnv } }.while({ laste = e; e = e.parent });
-//		(e !== defaultEnv).if({
-//			laste.parent = defaultEnv;
-//		});
-//	}
-	
 	bindEvent { |event|
 		value.put(\event, event)
 	}	
@@ -754,6 +754,9 @@ PR : AbstractChuckNewDict {
 		gui.model.add(this => BP(collIndex), index);
 		^true	// success flag
 	}
+	
+		// to avoid clumsy PR(\abc).v.clone - why not PR(\abc).clone({ ... }) => PR(\def)?
+	clone { |func, parentKeys| ^value.clone(func, parentKeys) }
 }
 
 BP : AbstractChuckNewDict {
@@ -1486,7 +1489,14 @@ this.collIndex.debug("stream stopped, cleaning up");
 			"No mixerchannel defined in this process. Cannot assign to MCGui.".warn;
 		});
 	}
-			
+
+		// for BP, using a pseudomethod not defined in the AdhocClass
+		// should throw an error
+	doesNotUnderstand { |selector ... args|
+		(this.exists and: { selector.isSetter or: { value.respondsTo(selector) } }).if({
+			^value.performList(selector, args)
+		}, { DoesNotUnderstandError(this, selector, args).throw });
+	}
 }
 
 // microrhythms
@@ -1560,10 +1570,9 @@ ProtoEvent : AbstractChuckNewDict {
 				out.parent[key] = true;		// indicate that the reference is valid
 										// but DO NOT EMBED the prototype
 			});
-			out.parent.protoEvent = keys[0];	// default event type
+			out.parent.protoEvent = keys.first;	// default event type
 			out.parent.put(\play, {
-				var	ev;
-				(ev = ~protoEvent.envirGet).notNil.if({
+				~protoEvent.envirGet.notNil.if({
 						// currentEnvironment == the event to be played
 					ProtoEvent(~protoEvent).value.copy.putAll(currentEnvironment).play
 				});

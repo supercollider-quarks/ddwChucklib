@@ -345,7 +345,7 @@ PR(\abstractProcess).v.clone({
 
 	~doPreAction = { 
 		(~pbindPreAction.isSymbol and: { Func(~pbindPreAction).exists }).if({
-			Func(~pbindPreAction).doAction(currentEnvironment)
+			Func(~pbindPreAction).doAction
 		}, {
 			~pbindPreAction.value
 		});

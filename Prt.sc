@@ -35,8 +35,16 @@ BPStream : Pattern {
 // intended for routines that yield events
 // this is a workaround for EventStreamPlayer-stop
 Prt : Prout {
+	var	<>envir;
+	*new { arg routineFunc;
+		^super.new(routineFunc).envir_(currentEnvironment)
+	}
+
 	asStream {
-		var	stream = super.asStream;
+		var	stream;
+		
+		envir.notNil.if({ envir.use({ stream = super.asStream; }) },
+			{ stream = super.asStream; });
 		
 		^FuncStream({ |inval|
 			inval.notNil.if({ stream.next(inval) });

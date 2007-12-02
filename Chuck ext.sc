@@ -22,6 +22,7 @@
 //	freeByGui { ^this.free }
 
 	isValidIDictKey { ^false }
+	isPattern { ^false }
 }
 
 + SimpleNumber {
@@ -30,6 +31,7 @@
 }
 
 + Pattern {
+	isPattern { ^true }
 	bindClassName { ^Pattern }	// same for Patterns
 }
 

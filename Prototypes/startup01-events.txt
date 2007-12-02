@@ -415,7 +415,7 @@ ProtoEvent(\polySynthPlayer).v.copy.putAll((
 (	// args: [],
 		// maybe you want to use non-equal-temperament. override this func
 		// or, if you are using modally-mapped values, include the cpsFunc or EqualTemperament derivative
-		// in the ModalSpec itcurrentEnvironment
+		// in the ModalSpec itself
 	midiNoteToFreq: #{ |notenum|
 //~mode.debug("mode in note player");
 //[~freq, notenum].debug("~freq, notenum");
@@ -432,9 +432,9 @@ ProtoEvent(\polySynthPlayer).v.copy.putAll((
 //~freq.debug("\tfreq mapped to midi");
 		~ctranspose.notNil.if({ ~freq = ~freq + ~ctranspose });
 
-		~freq = ~midiNoteToFreq.value(~freq);
+		~freq = ~midiNoteToFreq.value(~freq).asArray;
 		~delta = ~delta ?? { ~note.dur };
-		~length = ~length ?? { ~note.length };
+		~length = (~length ?? { ~note.length }).asArray;
 // handling of args here is VERY badly hacked
 		~args = ~args ?? { [~note.tryPerform(\args)].tryPerform(\flatten, 1) } ?? { [] };
 		i = 0;	// args should be key value pairs, but might be an array of velocities
@@ -447,29 +447,26 @@ ProtoEvent(\polySynthPlayer).v.copy.putAll((
 			});
 		});
 		
-		~gate = ~gate ?? { ~note.gate };
+		~gate = (~gate ?? { ~note.gate }).asArray;
 		
-//		~gate = ~gate ?? { ~note.args } ?? {
-//				// identify the \gate, xxx pair in the args array
-//				// 2nd removeAt should return the value *wink*
-//			(i = ~args.detectIndex({ |item| item == \gate })).notNil
-//				.if({ ~args.removeAt(i); ~args.removeAt(i); }, { 0.5 });
-//		};
 			// for args array to be valid (argName, value pairs), must have at least 2 items
 		(~args.size < 2).if({ ~args = nil });
-		(~argKeys.size > 0).if({
-			args = Array.new(~argKeys.size);
-			~argKeys.do({ |key|
-				((argval = key.envirGet).notNil and: { argval.isValidVoicerArg }).if({
-					args.add([key, argval])
-				});
-			});
-			(args.size > 0).if({
-				~args = (~args.tryPerform(\clump, 2) ++ args)
-					.collect(_.flop).flop.collect(_.flat);
-			});
-			(~freq.size == 0).if({ ~args = ~args.first });
-		});
+		~nodes = ~voicer.prGetNodes(max(~freq.size, max(~length.size, ~gate.size)));
+		~voicer.setArgsInEvent(currentEnvironment);
+// DEPRECATED:
+//		(~argKeys.size > 0).if({
+//			args = Array.new(~argKeys.size);
+//			~argKeys.do({ |key|
+//				((argval = key.envirGet).notNil and: { argval.isValidVoicerArg }).if({
+//					args.add([key, argval])
+//				});
+//			});
+//			(args.size > 0).if({
+//				~args = (~args.tryPerform(\clump, 2) ++ args)
+//					.collect(_.flop).flop.collect(_.flat);
+//			});
+//			(~freq.size == 0).if({ ~args = ~args.first });
+//		});
 		~bassID.notNil.if({
 			Library.put(~bassID, ~note);
 				// allow this thread to finish before alerting dependents
@@ -478,6 +475,7 @@ ProtoEvent(\polySynthPlayer).v.copy.putAll((
 	},
 	
 	play: #{
+		var	latency = ~latency !? { ~latency / ~clock.tempo };
 		(~debug == true).if({
 			"\n".debug;
 			["voicerNote event", ~clock.beats, ~clock.tempo].debug;
@@ -490,16 +488,27 @@ ProtoEvent(\polySynthPlayer).v.copy.putAll((
 //	"\nafter prepnote".debug;
 //	currentEnvironment.debug;
 //});
-		~voicer.notNil.if({
-			~length.isNil.if({		// midi input... note will be released later
-				~voicer.trigger(~freq, ~gate, ~args, ~latency !? { ~latency / ~clock.tempo });
-			}, {
-(~debug == true).if({
-	[~freq, ~length, ~gate, ~args].debug("gate sent");
-});
-				~voicer.gate(~freq, ~length, ~gate, ~args, ~latency !? { ~latency / ~clock.tempo });
+		~nodes.do({ |node, i|
+			var	freq = ~freq.wrapAt(i);
+			node.trigger(freq, ~gate.wrapAt(i), ~args.wrapAt(i), latency);
+			~length.wrapAt(i).notNil.if({
+				thisThread.clock.sched(~length.wrapAt(i), {
+					node.release(0, latency, freq);
+				});
 			});
 		});
+
+// DEPRECATED:
+//		~voicer.notNil.if({
+//			~length.isNil.if({		// midi input... note will be released later
+//				~voicer.trigger(~freq, ~gate, ~args, ~latency !? { ~latency / ~clock.tempo });
+//			}, {
+//(~debug == true).if({
+//	[~freq, ~length, ~gate, ~args].debug("gate sent");
+//});
+//				~voicer.gate(~freq, ~length, ~gate, ~args, ~latency !? { ~latency / ~clock.tempo });
+//			});
+//		});
 	},
 		// for live midi input -- assumes midi note has been put into ~note
 	releaseNote: #{
