@@ -98,17 +98,16 @@ CleanupEventStream : Stream {
 }
 
 PausableEventStreamPlayer : PauseStreamHJH {
-	var <>event, <>muteCount = 0;
+	var <>event, <>muteCount = 0, <>cleanup;
 	
 	*new { arg stream, event;
 		^super.new(stream).event_(event ? Event.default);
 	}
 
-		// note, I took out stream.next(nil) from stop -- this breaks Pmono & Pfx
-	stop { 
-//thisThread.clock.beats.debug("stopping eventstreamplayer at");
-//this.dumpBackTrace;
-		stream = nil; isWaiting = false; }
+	stop { stream = nextBeat = nil; isWaiting = false; 
+		cleanup.do { | c | c.value(event) }; 
+		cleanup.clear;
+	 }
 
 	mute { muteCount = muteCount + 1; }
 	unmute { muteCount = muteCount - 1; }
@@ -118,13 +117,16 @@ PausableEventStreamPlayer : PauseStreamHJH {
 		var outEvent = stream.next(event);
 		case { outEvent.isNil } {
 			streamHasEnded = stream.notNil;
-			stream = nextBeat = nil;
+			this.stop;
 			^nil
 		}
 		{ outEvent.respondsTo(\keysValuesDo) } {
+			outEvent[\addToCleanup].do { | f | cleanup.add(f) };
+			outEvent[\removeFromCleanup].do { | f | cleanup.remove(f) };
+			
 			if (muteCount > 0) { outEvent.put(\freq, \rest) };
 			outEvent.play;
-			if ((nextTime = outEvent.delta).isNil) { stream = nextBeat = nil; ^nil };
+			if ((nextTime = outEvent.delta).isNil) { stream = nil };
 		}
 		{ outEvent.isNumber } {
 			nextTime = outEvent
