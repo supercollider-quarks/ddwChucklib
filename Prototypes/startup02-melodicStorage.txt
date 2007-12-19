@@ -5,7 +5,7 @@ var saveSubType = AbstractChuckArray.defaultSubType;
 AbstractChuckArray.defaultSubType = \melodyStorage;
 
 // first, handler for a single segment -- this will be analyzed modally
-AdhocClass({
+Proto({
 		// canPauseAfter is deprecated for a more OO solution
 //	~canPauseAfter = false;		// parent can set this for pausable melodies
 	~prepare = #{ |notes, nextNote, storage, parms, rawMIDI = true|
@@ -439,7 +439,7 @@ PR(\abstractProcess).v.clone({
 // no need to hold index anymore -- if you want to change melodies,
 // save this object and pop in a new \melodyStorage object
 
-AdhocClass({
+Proto({
 	~segProto = \melAdaptPhrase;
 	~midiParse = true;
 	~splitFunc = \noSplit;

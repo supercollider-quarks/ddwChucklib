@@ -138,8 +138,8 @@
 		var out;
 		(out = this.tryPerform(\at, key)).notNil.if({ ^out }, {
 			fallbacks.do({ |dict|
-// eventually I want tryPerform here but AdhocClass doesn't handle it well yet
-				dict.isKindOf(AdhocClass).if({
+// eventually I want tryPerform here but Proto doesn't handle it well yet
+				dict.isKindOf(Proto).if({
 					out = dict[key]
 				}, {
 					out = dict.tryPerform(\at, key)
@@ -161,5 +161,5 @@
 // for importing direct from PR
 
 + Symbol {
-	asAdhocClassImportable { ^PR(this).v }
+	asProtoImportable { ^PR(this).v }
 }

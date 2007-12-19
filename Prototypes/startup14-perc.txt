@@ -9,7 +9,7 @@
 
 var saveSubType = AbstractChuckArray.defaultSubType;
 
-SynthDef.writeOnce(\bufGrain, { |start, time, bufnum, rate, amp = 1,
+SynthDef.writeOnce(\bufGrain, { |start, time, bufnum, rate = 1, amp = 1,
 		attack = 0.001, decay = 0.02, outbus|
 	var sig;
 	sig = PlayBuf.ar(1, bufnum, rate * BufRateScale.kr(bufnum), 1, start, 0)
@@ -17,7 +17,7 @@ SynthDef.writeOnce(\bufGrain, { |start, time, bufnum, rate, amp = 1,
 	Out.ar(outbus, sig * amp);
 });
 
-SynthDef.writeOnce(\bufGrainPan, { |start, time, bufnum, pan, rate, amp = 1,
+SynthDef.writeOnce(\bufGrainPan, { |start, time, bufnum, pan, rate = 1, amp = 1,
 		attack = 0.001, decay = 0.02, outbus|
 	var sig;
 	sig = PlayBuf.ar(1, bufnum, rate * BufRateScale.kr(bufnum), 1, start, 0)
@@ -25,7 +25,7 @@ SynthDef.writeOnce(\bufGrainPan, { |start, time, bufnum, pan, rate, amp = 1,
 	Out.ar(outbus, Pan2.ar(sig, pan, amp));
 });
 
-SynthDef.writeOnce(\bufGrain2, { |start, time, bufnum, rate, amp = 1,
+SynthDef.writeOnce(\bufGrain2, { |start, time, bufnum, rate = 1, amp = 1,
 		attack = 0.001, decay = 0.02, outbus|
 	var sig;
 	sig = PlayBuf.ar(2, bufnum, rate * BufRateScale.kr(bufnum), 1, start, 0)
@@ -33,7 +33,7 @@ SynthDef.writeOnce(\bufGrain2, { |start, time, bufnum, rate, amp = 1,
 	Out.ar(outbus, sig * amp);
 });
 
-SynthDef.writeOnce(\bufGrainPan2, { |start, time, bufnum, rate, pan, amp = 1,
+SynthDef.writeOnce(\bufGrainPan2, { |start, time, bufnum, rate = 1, pan, amp = 1,
 		attack = 0.001, decay = 0.02, outbus|
 	var l, r;
 	#l, r = PlayBuf.ar(2, bufnum, rate * BufRateScale.kr(bufnum), 1, start, 0)
@@ -101,7 +101,7 @@ SynthDef.writeOnce(\bufRollPanMove, { |start, time = 1, bufnum, rate = 1, amp = 
 });
 
 
-SynthDef.writeOnce(\bufGrainRLPF, { |start, time, bufnum, rate, amp = 1,
+SynthDef.writeOnce(\bufGrainRLPF, { |start, time, bufnum, rate = 1, amp = 1,
 		attack = 0.001, decay = 0.02, ffreq = 2000, rq = 1, outbus|
 	var sig;
 	sig = PlayBuf.ar(1, bufnum, rate * BufRateScale.kr(bufnum), 1, start, 0)
@@ -110,7 +110,7 @@ SynthDef.writeOnce(\bufGrainRLPF, { |start, time, bufnum, rate, amp = 1,
 	Out.ar(outbus, sig * amp);
 });
 
-SynthDef.writeOnce(\bufGrainRLPF2, { |start, time, bufnum, rate, amp = 1,
+SynthDef.writeOnce(\bufGrainRLPF2, { |start, time, bufnum, rate = 1, amp = 1,
 		attack = 0.001, decay = 0.02, ffreq = 2000, rq = 1, outbus|
 	var sig;
 	sig = PlayBuf.ar(2, bufnum, rate * BufRateScale.kr(bufnum), 1, start, 0)
@@ -119,7 +119,7 @@ SynthDef.writeOnce(\bufGrainRLPF2, { |start, time, bufnum, rate, amp = 1,
 	Out.ar(outbus, sig * amp);
 });
 
-SynthDef.writeOnce(\bufGrainRLPFPan, { |start, time, bufnum, rate, amp = 1,
+SynthDef.writeOnce(\bufGrainRLPFPan, { |start, time, bufnum, rate = 1, amp = 1,
 		attack = 0.001, decay = 0.02, pan = 0, ffreq = 2000, rq = 1, outbus|
 	var sig;
 	sig = PlayBuf.ar(1, bufnum, rate * BufRateScale.kr(bufnum), 1, start, 0)
@@ -393,9 +393,10 @@ PR(\bufPerc).v.clone({
 		// user extensible: define your own functions to add objects as synthdefs
 		// String and Symbol are supported by nil
 	~classActions = IdentityDictionary[
-		SynthDef -> \makeSynthDef,		// as it happens, these can be the same b/c of asSynthDef
-		Function -> \makeFnDef,
-		Patch -> \makePatchDef
+		'SynthDef' -> \makeSynthDef,		// as it happens, these can be the same b/c of asSynthDef
+		'Function' -> \makeFnDef,
+		'Patch' -> \makePatchDef,
+		'WrapPatch' -> \makePatchDef
 	];
 	~patchesToFree = List.new;
 		// now, instead of loading buffers, we load synthdefs
@@ -409,7 +410,7 @@ PR(\bufPerc).v.clone({
 	};
 	~makeDefForObject = #{ |obj|
 		var return;
-		(return = ~classActions[obj.class]).notNil.if({
+		(return = ~classActions[obj.class.name]).notNil.if({
 			return = return.envirGet.(obj)
 		});
 		return ?? { obj }	// if nothing, return the object itcurrentEnvironment

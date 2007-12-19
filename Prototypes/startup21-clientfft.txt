@@ -2,7 +2,7 @@
 var	subtype = AbstractChuckArray.defaultSubType;
 AbstractChuckArray.defaultSubType = \fftTransient;
 
-AdhocClass({
+Proto({
 	~keysFromParent = #[checkMinPeak, minPeak, window, imag, cos, melfreqsize, melmap,
 		fftsmooth, slopedist, slopesmooth, halffft];
 	

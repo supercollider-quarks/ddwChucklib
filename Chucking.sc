@@ -693,8 +693,8 @@ PR : AbstractChuckNewDict {
 					// so I can't call BP-quant
 				(~quant ?? { BP.defaultQuant }).dereference.asTimeSpec
 			};
-				// this is done after putting a new value into the AdhocClass
-				// should not be global for AdhocClass, but yes for PR/BP
+				// this is done after putting a new value into the Proto
+				// should not be global for Proto, but yes for PR/BP
 			~putAction = { |key, value|
 				var	streamKey = (key ++ "Stream").asSymbol;
 				(value.isPattern or: { streamKey.envirGet.notNil }).if({
@@ -704,7 +704,7 @@ PR : AbstractChuckNewDict {
 		});
 	}
 
-	bindAdhocClass { |ad|
+	bindProto { |ad|
 		value = ad;
 			// merge the default environment parent entries into this environment's parent
 		value.env.parent.isNil.if({
@@ -798,7 +798,7 @@ BP : AbstractChuckNewDict {
 	}
 
 	bindPR { |process, adverb, parms|
-		this.bindAdhocClass(process.value.copy.isPrototype_(false), adverb, parms);
+		this.bindProto(process.value.copy.isPrototype_(false), adverb, parms);
 		subType = process.subType;
 	}
 	
@@ -813,7 +813,7 @@ BP : AbstractChuckNewDict {
 				value.bindBP(process, adverb, parms)
 			}, {
 					// otherwise wrap/replace
-				this.bindAdhocClass(process.value, adverb, parms)
+				this.bindProto(process.value, adverb, parms)
 			});
 			subType = process.subType;
 		}, {
@@ -821,17 +821,17 @@ BP : AbstractChuckNewDict {
 		});
 	}
 	
-	bindAdhocClass { |process, adverb, parms|
+	bindProto { |process, adverb, parms|
 		(process === value).if({
 			"Cannot chuck a process into itself. Chuck operation ignored.".warn;
 			^this
 		});
 			// PR(\xyz).v => BP(\abc) is dangerous
 		process.isPrototype.if({
-//			Error("% received an AdhocClass that is a prototype.".format(this)).throw;
+//			Error("% received an Proto that is a prototype.".format(this)).throw;
 			process = process.copy;	// you need a new instance, not the prototype
 		});
-			// midi input needs to be able to access this object from within the AdhocClass
+			// midi input needs to be able to access this object from within the Proto
 		process.put(\collIndex, this.collIndex);
 		this.exists.not.if({
 			value = process;
@@ -1068,12 +1068,12 @@ BP : AbstractChuckNewDict {
 						value.put(\isPlaying, true);
 						notify.if({ this.changed(\play); });
 						this.clock.schedAbs(this.eventSchedTime(argQuant), {
-							value.doAction;  // doAction is a pseudomethod in the AdhocClass
+							value.doAction;  // doAction is a pseudomethod in the Proto
 							value.put(\isPlaying, false);
 							notify.if({ this.changed(\stop); });
 						});
 					}
-				{ value.canStream }
+				{ this.canStream }
 					{
 //"BP-play".postln;
 						this.populateAdhocVariables(argClock);
@@ -1104,7 +1104,7 @@ BP : AbstractChuckNewDict {
 	}
 	prepareForPlay { |argQuant, argClock, doReset|
 		var oldEventStreamPlayer;
-		(this.exists and: { value.canStream }).if({
+		(this.exists and: { this.canStream }).if({
 			this.populateAdhocVariables(argClock);
 			(value.eventStreamPlayer.isNil or: { doReset ? false
 				or: { value[\alwaysReset] ? false } })
@@ -1164,7 +1164,7 @@ BP : AbstractChuckNewDict {
 	
 		// useful for wrapper processes--set up a midi trigger to fire ONE child process
 	triggerOneEvent { |argQuant, argClock, doReset|
-		(this.exists and: { value.canStream }).if({
+		(this.exists and: { this.canStream }).if({
 			value.eventStreamPlayer.notNil.if({
 				this.stop(argQuant);
 			}, {
@@ -1201,7 +1201,7 @@ BP : AbstractChuckNewDict {
 		});
 	}
 	
-		// for rewrapping/replacing -- specify an AdhocClass to use
+		// for rewrapping/replacing -- specify an Proto to use
 		// there may be cases where I don't want to notify dependents
 	stopNow { |adhoc, quant, notify = true, doCleanup = true|
 		var	child;	// to iterate down the chain of child processes
@@ -1246,22 +1246,25 @@ BP : AbstractChuckNewDict {
 			^value[\eventStreamPlayer]
 		}, { ^nil });
 	}
+	canStream { ^(value.canStream ? true) }
 	
 	prepareEvent {
-		(value[\event][\eventKey].notNil
-			and: { ProtoEvent(value[\event][\eventKey]).exists }).if({
-			^value[\event].copy.put(\parent, ProtoEvent(value[\event][\eventKey]).v)
-				.put(\collIndex, collIndex);
-		}, {
-			^value[\event]
+		var	key = value[\event][\eventKey];
+		(key.notNil or: { value[\event].parent.isNil }).if({
+			key ?? { key = \default };
+			ProtoEvent(key).exists.if({
+				^value[\event].copy.put(\parent, ProtoEvent(key).v)
+					.put(\collIndex, collIndex);
+			});
 		});
+		^value[\event]
 	}
 
 		// replay needs to change the cleanup func in the old stream before stopping
 		// so I need to refer to other adhocs than my own in that case
 	streamCleanupFunc { |self, adhoc|
 		^{
-this.collIndex.debug("stream stopped, cleaning up");
+"% stream stopped, cleaning up".format(this).postln;
 				// if a sequence stops of its own accord, eventStreamPlayer needs to be nil
 				// so that stream will be recreated on next play
 			adhoc.put(\eventStreamPlayer, nil);
@@ -1377,7 +1380,7 @@ this.collIndex.debug("stream stopped, cleaning up");
 // this method is not fully supported yet
 	overwrite { |process|
 		var	saveAdhoc, esp;
-		saveAdhoc = value;		// to preserve this adhocclass through the scheduling
+		saveAdhoc = value;		// to preserve this Proto through the scheduling
 // this test is bad
 		((esp = value[\eventStreamPlayer]).notNil
 			and: { esp.isPlaying and: { esp.nextBeat.notNil } }).if({
@@ -1490,7 +1493,7 @@ this.collIndex.debug("stream stopped, cleaning up");
 		});
 	}
 
-		// for BP, using a pseudomethod not defined in the AdhocClass
+		// for BP, using a pseudomethod not defined in the Proto
 		// should throw an error
 	doesNotUnderstand { |selector ... args|
 		(this.exists and: { selector.isSetter or: { value.respondsTo(selector) } }).if({

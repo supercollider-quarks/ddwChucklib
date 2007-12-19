@@ -27,7 +27,7 @@
 
 // start with the abstract
 
-AdhocClass({
+Proto({
 	// environment variables supplied by "subclasses"
 	// ~event, ~prep, ~stopCleanup, ~freeCleanup, ~preparePlay
 
@@ -144,7 +144,7 @@ AdhocClass({
 
 // one shot PR - sets a base barline in the global library
 
-AdhocClass({
+Proto({
 	~barLength = 4;
 	~path = #[baseBeat];	// may override
 		// run this action when resuming rhythmic patterns
@@ -162,7 +162,15 @@ AdhocClass({
 
 (play:0) => ProtoEvent(\dummy);
 
-Event.default => ProtoEvent(\default);
+// the default event handles latency differently from BP
+Event.default.copy => ProtoEvent(\default);
+ProtoEvent(\default).v.parent.putAll((
+	getLatencyInSeconds: { |server|
+		~getLagInSeconds.value + ((~latency ? 0) / (thisThread.clock.tryPerform(\tempo) ? 1.0))
+	},
+	getLagInSeconds: { (~lag ? 0) / (thisThread.clock.tryPerform(\tempo) ? 1.0) }
+));
+
 
 (grain: false,
 setTarget: {
@@ -745,7 +753,7 @@ PR(\abstractProcess).v.clone({
 
 		// support code follows
 	~makeSynthDefs = { 
-		var	sdef;
+//		var	sdef;
 		~objects = ~objects.value;
 		~objects.keysValuesDo({ |id, def|
 			def[\synthdef].isNil.if({
@@ -779,7 +787,7 @@ PR(\abstractProcess).v.clone({
 
 	~makeDefForObject = #{ |obj, id|
 		var return, reference;
-		(return = ~classActions[obj.class]).notNil.if({
+		(return = ~classActions[obj.class.name]).notNil.if({
 			return = return.envirGet.(obj, id)
 		});
 		return ?? { obj }	// if nothing, return the object itcurrentEnvironment
@@ -788,7 +796,8 @@ PR(\abstractProcess).v.clone({
 		fn.asSynthDef(outClass: (~isFx ? false).if({ \ReplaceOut }, { \Out }));
 	};
 	~makePatchDef = #{ |patch, id|
-		var	sdef = patch.asSynthDef;
+		var	sdef; // = patch.asSynthDef;
+		sdef = patch.asSynthDef;
 			// I saw a scenario where InstrSynthDef did not come up with a unique name based on args
 			// dictionary id must be unique
 		sdef.name = id.asString;
@@ -796,9 +805,10 @@ PR(\abstractProcess).v.clone({
 	};
 	~makeSynthDef = #{ |def| def };
 	~classActions = IdentityDictionary[
-		SynthDef -> \makeSynthDef,
-		Function -> \makeFnDef,
-		Patch -> \makePatchDef
+		'SynthDef' -> \makeSynthDef,
+		'Function' -> \makeFnDef,
+		'Patch' -> \makePatchDef,
+		'WrapPatch' -> \makePatchDef
 	];
 
 	~prepareArgsForOneDef = { |id|
