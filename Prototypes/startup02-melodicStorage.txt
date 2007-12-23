@@ -351,8 +351,10 @@ PR(\abstractProcess).v.clone({
 						fitness.asCompileString).warn;
 				}*/);
 			}, {
-				format("Func(%) does not exist. No adaptation.",
-					fitness.asCompileString).warn;
+				fitness.notNil.if({
+					format("Func(%) does not exist. No adaptation.",
+						fitness.asCompileString).warn;
+				});
 			});
 		});
 	};

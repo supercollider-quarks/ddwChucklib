@@ -241,6 +241,7 @@ AbstractChuckDict : AbstractChuckArray {
 		// BP([\mel, \chord, \drums]).play(4)
 	*new { |index|
 		var	collTemp;
+		index.isNil.if({ ^nil });
 		index.isValidIDictKey.not.if({
 			MethodError("% is not a valid key for this storage class.".format(index), this).throw;
 		});
@@ -285,6 +286,7 @@ AbstractChuckDict : AbstractChuckArray {
 AbstractChuckNewDict : AbstractChuckDict {
 	*new { |index|
 		var	collTemp;
+		index.isNil.if({ ^nil });
 		index.isValidIDictKey.not.if({
 			MethodError("% is not a valid key for this storage class.".format(index), this).throw;
 		});
@@ -1709,11 +1711,22 @@ Func : AbstractChuckNewDict {
 		// args will usually include source material and material to crossbreed with it
 	doAction { |... args|
 		(this.exists and: nilProtect).if({
-			^value.value(*args) ? args[0]  // this may be a bad idea, but I'll go with it
+			^value.valueArray(args) ? args[0]  // this may be a bad idea, but I'll go with it
 									// if somebody calls a Func that doesn't exist,
 									// result should be the original... but, if there is
 									// no func, result should be nil
-		}, { ^value.value(*args) });
+		}, { ^value.valueArray(args) });
+	}
+	
+		// .value is already reserved to return the stored object itself
+		// .eval is a close alternative, maybe more intuitive than doAction
+	eval { |... args|
+		(this.exists and: nilProtect).if({
+			^value.valueArray(args) ? args[0]  // this may be a bad idea, but I'll go with it
+									// if somebody calls a Func that doesn't exist,
+									// result should be the original... but, if there is
+									// no func, result should be nil
+		}, { ^value.valueArray(args) });
 	}
 	
 	listArgs {

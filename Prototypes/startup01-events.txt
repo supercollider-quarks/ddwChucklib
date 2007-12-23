@@ -172,6 +172,8 @@ ProtoEvent(\default).v.parent.putAll((
 ));
 
 
+
+
 (grain: false,
 setTarget: {
 	~chan.notNil.if({
@@ -433,7 +435,7 @@ ProtoEvent(\polySynthPlayer).v.copy.putAll((
 	},
 	
 	prepNote: #{
-		var i, args, argval;
+		var i, args, argval, thisEvent = currentEnvironment;
 		~freq = ~freq ?? { ~note.asFloat };
 		~mtranspose.notNil.if({ ~freq = ~freq + ~mtranspose });
 		(~midi ? false).not.if({ ~freq = ~freq.unmapMode(~mode.asMode) });
@@ -459,8 +461,10 @@ ProtoEvent(\polySynthPlayer).v.copy.putAll((
 		
 			// for args array to be valid (argName, value pairs), must have at least 2 items
 		(~args.size < 2).if({ ~args = nil });
-		~nodes = ~voicer.prGetNodes(max(~freq.size, max(~length.size, ~gate.size)));
-		~voicer.setArgsInEvent(currentEnvironment);
+		~voicer !? {
+			~nodes = ~voicer.prGetNodes(max(~freq.size, max(~length.size, ~gate.size)));
+			~voicer.setArgsInEvent(currentEnvironment);
+		};
 // DEPRECATED:
 //		(~argKeys.size > 0).if({
 //			args = Array.new(~argKeys.size);
@@ -478,7 +482,7 @@ ProtoEvent(\polySynthPlayer).v.copy.putAll((
 		~bassID.notNil.if({
 			Library.put(~bassID, ~note);
 				// allow this thread to finish before alerting dependents
-			thisThread.clock.sched(0, { BP.changed(~bassID); });
+			thisThread.clock.sched(0, { BP.changed(thisEvent[\bassID], thisEvent); });
 		});
 	},
 	

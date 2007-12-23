@@ -36,7 +36,7 @@ PR(\randRhythm).v.clone({
 				{ (parms[\quant] ?? { passInValue[\getQuant] }).quant },
 			needToParse = parms.atBackup(\midiParse, passInValue).not,
 			reset = parms.atBackup(\rhythmProfileReset, passInValue);
-		
+
 		(needToParse ? false).if({ buf = buf.parse });  // assumes buffer has already been parsed
 		buf = buf.quantize(quant, beatsPerBar);  // simple quantize; deal w/ flexQuantize later?
 
