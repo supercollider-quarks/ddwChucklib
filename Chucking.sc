@@ -45,8 +45,7 @@ AbstractChuckArray {
 			// there may be support for multiple directories later
 		StartUp.add({
 			var path;
-			directories = [Quarks.local.path +/+ Quarks.local.findQuark("ddwChucklib").path
-				+/+ "Prototypes/"];
+			directories = [PathName(this.filenameSymbol.asString).pathOnly +/+ "Prototypes/"];
 
 			directories.do({ |dir|
 				path = (dir ++ "startup*.txt").pathMatch;
