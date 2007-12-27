@@ -10,7 +10,7 @@
 			^dest
 		}, {
 			Post << "WARNING:\nCould not bind " << this.class.name << " into "
-				<< dest.class.name << ". Returning nil.\n"
+				<< dest.class.name << ". Returning nil.\n";
 			^nil
 		});
 	}

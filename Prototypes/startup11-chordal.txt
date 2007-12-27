@@ -220,7 +220,7 @@ PR(\abstractProcess).v.clone({
 		var	out, argPairs;
 //"child-asPattern".debug;
 //inEvent.debug;
-		out = PbindArrayDefault(
+		out = Pbind(
 			\note, inEvent[\chNotes].isNil.if({
 				(~chords.size == 0).if({
 					Error("Cannot play -- no chords have been provided to arpeg process").throw;
@@ -237,22 +237,15 @@ PR(\abstractProcess).v.clone({
 			#[\delta, \length, \gate], MicRh(inEvent[\microRhythm])
 				.asPattern(~notePattern, inEvent),
 			\mode, (Pfunc({
-//				~currentChord.mode.debug("mode in chord object");
-				~currentChord.modeForEvent(inEvent) // .debug("modeForEvent");
+				~currentChord.modeForEvent(inEvent)
 			}))
 		);
 			// note, argpairs will reset every chord -- is that a good idea?
 		argPairs = ~argPairs.(inEvent);		// if simple array, this will have no effect
-//		(argPairs.size > 0).if({
-//			Pbindf(out, \argKeys, argPairs[0, 2..], *argPairs)
-//		}, { out }).trace(prefix: "arp child event: ");
 		(argPairs.size > 0).if({
 			out = Pbindf(out, \argKeys, argPairs[0, 2..], *argPairs)
 		});
 		out
-//		(BP(\arp).exists and: { BP(\arp).v.tryPerform(\child) === currentEnvironment }).if({
-//			out.trace(prefix: "arp child event: ");
-//		}, { out });
 	};
 	
 	~acceptMIDIBuf = #{ |buf, adverb, parms|

@@ -60,7 +60,8 @@ PauseStreamHJH : Stream
 
 	next { arg inval; 
 		var nextTime = stream.next(inval);
-		if (nextTime.isNil) { streamHasEnded = stream.notNil; stream = nextBeat = nil }
+		if (nextTime.isNil) { 
+			streamHasEnded = stream.notNil; stream = nextBeat = nil }
 			{ nextBeat = inval + nextTime };	// inval is current logical beat
 		^nextTime
 	}
@@ -99,12 +100,15 @@ CleanupEventStream : Stream {
 
 PausableEventStreamPlayer : PauseStreamHJH {
 	var <>event, <>muteCount = 0, <>cleanup;
+
+var <>id;
 	
 	*new { arg stream, event;
 		^super.new(stream).event_(event ? Event.default);
 	}
 
-	stop { stream = nextBeat = nil; isWaiting = false; 
+	stop { 
+		stream = nextBeat = nil; isWaiting = false; 
 		cleanup.do { | c | c.value(event) }; 
 		cleanup.clear;
 	 }
@@ -114,7 +118,8 @@ PausableEventStreamPlayer : PauseStreamHJH {
 
 	next { arg inTime;
 		var nextTime;
-		var outEvent = stream.next(event);
+		var outEvent;
+		outEvent = stream.next(event);
 		case { outEvent.isNil } {
 			streamHasEnded = stream.notNil;
 			this.stop;
@@ -126,7 +131,8 @@ PausableEventStreamPlayer : PauseStreamHJH {
 			
 			if (muteCount > 0) { outEvent.put(\freq, \rest) };
 			outEvent.play;
-			if ((nextTime = outEvent.delta).isNil) { stream = nil };
+			if ((nextTime = outEvent.delta).isNil) { 
+			stream = nil };
 		}
 		{ outEvent.isNumber } {
 			nextTime = outEvent

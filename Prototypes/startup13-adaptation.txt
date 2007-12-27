@@ -221,6 +221,14 @@ AbstractChuckArray.defaultSubType = \chordFit;
 	});
 } => Func(\fitToTop);
 
+{ |source, inEvent|
+		// see Func(\getValuesFromEvent) - I don't need all the values so I take only this one
+	var	root = (Library.[inEvent[\bassID] ? \currentBassNote].value(inEvent) ? 0).asFloat,
+		notes = source[\notes],
+		lowNote = notes.minItem.asFloat;
+	notes + (root - lowNote);
+} => Func(\fitToBass);
+
 	// caller should supply the correct mode, for speed
 #{ |noteArray, top, root, mode, fitFactors|
 	var	degreesPerOctave, lowNote, fitIndex;
@@ -365,6 +373,9 @@ AbstractChuckArray.defaultSubType = \chordFit;
 
 	#mode, topEvent, top, topMode, root, notes =
 		Func(\getValuesFromEvent).doAction(source, inEvent);
+
+//"\ntop: %, topEvent: %, notes: %, midi: %, name: %\n".postf(top.asFloat, topEvent, notes.asFloat, notes.asFloat.unmapMode(mode), notes.asFloat.unmapMode(mode).asInteger.collect(_.asMIDINote));
+
 
 	fitness = resultList.collect({ |ch, i|
 		[i, Func(\chPitchFit).doAction(ch, top, root, mode, fitFactors)]

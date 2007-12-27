@@ -183,7 +183,7 @@ AbstractChuckArray {
 		});
 		^nil
 	}
-	*loadWindowBounds { |width, retry = true|
+	*loadWindowBounds { |width|
 		var	path;
 		width = (width ?? { GUI.window.screenBounds.width }).asInteger;
 		this.loadFromChuckDirectories("windowbounds%.txt".format(width)).isNil.if({
@@ -693,7 +693,7 @@ PR : AbstractChuckNewDict {
 					// not ideal to replicate this code from BP-quant
 					// but I may not have a collIndex in my environment
 					// so I can't call BP-quant
-				(~quant ?? { BP.defaultQuant }).dereference.asTimeSpec
+				(~quant.value(this) ?? { BP.defaultQuant.value(this) }).dereference.asTimeSpec
 			};
 				// this is done after putting a new value into the Proto
 				// should not be global for Proto, but yes for PR/BP
@@ -759,10 +759,11 @@ PR : AbstractChuckNewDict {
 	
 		// to avoid clumsy PR(\abc).v.clone - why not PR(\abc).clone({ ... }) => PR(\def)?
 	clone { |func, parentKeys| ^value.clone(func, parentKeys) }
+	copy { ^value.copy }
 }
 
 BP : AbstractChuckNewDict {
-	classvar	<>defaultQuant, <>defaultClock, <>defaultLatency = 0.5,
+	classvar	<>defaultQuant, <>defaultClock, <>defaultLeadTime = 0,  //.5,
 				// a clock, or a function to get the clock for a new BP dynamically from an environment
 			<>defaultInitClock,
 			<>defaultEvent,
@@ -770,9 +771,8 @@ BP : AbstractChuckNewDict {
 				// false = BP maintains a hard link to a specific voicer (change by code only)
 			<>useVoicerProxy = true;
 
-	var	<latency;		// process manages its own latency
-					// latency is given in beats:
-					// EVENT PROTOTYPES MUST CONVERT TO SECONDS
+	var	<leadTime;	// leadTime is given in beats and corresponds to ~timingOffset in Event
+					// (no longer true:) EVENT PROTOTYPES MUST CONVERT TO SECONDS
 
 	*initClass {
 		Class.initClassTree(Clock);
@@ -782,7 +782,7 @@ BP : AbstractChuckNewDict {
 	}
 	
 	init {
-		latency = defaultLatency;
+		leadTime = defaultLeadTime;
 	}
 	
 	free {
@@ -893,7 +893,7 @@ BP : AbstractChuckNewDict {
 	}
 	
 		// 4 => BP(0) sets quant to BasicTimeSpec(4)
-// handling of latency?
+// handling of leadTime?
 	bindNilTimeSpec { |spec|
 		this.exists.if({ value.put(\quant, spec); });
 	}
@@ -1124,36 +1124,40 @@ BP : AbstractChuckNewDict {
 	}
 	populateAdhocVariables { |argClock|
 		value.put(\clock, argClock ? this.clock ? defaultClock).
-			put(\latency, latency);
+			put(\leadTime, leadTime);
 		value.event.isNil.if({ value[\event] = defaultEvent });
 		value.event.put(\clock, this.clock)
-			.put(\latency, latency)
+			.put(\timingOffset, leadTime)
 			.put(\child, value.child)
 			.put(\propagateDownward, this.propagateDownFunc)
 			.put(\collIndex, collIndex);
 	}
 	eventSchedTime { |argQuant|
+		var	time, quant;
 //"BP-eventSchedTime ".post;
 		this.exists.if({ 
-			^(argQuant ?? { this.quant })
-				.asTimeSpec
-				.applyLatency(this.latency ? 0)
-				.schedTime(this.clock)
+			time = (quant = this.quant(argQuant))
+//				.applyLatency(this.latency ? 0)
+				.schedTime(this.clock);
+			^quant.adjustTimeForLatency(time, this.leadTime, this.clock)
 		}, { ^nil });
 //.postln
 	}
 		// dereference allows you to force play to start exactly now on the clock with `nil
 	quant { |argQuant|
 		this.exists.if({
-			^(argQuant ? value.quant ? defaultQuant).dereference.asTimeSpec
+			^(argQuant.value(this)
+				?? { value.quant(this) }
+				?? { defaultQuant.value(this) }
+			).dereference.asTimeSpec
 		}, { ^nil });
 	}
-	latency_ { |lat|
+	leadTime_ { |lat|
 		this.isPlaying.if({
-			"Cannot set latency while BP(%) is playing.".format(collIndex).warn;
+			"Cannot set leadTime while BP(%) is playing.".format(collIndex).warn;
 		}, {
-			latency = lat;
-			value.latency = lat;
+			leadTime = lat;
+			value.leadTime = lat;
 		});
 	}
 	nextBeat {
@@ -1167,10 +1171,11 @@ BP : AbstractChuckNewDict {
 		// useful for wrapper processes--set up a midi trigger to fire ONE child process
 	triggerOneEvent { |argQuant, argClock, doReset|
 		(this.exists and: { this.canStream }).if({
-			value.eventStreamPlayer.notNil.if({
-				this.stop(argQuant);
-			}, {
+			value.eventStreamPlayer.isNil.if({
 				this.prepareForPlay(argQuant, argClock, doReset);
+			});
+			this.isPlaying.if({
+				this.stop(argQuant);
 			});
 			this.clock.schedAbs(this.eventSchedTime(this.quant(argQuant)), {
 				value.eventStream.next(value.event.copy).play;

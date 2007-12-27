@@ -41,18 +41,6 @@ SynthDef.writeOnce(\bufGrainPan2, { |start, time, bufnum, rate = 1, pan, amp = 1
 	Out.ar(outbus, Balance2.ar(l, r, pan, amp));
 });
 
-//SynthDef.writeOnce(\bufRoll, { |start, time = 1, bufnum, rate = 1, amp = 1, strokesPerSec = 18,
-//		outbus|
-//	var sig, envDefault, env, trig = Impulse.ar(strokesPerSec);
-//		// time of this env must add up to 1.0 sec
-//	envDefault = Env(#[1, 0.1, 1], #[0.06, 0.94], \exp);
-//		// 40 == 10 possible envelope segments (which is a lot, really)
-//	env = Control.names(\env).kr((0 ! 40).overWrite(envDefault.asArray, 0));
-//	sig = PlayBuf.ar(1, bufnum, rate * BufRateScale.kr(bufnum), trig, start, 1)
-//		* EnvGen.kr(env, timeScale: time, doneAction:2);
-//	Out.ar(outbus, sig * amp);
-//});
-
 // use a pair of enveloped PlayBufs to avoid clicks when looping back on the sample
 
 SynthDef.writeOnce(\bufRoll, { |start, time = 1, bufnum, rate = 1, amp = 1, strokesPerSec = 18,
@@ -148,7 +136,6 @@ PR(\abstractProcess).v.clone({
 	~requiredKeys = #[\amps, \bufPaths];
 	~inChannels = 1;
 	~outChannels = 2;
-	~postSendReady = true;
 	
 //	~bufPaths = #[path0, path1...];	// files to load
 //	~bufCoords = #[[start0, len0], [start1, len1]...];	// which portions
@@ -159,7 +146,8 @@ PR(\abstractProcess).v.clone({
 	~rates = #[1];	// default: play at normal speed
 	~deltaAdjust = #[0];	// push samples ahead (-) or behind (+) to compensate for transient time
 						// this array's elements correspond to buffers
-						// adjustments given in beats and may be NO LESS THAN -LATENCY
+						// adjustments given in beats
+						// and may be NO LESS THAN this BP's .latency (also in beats)
 	~divCycle = 0.25;	// or #[0.3, 0.2] for swing
 	~beatsPerBar = 4;
 	~def = \bufGrain;
@@ -183,7 +171,7 @@ PR(\abstractProcess).v.clone({
 		~chan.isNil.if({
 			~iMadeMixer = true;
 			~chan = MixerChannel(~collIndex, Server.default, ~inChannels ? 1, ~outChannels ? 2,
-				postSendReady: ~postSendReady ? true, outbus:~master);
+				outbus:~master);
 		});
 			// this func is environment safe
 			// loadbufs is here for defPerc, which may need resources from postMCCreation
@@ -309,7 +297,7 @@ PR(\abstractProcess).v.clone({
 				~buffers.wrapAt(ev[\bufIndex]).bufnum
 			}),
 			\rate, ~makePattern.(\rates, inf),
-// if user specifies times, they should be scaled by tempo. default times are in seconds
+// if user specifies times, they should be in beats. default (whole-buffer) times are in seconds
 			\time, ~times.notNil.if({
 				(~makePattern.(\times, inf) / thisThread.clock.tempo)
 			}, {
@@ -321,7 +309,7 @@ PR(\abstractProcess).v.clone({
 			\instrument, Pif(Pkey(\amp) > 0, ~makePattern.(\def, inf), \rest),
 			\chan, Pfunc({ ~chan }),
 			\latencyAdjust, Pfunc({ |ev| ~deltaAdjust.wrapAt(ev[\bufIndex]) }),
-			\latency, Pfunc({ |ev| (ev[\latency] ? 0) + (ev[\latencyAdjust] ? 0) }),
+			\timingOffset, Pfunc({ |ev| (ev[\timingOffset] ? 0) + (ev[\latencyAdjust] ? 0) }),
 			\delta, ~makeDeltaPattern.value,
 			\attack, ~makePattern.(\attack, inf), // Pfunc({ ~attack }),
 			\decay, ~makePattern.(\decay, inf), // Pfunc({ ~decay }),
