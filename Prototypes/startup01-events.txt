@@ -547,7 +547,7 @@ ProtoEvent(\voicerNote).v.copy.putAll((
 		var	synth, server, groupbus;
 		server = ~server ? ~target.server;
 		synth = Synth.basicNew(~instrument, server);
-			// I know this is not the right way to do this, but don't have time to do it right now
+			// if groupbus is not nil, then ~target is a MixerChannel
 		(groupbus = ~target.tryPerform(\groupBusInfo)).notNil.if({
 			Func(\schedEventBundle).doAction(~lag, server, synth.newMsg(groupbus[0],
 					~args ++ [\outbus, groupbus[1], \out, groupbus[1],

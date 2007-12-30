@@ -332,7 +332,7 @@ PR(\abstractProcess).v.clone({
 	~pbindPostAction = nil;		// same, after building Pbind
 
 	~doPreAction = { 
-		(~pbindPreAction.isSymbol and: { Func(~pbindPreAction).exists }).if({
+		Func.exists(~pbindPreAction).if({
 			Func(~pbindPreAction).doAction
 		}, {
 			~pbindPreAction.value
@@ -340,7 +340,7 @@ PR(\abstractProcess).v.clone({
 	};
 
 	~doPostAction = { |out|
-		(~pbindPostAction.isSymbol and: { Func(~pbindPostAction).exists }).if({
+		Func.exists(~pbindPostAction).if({
 			Func(~pbindPostAction).doAction(out)
 		}, {
 			~pbindPostAction.(out)

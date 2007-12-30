@@ -269,55 +269,6 @@ PR(\abstractProcess).v.clone({
 		})
 	};
 
-// this approach to choosing source and cross doesn't work -- mean is too restrictive
-// for now it's a flat random choice until I figure out something better
-	
-//		// source and cross are Lists ([0] is original, [1..x] are variants)
-//	~doAdapt = #{ |source, adaptMel, adaptStream|
-//		var srcSeg, crsSeg, fitness, fitnessmean, qtemp, result, adaptTemp;
-//		(adaptMel.size > 0).if({
-//				// choose source segment -- if too different from original, don't adapt further
-//				// source is melSegWithAdapt
-//			qtemp = source.segs[0].metric;
-//			fitness = source.segs.collect({ |seg, i| [i, seg.metric.absdif(qtemp) / qtemp] });
-//fitness.debug('fitness');
-////			fitnessmean = fitness.flop[1].mean;
-////fitnessmean.debug('fitnessmean');
-////			fitness = fitness.select({ |pair| pair[1] <= fitnessmean });
-////fitness.debug('fitness reduced');
-//			fitness = fitness.choose;
-//fitness.debug('fitness choice');
-////fitness.debug('fitness');
-//			srcSeg = source.segs[fitness[0]];
-//				// choose adaptation segment based on fitness with chosen source
-//				// adaptMel should be a flat array of melAdaptSegs
-//"doAdapt--choosing cross segment".debug;
-//			qtemp = fitness[1] * qtemp;
-//qtemp.debug('qtemp');
-//			adaptTemp = adaptMel /*.do({ |phr| phr.asSegArray }).flat*/;
-//adaptTemp.debug('adaptTemp');
-//			fitness = adaptTemp.collect({ |seg, i| [i, seg.metric.absdif(qtemp)] });
-//fitness.debug('fitness');
-//			fitnessmean = fitness.flop[1].mean;
-//fitnessmean.debug('fitnessmean');
-//			fitness = fitness.select({ |pair| pair[1] <= fitnessmean }).choose;
-//fitness.debug('fitness');
-//			crsSeg = adaptTemp[fitness[0]];
-////"calling Func".debug;
-//			(result = Func(fitness = adaptStream.next).doAction(srcSeg, crsSeg)).notNil.if({
-////"adding result to segWithAdapt".debug;
-//				source.addAdapt(
-//					result,
-////					srcSeg.nextNote,	// use nextNote from original seg
-//					srcSeg.mode,	// newly created seg should use source's mode
-//					false  // rawmidi should now be false
-//				);
-//			}, {
-//				("Func(\\" ++ fitness ++ ") returned nil. No adaptation.").warn;
-//			});
-//		});
-//	};
-
 		// source and cross are Lists ([0] is original, [1..x] are variants)
 	~doAdapt = #{ |source, passInValue|
 		var srcSeg, crsSeg, fitness, fitnessmean, qtemp, result, adaptTemp;
@@ -329,8 +280,8 @@ PR(\abstractProcess).v.clone({
 			crsSeg = ~adaptMel.choose;
 			fitness = passInValue[\adaptStream].next(srcSeg);
 //fitness.debug("calling Func");
-			(adaptTemp = Func(fitness)).value.notNil.if({
-				(result = adaptTemp.doAction(srcSeg, crsSeg, passInValue)).notNil.if({
+			Func.exists(fitness).if({
+				(result = Func(fitness).doAction(srcSeg, crsSeg, passInValue)).notNil.if({
 //"adding result to segWithAdapt".debug;
 //result.asFloat.postln;
 					source.addAdapt(

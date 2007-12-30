@@ -11,9 +11,9 @@ var saveSubType = AbstractChuckArray.defaultSubType;
 	var	out;
 	out = orig.metric.absdif(test.metric);
 	(out > (orig.metric*0.25)).if(out);	// otherwise nil
-} =>.allowNil Func(\eugTest).subType_(\eugTest);
+} => Func(\eugTest).subType_(\eugTest);
 
-#{ nil } =>.allowNil Func(\dummyEugTest).subType_(\eugTest);
+#{ nil } => Func(\dummyEugTest).subType_(\eugTest);
 
 // first checks range as a hard limit
 // BP(\melodicProcess).v.range = NumericRange(lo, hi)
@@ -21,7 +21,7 @@ var saveSubType = AbstractChuckArray.defaultSubType;
 	var	range;
 	((range = passInValue[\range]).notNil and: {
 			test.loNote < range.lo or: { test.hiNote > range.hi } }).if(100);
-} =>.allowNil Func(\eugRangeOnlyTest).subType_(\eugTest);
+} => Func(\eugRangeOnlyTest).subType_(\eugTest);
 
 // if in range, returns result of eugTest; otherwise, 100 to guarantee failure
 { |orig, test, passInValue|
@@ -30,7 +30,7 @@ var saveSubType = AbstractChuckArray.defaultSubType;
 		out = Func(\eugTest).doAction(orig, test, passInValue)
 	});
 	out
-} =>.allowNil Func(\eugRangeTest).subType_(\eugTest);
+} => Func(\eugRangeTest).subType_(\eugTest);
 
 
 // design may change if I need to pass extra args in
@@ -51,7 +51,7 @@ AbstractChuckArray.defaultSubType = \melAdapt;
 		newSeg = newSeg ++ s2.copyRange(spl2, spl2 + spl2size);
 		/*newSeg =*/ newSeg ++ s1.copyRange(splice, s1.size - 1);
 //	});
-} =>.allowNil Func(\absSplice);
+} => Func(\absSplice);
 
 #{ |source, cross|
 	// diatonic splice -- take part of s1 as is, insert intervals from part of s2,
@@ -76,7 +76,7 @@ AbstractChuckArray.defaultSubType = \melAdapt;
 		current = cross.notes[spl2 + spl2size - 1].freq + current - source.notes[splice-1].freq;
 		/*new =*/ new ++ (source.notes.copyRange(splice, source.notes.size - 1) + current);
 	});
-} =>.allowNil Func(\intSplice);
+} => Func(\intSplice);
 
 // delete some notes randomly from the segment
 #{ |source|
@@ -87,7 +87,7 @@ AbstractChuckArray.defaultSubType = \melAdapt;
 		deleteTo = halfSize.rand + halfSize;
 		source.notes[0..deleteFrom] ++ source.notes[deleteTo..source.notes.size-1]
 	});	// else return nil (failed)
-} =>.allowNil Func(\delete);
+} => Func(\delete);
 
 // delete some notes, keeping the segment duration the same
 // issue: how to determine whether to sustain the previous note, or leave a rest?
@@ -105,7 +105,7 @@ AbstractChuckArray.defaultSubType = \melAdapt;
 		source[lo-1].dur = source[lo-1].dur + source[i].dur;
 	});
 	(source[0..lo-1] ++ source[hi+1..source.size-1])
-} =>.allowNil Func(\delHoldDur);
+} => Func(\delHoldDur);
 
 // fixed-duration splice: output will be exactly as long as source.notes
 { |source, cross|
@@ -157,14 +157,14 @@ AbstractChuckArray.defaultSubType = \melAdapt;
 	}, { newSeg });
 //newSeg.collect(_.dur).sum.debug("fixedSplice output length");
 newSeg
-} =>.allowNil Func(\fixedSplice);
+} => Func(\fixedSplice);
 
 // a few simple ones
 { |source| var size = source.notes.size, i, notes;
 	notes = source.notes.copy.swap(i = size.rand, (i + (size-1).rand).wrap(0, size-1));
 //notes.collect(_.dur).sum.debug("noteSwap output length");
 //notes
-} =>.allowNil Func(\noteSwap);
+} => Func(\noteSwap);
 
 // delete 1 note
 { |source| var i = (source.notes.size - 1).rand, out;
@@ -174,7 +174,7 @@ newSeg
 //out.collect(_.dur).sum.debug("dropNote output length");
 		out
 	}, { nil })
-} =>.allowNil Func(\dropNote);
+} => Func(\dropNote);
 
 // pick a note, split it in 2 (choose a note randomly in range of source)
 { |source| var i = source.notes.size.rand, out, dur;
@@ -185,7 +185,7 @@ newSeg
 		out = out.insert(i+1, SequenceNote(rrand(source.loNote, source.hiNote).round, dur = dur - out[i].dur, dur + rrand(-0.1, 0.1), out[i].args));
 		out
 	}, { nil });	// nil == no adaptation
-} =>.allowNil Func(\splitNote);
+} => Func(\splitNote);
 
 // variation: choose note just outside range
 { |source| var i = source.notes.size.rand, out, dur;
@@ -196,7 +196,7 @@ newSeg
 		out = out.insert(i+1, SequenceNote(rrand(source.loNote - 3, source.hiNote + 3).round, dur = dur - out[i].dur, dur + rrand(-0.1, 0.1), out[i].args));
 		out
 	}, { nil });	// nil == no adaptation
-} =>.allowNil Func(\splitNote2);
+} => Func(\splitNote2);
 
 
 // chordal adaptation -- currently only fitToBassAndTop and support funcs
@@ -640,8 +640,8 @@ AbstractChuckArray.defaultSubType = \drumgenhelpers;
 { 
 	var	action = ~driverEvent.tryPerform(\at, ~collIndex), func;
 	~genBase.value;
-	(action.notNil and: { (func = Func(action)).exists }).if({
-		func.doAction(currentEnvironment);
+	Func.exists(action).if({
+		Func(action).doAction(currentEnvironment);
 	});
 	~driverEvent = nil;
 } => Func(\drumRespDriver);
@@ -663,7 +663,7 @@ AbstractChuckArray.defaultSubType = \drumgenhelpers;
 		});
 	});
 	new
-} =>.allowNil Func(\adaptRhythmArray);
+} => Func(\adaptRhythmArray);
 
 { |source, cross|
 	var	new, spliceIndex, spliceStart, spliceEnd, temp;
@@ -677,7 +677,7 @@ AbstractChuckArray.defaultSubType = \drumgenhelpers;
 	});
 	new = new ++ cross[spliceStart .. spliceEnd] ++ source[spliceIndex..];
 	new
-} =>.allowNil Func(\spliceRhythmArray);
+} => Func(\spliceRhythmArray);
 
 { |source|
 	var	new, spliceStart, spliceEnd, temp;
@@ -695,7 +695,7 @@ AbstractChuckArray.defaultSubType = \drumgenhelpers;
 		});
 		new
 	});
-} =>.allowNil Func(\deleteRhythmArray);
+} => Func(\deleteRhythmArray);
 
 
 AbstractChuckArray.defaultSubType = saveSubType;
