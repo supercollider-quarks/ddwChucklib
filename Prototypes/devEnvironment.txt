@@ -16,7 +16,22 @@ MIDIPort.autoFreeSockets = false;	// protect midi controllers from being destroy
 
 s.boot;
 
-~masterLayout = MultiPageLayout("control panel").front;
+~statusW = GUI.window.new("Building GUI, please wait...",
+	Rect(GUI.window.screenBounds.width - 250 div: 2,
+	GUI.window.screenBounds.height - 40 div: 2,
+	250, 40));
+~statusSl = GUI.rangeSlider.new(~statusW, Rect(10, 15, 230, 10))
+	.lo_(0).hi_(0);
+~numUpdates = (~voicerRows * ~voicerColumns) + 6;
+~currentUpdate = 0;
+~advanceStatus = {
+	~currentUpdate = ~currentUpdate + 1;
+	~statusSl.hi_(~currentUpdate / ~numUpdates);
+};
+~statusW.front;
+
+
+~masterLayout = MultiPageLayout("control panel");
 masterLayout = ~masterLayout;
 
 ~toolbarFlow = FlowView(~masterLayout.view, Rect(0, 0, 290, GUI.window.screenBounds.height-5));
@@ -44,8 +59,8 @@ Routine({
 		VP(i).v.maxControlProxies = VP(i).v.controlProxies.size;
 		VP(i).v.smallGui(~voicerFlow, nil, nil, nil, nil, false);
 		0.2.wait;
+		~advanceStatus.();
 		(i+1 % ~voicerColumns == 0).if({ ~voicerFlow.startRow; });
-//		0.2.wait;
 	});
 
 ~voicerFlow.recursiveResize;
@@ -61,6 +76,7 @@ MBM(0).v.gui(~toolbarFlow, Rect(0, 0, 290, 300));
 MT(1).gui(~toolbarFlow);
 
 0.2.wait;
+~advanceStatus.();
 
 ~midiControlFlow = FlowView.new(~toolbarFlow, Rect(0, 0, 80, 250));
 VoicerMIDIController.defaultDest = VoicerGCDummy;
@@ -112,6 +128,7 @@ GUI.button.new(~midiControlFlow, 80@20)
 BP.useVoicerProxy = false;
 
 0.2.wait;
+~advanceStatus.();
 
 ~toolbarFlow.startRow;
 s.gui(~toolbarFlow);
@@ -136,6 +153,7 @@ chuckKeyCtl = ~chuckKeyCtl;
 });
 
 0.2.wait;
+~advanceStatus.();
 
 // fix views with nil keyDownActions so that bubbling will be right
 // defaultKeyDownAction returns nil if it should bubble, so func should just pass the return thru
@@ -160,6 +178,7 @@ f = nil;
 ~toolbarFlow.recursiveResize;
 
 0.2.wait;
+~advanceStatus.();
 
 //~masterLayout.recursiveResize.front;
 
@@ -170,8 +189,10 @@ f = nil;
 	~board.add(MCG(i).v);
 });
 1.0.wait;
+~advanceStatus.();
 ~board.refresh;
 1.0.wait;
+~advanceStatus.();
 
 ~masterLayout.window.bounds = ~controlpanelBounds;
 	// test scrollability
@@ -210,6 +231,10 @@ Document.initAction_({ |doc|
 //	doc.autoComplete;
 	composeDocKeyResp.(doc);
 });
+
+~statusW.close;
+~statusW = ~statusSl = ~numUpdates = ~currentUpdate = ~advanceStatus = nil;
+~masterLayout.front.refresh;
 
 }).play(AppClock);
 
