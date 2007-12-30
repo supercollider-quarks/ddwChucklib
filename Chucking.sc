@@ -14,7 +14,7 @@
 	// methods that should be inherited by all chuckables should be defined here
 AbstractChuckArray {
 	classvar	collection,	// each chuckable is a collection of related objects
-			<lastIndex,	// indexed by name or symbol
+//			<lastIndex,	// indexed by name or symbol
 			<>directories,
 			<>defaultSubType = \basic,	// set this when loading a piece to differentiate
 									// in the browser
@@ -63,7 +63,9 @@ AbstractChuckArray {
 
 	*collection { ^collection[this.name] }
 	*keys {
-		^(this.collection.size > 0).if({ (0 .. this.collection.size - 1) }, { Array.new });
+		^(this.collection.size > 0).if({
+			this.collection.collectIndices(_.notNil)
+		}, { Array.new });
 	}
 	*values { ^this.collection }
 	
@@ -152,6 +154,10 @@ AbstractChuckArray {
 	}
 	
 	exists { ^value.notNil }
+	*exists { |index|
+		var	temp = this.collection[index];
+		^temp.tryPerform(\exists) ? false
+	}
 	
 	init {}
 
@@ -323,19 +329,23 @@ VC : AbstractChuckNewDict {
 //"Entered bindFact".debug;
 		(fact.isVoicer.not).if({ "wrong type".warn },
 				// default, assume voicer
-			{	value.notNil.if({ this.free });  // free system resources before replacing
-				env = fact.make(parms).know_(true);
-				// make func must return voicer and place support objects (mixer, buffers, etc)
-				// in the environment
-//				value = env.use({ ~make.value });
-				value = env[\value];
-				subType = fact.subType;
-				env[\error].notNil.if({		// oops, something bad happened
-					"Error occurred while making %. Backtrace is available at %.env.backtrace."
-						.format(fact, this).warn;
-				});
-			});
+			{ this.prBindFact(fact, adverb, parms) });
 //"Exited bindFact".debug;
+	}
+	
+		// does the work, but does not check Factory type
+	prBindFact { |fact, adverb, parms|
+		value.notNil.if({ this.free });  // free system resources before replacing
+		env = fact.make(parms).know_(true);
+		// make func must return voicer and place support objects (mixer, buffers, etc)
+		// in the environment
+//				value = env.use({ ~make.value });
+		value = env[\value];
+		subType = fact.subType;
+		env[\error].notNil.if({		// oops, something bad happened
+			"Error occurred while making %. Backtrace is available at %.env.backtrace."
+				.format(fact, this).warn;
+		});
 	}
 	
 	free {
@@ -384,6 +394,10 @@ SY : VC {
 			target: env[\target],
 			out: env[\out]
 		));
+	}
+	
+	bindFact { |fact, adverb, parms|
+		this.prBindFact(fact, adverb, parms)
 	}
 }
 
@@ -636,6 +650,11 @@ MBM : AbstractChuckArray {
 	}
 	
 	bindMRS { |obj, index|
+		var	setNameFunc = { |buf|
+				buf.name = obj.name;	// apply name specified in MRS(\name)
+				value.postRecFunc = value.postRecFunc.removeFunc(setNameFunc);
+				buf
+			};
 		value.recorder.notNil.if({
 			"Already recording. Can't start a new recording.".warn;
 		}, {
@@ -652,11 +671,7 @@ MBM : AbstractChuckArray {
 			}, {
 				value.value_(value.bufs.size);	// so that new buf will be created
 			});
-// don't like this... I should do function composition here
-			value.postRecFunc_({ |buf|
-				buf.name = obj.name;	// apply name specified in MRS(\name)
-				buf
-			});
+			value.postRecFunc = value.postRecFunc.addFunc(setNameFunc);
 			value.initRecord(obj.properties);
 		});
 	}
@@ -1533,8 +1548,6 @@ MicRh : AbstractChuckNewDict {
 		// if value is already a Pattern, .value will return the pattern unmodified
 		// a function will be executed -- notePattern is for pattern length estimation
 	asPattern { |... args|
-//args.debug('micrh aspattern args');
-//this.dumpBackTrace;
 		^value.value(*args)
 	}
 }
@@ -1579,11 +1592,14 @@ ProtoEvent : AbstractChuckNewDict {
 				out.parent[key] = true;		// indicate that the reference is valid
 										// but DO NOT EMBED the prototype
 			});
-			out.parent.protoEvent = keys.first;	// default event type
+			out.parent.defaultProtoEvent = keys.first;
 			out.parent.put(\play, {
-				~protoEvent.envirGet.notNil.if({
+				var	proto = ~protoEvent ?? { ~defaultProtoEvent };
+				proto.envirGet.notNil.if({
 						// currentEnvironment == the event to be played
-					ProtoEvent(~protoEvent).value.copy.putAll(currentEnvironment).play
+					~parent = ProtoEvent(proto).value;
+						// play func should be replaced in this event copy by now
+					currentEnvironment.play;
 				});
 			});
 		}, {
@@ -1607,23 +1623,12 @@ SA : AbstractChuckNewDict {
 
 	*initClass { defaultEvent = () }
 
-//	bindPattern { |pattern|
-//		value = pattern;
-//		this.setArgKeys;
-//	}
-
 		// array is of the form [pattern, keys]
 	bindArray { |array|
 		#value, argKeys = array;
-//		this.setArgKeys;
 	}
 	
 	// bindFunction?
-	
-//	setArgKeys {
-//			// poll the stream once to fetch the keys
-//		argKeys = value.asStream.next(()).keys.asArray
-//	}
 	
 	asPattern { ^value }
 }
@@ -1639,15 +1644,22 @@ MCG : AbstractChuckArray {
 		value.mixer = channel;
 	}
 	
-	bindVC { |vc|
-		{ value.mixer_(vc.env.target) }.try({
-			"VC's target is not a MixerChannel. Can't bind into MCG.".postln;
+	bindVC { |vc, adverb|
+		var	mix;
+		adverb ?? { adverb = \target };
+		vc.env[adverb].isMixerChannel.if({
+			value.mixer_(vc.env[adverb]);
+		}, {
+			mix = vc.v.tryPerform(\asMixer);
+			mix.isMixerChannel.if({ value.mixer = mix },
+				{ "VC's target is not a MixerChannel. Can't bind into MCG.".postln; });
 		});
 	}
 	
-	bindBP { |bp|
-		(bp.exists and: { bp.v[\chan].notNil }).if({
-			try { value.mixer_(bp.v[\chan]) }
+	bindBP { |bp, adverb|
+		adverb ?? { adverb = \chan };
+		(bp.exists and: { bp.v[adverb].notNil }).if({
+			try { value.mixer_(bp.v[adverb]) }
 				{ "Error during MCG-bindBP.".postln }
 		});
 	}
@@ -1677,23 +1689,6 @@ Mode : AbstractChuckNewDict {
 		value = Mode(modeName).copy;
 	}
 	
-// for compatibility with ModalSpec
-//	prMap { |degree|
-//		(value.size == 0).if({
-//			^value.prMap(degree)
-//		}, {
-//			^value[0].prMap(degree)
-//		});
-//	}
-//	
-//	prUnmap { |key|
-//		(value.size == 0).if({
-//			^value.prUnmap(key)
-//		}, {
-//			^value[0].prUnmap(key)
-//		});
-//	}
-	
 	asMode { ^this }
 	
 		// delegation to referenced object
@@ -1706,41 +1701,36 @@ Mode : AbstractChuckNewDict {
 
 // holder for adaptation functions -- may be material manipulators or support funcs
 Func : AbstractChuckNewDict {
-	var	<>nilProtect = true;
+	var	<>nilProtect = false;
 	bindFunction { |func, adverb|
 		value = func;
-		(adverb == \allowNil).if({ nilProtect = false });
+		nilProtect = (adverb == \protectNil);
 	}
 	
 		// args will usually include source material and material to crossbreed with it
 	doAction { |... args|
-		(this.exists and: nilProtect).if({
-			^value.valueArray(args) ? args[0]  // this may be a bad idea, but I'll go with it
-									// if somebody calls a Func that doesn't exist,
-									// result should be the original... but, if there is
-									// no func, result should be nil
+		(this.exists and: { nilProtect }).if({
+			^value.valueArray(args) ? args[0]
 		}, { ^value.valueArray(args) });
 	}
 	
-		// .value is already reserved to return the stored object itself
 		// .eval is a close alternative, maybe more intuitive than doAction
 	eval { |... args|
-		(this.exists and: nilProtect).if({
-			^value.valueArray(args) ? args[0]  // this may be a bad idea, but I'll go with it
-									// if somebody calls a Func that doesn't exist,
-									// result should be the original... but, if there is
-									// no func, result should be nil
+		(this.exists and: { nilProtect }).if({
+			^value.valueArray(args) ? args[0]
+		}, { ^value.valueArray(args) });
+	}
+	
+		// this means Func(\xyz).value will not return the Function object itself
+		// but you can still get it with Func(\xyz).v
+	value { |... args|
+		(this.exists and: { nilProtect }).if({
+			^value.valueArray(args) ? args[0]
 		}, { ^value.valueArray(args) });
 	}
 	
 	listArgs {
 		this.streamArgs(Post);
-//		Post << "Func(" << collIndex.asCompileString << ").doAction(";
-//		value.def.argNames.do({ |name, i|
-//			(i > 0).if({ Post << ", " });
-//			Post << name;
-//		});
-//		Post << ");\n";
 	}
 	
 	proto {
@@ -1767,7 +1757,7 @@ MT : AbstractChuckNewDict {
 	classvar	<>default;	// used in ChuckBrowserKeyController
 	classvar	<>readyThreshold = 5;	// how long to hold a process in ready state before clearing
 	classvar	<>defaultMinNote = 48, <>defaultMaxNote = 72;  // integer note numbers
-	var	/*<>nextAddNote,*/ <lastBP, noteAllocator;
+	var	<lastBP, noteAllocator;
 	
 	var	<socket, <>minNote, <>maxNote;	// midi responder, passes messages here
 
@@ -1790,7 +1780,7 @@ MT : AbstractChuckNewDict {
 
 	init {
 		value = IdentityDictionary.new; // note num -> MTNoteInfo
-		minNote = /*nextAddNote =*/ defaultMinNote;
+		minNote = defaultMinNote;
 		maxNote = defaultMaxNote;
 		socket = MTSocket(collIndex, this);
 		noteAllocator = ContiguousBlockAllocator(maxNote+1, minNote);
@@ -1802,7 +1792,7 @@ MT : AbstractChuckNewDict {
 		socket.free;
 		value.do(_.free);
 		this.class.collection.removeAt(collIndex);
-		collIndex = value = socket = /*nextAddNote =*/ noteAllocator = minNote = maxNote = nil;
+		collIndex = value = socket = noteAllocator = minNote = maxNote = nil;
 		this.releaseDependants;	// remove from dependants dictionary
 		this.removeFromCollection;
 	}
@@ -1846,7 +1836,6 @@ MT : AbstractChuckNewDict {
 		});
 		value[nextAddNote].notNil.if({ value[nextAddNote].free });
 		value.put(nextAddNote, new = MTNoteInfo(bp, false, nextAddNote, this));
-//		nextAddNote = (nextAddNote + 1).wrap(defaultMinNote, defaultMaxNote);
 		updateGUI.if({ this.changed(new) });	// tell the gui
 	}
 	
