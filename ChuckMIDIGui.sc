@@ -10,15 +10,17 @@ MTGui : HJHObjectGui {
 		minNoteFloor, maxNoteCeil;	// to position views correctly
 
 	*initClass {
-		font = GUI.font.new("Helvetica", 10);	// nice and small
-		backColors = (
-			ready: [Color.new255(181, 196, 255), Color.new255(136, 147, 191)],  // baby blue
-			playing: [Color.new255(69, 255, 23), Color.new255(52, 191, 17)],  // green
-			late: [Color.yellow, Color.yellow(0.75)],
-			driven: [Color.new255(214, 191, 255), Color.new255(161, 143, 191)],  // lavender
-			idle: [Color.gray(0.75), Color.gray(0.5)]
-		);
-		blackKeys = #[1, 3, 6, 8, 10];
+		StartUp.add({
+			font = GUI.font.new("Helvetica", 10);	// nice and small
+			backColors = (
+				ready: [Color.new255(181, 196, 255), Color.new255(136, 147, 191)],  // baby blue
+				playing: [Color.new255(69, 255, 23), Color.new255(52, 191, 17)],  // green
+				late: [Color.yellow, Color.yellow(0.75)],
+				driven: [Color.new255(214, 191, 255), Color.new255(161, 143, 191)],  // lavender
+				idle: [Color.gray(0.75), Color.gray(0.5)]
+			);
+			blackKeys = #[1, 3, 6, 8, 10];
+		});
 	}
 	
 		// you might have switched to a different gui scheme since initializing the class library
