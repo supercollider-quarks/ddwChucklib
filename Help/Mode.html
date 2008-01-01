@@ -18,9 +18,7 @@ span.s2 {text-decoration: underline}
 span.s3 {color: #0000bf}
 span.s4 {color: #007300}
 span.s5 {color: #bf0000}
-span.s6 {font: 9.0px Monaco; color: #000000}
-span.s7 {font: 9.0px Monaco; color: #007300}
-span.s8 {color: #000000}
+span.s6 {color: #000000}
 span.Apple-tab-span {white-space:pre}
 </style>
 </head>
@@ -33,13 +31,16 @@ span.Apple-tab-span {white-space:pre}
 <p class="p2"><br></p>
 <p class="p1">Once you have placed a ModalSpec into the mode collection, its symbolic name can stand in for the ModalSpec in many places.</p>
 <p class="p2"><br></p>
-<p class="p1">• mapMode / unmapMode calls: <span class="s6">69.mapMode(</span><span class="s7">\default</span><span class="s6">) == 40</span></p>
+<p class="p1">• mapMode / unmapMode calls:</p>
+<p class="p2"><br></p>
+<p class="p3">69.mapMode(<span class="s4">\default</span>) == 40</p>
+<p class="p2"><br></p>
 <p class="p1">• MIDIRecBuf properties: MIDIRecBuf(..., properties: (mode: \default))</p>
 <p class="p4">When this MIDI buffer is used in one of the built-in melodic or chord arpeggiator processes, it will be interpreted with reference to that mode.</p>
 <p class="p2"><br></p>
 <p class="p1">More interesting modal analysis is possible by referencing several modes within the same, composite mode.</p>
 <p class="p2"><br></p>
-<p class="p5"><span class="s8">[</span>\cminor<span class="s8">, </span>\cmixolydian<span class="s8">] =&gt; </span><span class="s3">Mode</span><span class="s8">(</span>\cComposite<span class="s8">);</span></p>
+<p class="p5"><span class="s6">[</span>\cminor<span class="s6">, </span>\cmixolydian<span class="s6">] =&gt; </span><span class="s3">Mode</span><span class="s6">(</span>\cComposite<span class="s6">);</span></p>
 <p class="p6">// or (I like this syntax better)</p>
 <p class="p3">#[cminor, cmixolydian] =&gt; <span class="s3">Mode</span>(<span class="s4">\cComposite</span>);</p>
 <p class="p2"><br></p>
