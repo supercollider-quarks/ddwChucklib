@@ -1,7 +1,4 @@
 
-// bufPerc: isFx won't work for patches now... easy fix, but later
-// broke regular bufperc (squishy)?
-
 // need iMadeDef for defPerc -- per def
 
 // percussion process templates
@@ -146,8 +143,8 @@ PR(\abstractProcess).v.clone({
 	~rates = #[1];	// default: play at normal speed
 	~deltaAdjust = #[0];	// push samples ahead (-) or behind (+) to compensate for transient time
 						// this array's elements correspond to buffers
-						// adjustments given in beats
-						// and may be NO LESS THAN this BP's .latency (also in beats)
+						// adjustments given in seconds
+						// and may be NO LESS THAN this BP's .leadTime (also in beats)
 	~divCycle = 0.25;	// or #[0.3, 0.2] for swing
 	~beatsPerBar = 4;
 	~def = \bufGrain;
@@ -213,10 +210,14 @@ PR(\abstractProcess).v.clone({
 	~addBuf = {  "Not yet implemented.".warn; };
 	
 	~fixBufTime = { |i, buf|
-			// this func is not environment safe
 			// try b/c a failure here shouldn't kill the buffer queue
 		try { ~bufTimes[i] = buf.numFrames / buf.sampleRate }
 			{ |error| error.reportError; }  // display error but continue
+	};
+	
+	~ampsSize = {
+		var	divCycleArray = ~divCycle.asArray;
+		~beatsPerBar / divCycleArray.sum * divCycleArray.size
 	};
 	
 	~makeDeltaPattern = #{ 
@@ -240,7 +241,7 @@ PR(\abstractProcess).v.clone({
 				deltas.add(~beatsPerBar - totalDelta);
 			});
 			Pseq(deltas, 1)
-		}, { Pfin(~amps.size, Pn(~divCycle.asPattern, inf)) });
+		}, { Pfinval(~amps.size, Pn(~divCycle.asPattern, inf)) });
 	};
 	~makeAmpPattern = #{ 
 		~compactPatterns.if({
@@ -251,7 +252,7 @@ PR(\abstractProcess).v.clone({
 	};
 	~makePatternFromArray = #{ |array, repeats, sourceKey|
 		var amps, outArray, i;
-		~compactPatterns.if({
+		(~compactPatterns or: { sourceKey == \def }).if({
 			amps = ~amps;
 			outArray = Array.new(amps.size);
 				// if first is a rest, need a placeholder
@@ -308,7 +309,8 @@ PR(\abstractProcess).v.clone({
 				// rest if 0, else give synthdef name
 			\instrument, Pif(Pkey(\amp) > 0, ~makePattern.(\def, inf), \rest),
 			\chan, Pfunc({ ~chan }),
-			\latencyAdjust, Pfunc({ |ev| ~deltaAdjust.wrapAt(ev[\bufIndex]) }),
+			\latencyAdjust, Pfunc({ |ev| ~deltaAdjust.wrapAt(ev[\bufIndex])
+				* thisThread.clock.tempo }),
 			\timingOffset, Pfunc({ |ev| (ev[\timingOffset] ? 0) + (ev[\latencyAdjust] ? 0) }),
 			\delta, ~makeDeltaPattern.value,
 			\attack, ~makePattern.(\attack, inf), // Pfunc({ ~attack }),
@@ -384,7 +386,8 @@ PR(\bufPerc).v.clone({
 		'SynthDef' -> \makeSynthDef,		// as it happens, these can be the same b/c of asSynthDef
 		'Function' -> \makeFnDef,
 		'Patch' -> \makePatchDef,
-		'WrapPatch' -> \makePatchDef
+		'WrapPatch' -> \makePatchDef,
+		'FxPatch' -> \makePatchDef
 	];
 	~patchesToFree = List.new;
 		// now, instead of loading buffers, we load synthdefs
@@ -401,7 +404,7 @@ PR(\bufPerc).v.clone({
 		(return = ~classActions[obj.class.name]).notNil.if({
 			return = return.envirGet.(obj)
 		});
-		return ?? { obj }	// if nothing, return the object itcurrentEnvironment
+		return ?? { obj }	// if nothing, return the object itself
 	};
 	~makeFnDef = #{ |fn|
 		var def;
@@ -473,7 +476,8 @@ PR(\defPerc).v.clone({
 				var latency;
 				(~nodes.size == 0).if({
 					~nodes = ~buffers.collect({ |def| Synth.basicNew(def, ~chan.server) });
-					latency = ~latency !? { ~latency / ~clock.tempo };
+					latency = (~leadTime !? { ~leadTime / ~clock.tempo })
+						+ ~chan.server.latency;
 					~nodes.do({ |node, i|
 						~chan.server.sendBundle(latency, 
 							node.newMsg(~isFx.if({ ~chan.effectgroup }, { ~chan.synthgroup }), 
@@ -498,10 +502,12 @@ PR(\defPerc).v.clone({
 	};
 	
 	~stopCleanup = {
-		var	latency;
+		var	latency, hasGate;
 		(~nodes.size > 0).if({
-			latency = ~event.latency !? { ~event.latency / ~clock.tempo };
-			~nodes.do({ |node|
+			latency = (~leadTime !? { ~leadTime / ~clock.tempo })
+				+ ~chan.server.latency;
+			~nodes.do({ |node, i|
+				hasGate = SynthDescLib.global[~buffers[i]].tryPerform(\hasGate);
 				~chan.server.sendBundle(latency,
 					(~hasGate ? false).if({ node.setMsg(\gate, 0) }, { node.freeMsg }))
 			});
@@ -520,9 +526,9 @@ PR(\bufPerc).v.clone({
 	~compensateEnv = true;
 	
 	~makeStartTimes = { 
-		~makePatternFromArray.(~start.collect(e { |st, i|
-				~segStart.wrapAt(~bufs.wrapAt(i)).wrapAt(st)
-			}), 1);
+		~makePatternFromArray.(~start, 1).collect(e { |st, event|
+			~segStart.wrapAt(~bufs.wrapAt(event[\bufIndex])).wrapAt(st)
+		});
 	};
 		
 	~makePbindArray = { 
