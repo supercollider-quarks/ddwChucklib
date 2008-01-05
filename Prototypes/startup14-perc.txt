@@ -583,24 +583,34 @@ PR(\abstractProcess).v.clone({
 	~requiredKeys = #[bufPaths];
 	~def = \bufGrain;
 	~bufCoords = #[[0, -1]];
+	~attack = 0.005;
+	~decay = 0.02;
 	~postMCCreation = nil;		// put in your own user preparation func here
 	~timeConversion = { |time, ev| time };
+	~argPairs_ = { |args|
+		~argPairs = args;
+		~argPairsStream = Pbind(*~argPairs).asStream;
+	};
 		// required: put in a pattern factory here
-	~asPattern = { 
+	~asPattern = {
+			// assume that if we're calling asPattern, we want to reset all streams
+		~argPairsStream = Pbind(*~argPairs).asStream;
 		Pbind(\instrument, BPStream(\def),
 			\bufIndex, BPStream(\bufIndex),
 			\bufnum, Pfunc({ |ev| ~buffers[ev[\bufIndex]].bufnum }),
-			\startIndex, BPStream(\startIndex),
-			\start, BPStream(\start),
-			\time, BPStream(\time).collect(e { |time, ev| ~timeConversion.(time, ev) }),
+			\time, BPStream(\time).collect({ |time, ev| ~timeConversion.(time, ev) }),
 			\rate, BPStream(\rate),
+			\start, BPStream(\start),
 			\amp, BPStream(\amp),
 			\attack, BPStream(\attack),
 			\decay, BPStream(\decay),
 			\chan, ~chan,
 			\delta, BPStream(\delta),
 			\time, Pkey(\time) / Pfunc({ thisThread.clock.tempo })
-		)
+		).collect({ |ev|
+			~argPairsStream !? { ev = ~argPairsStream.next(ev) };
+			ev
+		});
 	};
 }).import((bufPerc: #[prep, loadBufs, fixBufTime, replaceBuf, addBuf, freeCleanup]))
 	=> PR(\basicBufferPlayer).subType_(\bufPlayer);

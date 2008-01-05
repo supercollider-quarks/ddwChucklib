@@ -54,13 +54,14 @@ PR(\abstractModeSeg).v.clone({
 	~prepare = #{ |notes, mode, rawMIDI = true, parms|
 			// notes should be in the format [note, note, note]
 //[/*currentEnvironment,*/ notes, mode, rawMIDI, parms].debug("enter chord seg prepare");
-		~notes = notes.asArray;
-		{ (rawMIDI ? true).if({ ~mapToMode.value(mode) }) }.try({ |error|
+		~rawNotes = ~notes = notes.asArray;
+		~rawMIDI = rawMIDI ? true;
+		{ ~rawMIDI.if({ ~mapToMode.value(mode) }) }.try({ |error|
 //			Error("Error translating MIDI to modal. Check to see if default mode is defined.")
 error
 				.throw;
 		});
-		~analyzeNotes.value(rawMIDI);	// collect stats on chord -- user definable
+		~analyzeNotes.value(~rawMIDI);	// collect stats on chord -- user definable
 		~useOwnMode = parms.atBackup(\useOwnMode, currentEnvironment);
 		currentEnvironment
 	};
@@ -73,7 +74,7 @@ error
 		modeObj = mode.asMode.value;
 		if(modeObj.size > 0) {
 			modeObj.do({ |mode, i|
-				notesTemp = ~notes.mapMode(mode);
+				notesTemp = ~rawNotes.mapMode(mode);
 				((modeFit = Func(\chModeFit).doAction(notesTemp)) > bestFit).if({
 					bestMode = mode;
 					bestFit = modeFit;
@@ -106,6 +107,13 @@ error
 	
 	~modeForEvent = { |ev|
 		~modeOverride ?? { ~useOwnMode.if({ ~mode }, { ev[\mode] }) };
+	};
+	
+	~modeOverride_ = { |mode|
+		(mode !== ~modeOverride).if({
+			~modeOverride = mode;
+			~mapToMode.(mode ? ~mode);
+		});
 	};
 
 	~getFit = #{  ~fitFactors ? Library.at(\fitFactors); };
@@ -161,13 +169,20 @@ PR(\abstractProcess).v.clone({
 		~preparePlay.value;	// should return currentEnvironment
 	};
 
-	~getFit = #{  ~fitFactors ? Library.at(\fitFactors); };
+	~getFit = #{ ~fitFactors ? Library.at(\fitFactors); };
 
-	~makeChordPattern = #{  Pseq(~chords, inf) };
+	~makeChordPattern = #{ Pseq(~chords, inf) };
+	~makeChordPattern_ = { |func|
+		~makeChordPattern = func;
+		~reset.value;
+		currentEnvironment
+	};
 
 		// you can change fitToBassAndTop behavior by changing this symbol
 		// funcs are defined in Func()
-	~fitFunc = \chordFitNotes;
+		// this may also be a function, which is passed the chord Proto
+	// ~fitFunc = { |chordProto| ... return fitFunc symbol ... };
+	~fitFunc = \asis;
 
 // what if this is in response to a bass note (no inEvent)? address in subclass
 // update method should modify the value of ~noteStream without updating anything else
@@ -187,7 +202,7 @@ PR(\abstractProcess).v.clone({
 //inEvent[\top].postln;
 //"chord pattern".postln;
 		bassID !? { inEvent.put(\bassID, bassID) };
-		~noteStream = (~notePattern = ~currentChord.asPattern(inEvent, ~fitFunc))
+		~noteStream = (~notePattern = ~currentChord.asPattern(inEvent, ~fitFunc.value(~currentChord)))
 //.postcs
 			.asStream;
 	};
@@ -202,17 +217,11 @@ PR(\abstractProcess).v.clone({
 	~nextNoteStream = #{ |inEvent|
 //"child-nextNoteStream".debug;
 //inEvent.postln;
-//		(inEvent[\midi] ? false).if({
-//			~noteStream = ArpegPat(inEvent[\arpegType]).asPattern(inEvent[\note]).asStream;
-//		}, {
-			~nextNotePattern.value(inEvent);
-			~updateNoteStream.value(inEvent);
-//		});
+		~nextNotePattern.value(inEvent);
+		~updateNoteStream.value(inEvent);
 		Prt({ |event|
 //~noteStream.debug("inside notestream routine");
-//			currentEnvironment.use({
-				{ event = ~noteStream.next(event).yield }.loop
-//			});
+			{ event = ~noteStream.next(event).yield }.loop
 		});
 	};
 
@@ -230,8 +239,9 @@ PR(\abstractProcess).v.clone({
 			}, {
 // BUG HERE: ~notePattern needs to be populated
 					// fall back for midi input
+				out = (notes:~notes);
 				ArpegPat(inEvent[\arpegType]).asPattern(
-					Func(~fitFunc).doAction((notes:~notes), inEvent, ~getFit.value),
+					Func(~fitFunc.value(out)).doAction(out, inEvent, ~getFit.value),
 					inEvent)
 			}),
 			#[\delta, \length, \gate], MicRh(inEvent[\microRhythm])
@@ -262,7 +272,7 @@ PR(\abstractProcess).v.clone({
 			// partition on rhythm - in general, notes belonging to the same chord will have
 			// a duration less than the mean
 		avgDur = buf.durs.mean;
-			// if note is a SeqChordNote, it's a chord unto itcurrentEnvironment
+			// if note is a SeqChordNote, it's a chord unto itself
 			// otherwise, use average duration to determine when to break
 			// should be possible to play slowly arpeggiated chords with some gracenotes
 			// and have them preserved
@@ -345,17 +355,11 @@ PR(\abstractProcess).v.clone({
 			// otherwise use the event passed at evaluation time
 		protoEvent.notNil.if({
 			Prt({
-//				currentEnvironment.use({
-					{ streamKey.envirGet.next(protoEvent).yield }.loop
-//				});
+				{ streamKey.envirGet.next(protoEvent).yield }.loop
 			});
 		}, {
 			Prt({ |inEvent|
-//				currentEnvironment.use({
-					{ 
-//inEvent.debug('event received by chord process component');
-					inEvent = streamKey.envirGet.next(inEvent).yield }.loop
-//				});
+				{ inEvent = streamKey.envirGet.next(inEvent).yield }.loop
 			});
 		});
 	};
@@ -426,9 +430,6 @@ PR(\basicMacroRh).v.clone({
 
 	~bindPattern = #{ |pattern, adverb|
 		case { adverb == \adapt } { ~topNote.notNil.if({ ~topNote.bindPattern(pattern, adverb) }) }
-//			{	(adverb ++ "Pattern").asSymbol.envirPut(pattern.asPattern);
-//				~makeStreamForKey.value(adverb);
-//			};
 			{	adverb.envirPut(pattern.asPattern);
 				~makeStreamForKey.value(adverb);
 			};
@@ -442,8 +443,6 @@ PR(\basicMacroRh).v.clone({
 		currentEnvironment.put(\mode, mode);
 	};
 	
-//	~requiredKeys = ~requiredKeys ++ #[\topNote];
-
 	~rewrapKeys = ~requiredKeys ++ [\topNote];
 	
 	~clearAdapt = #{ ~topNote.clearAdapt };
@@ -462,7 +461,6 @@ PR(\basicMacroRh).v.clone({
 	};
 	
 	~patternAvecTop = #{ |inEvent|
-//		~topNotePattern = ~topNote.asNotePattern;
 		~topNotePattern = ~topNote.asPattern;
 		PbindMultiChan(#[\delta, \length], ~makeProut.value(\macro),
 			\arpegType, ~makeProut.value(\arpeg),
@@ -473,9 +471,7 @@ PR(\basicMacroRh).v.clone({
 			\convertTopFunc, Pfunc({ ~convertTopFunc ? \convertMode }),
 			\mode, Pfunc({ ~getMode.value }))
 		.collect(e { |ev|
-//(~collIndex == \arp).if({ ev.debug("arp macro event"); });
-//"% macro event: %\n".postf(~collIndex, ev);
-			currentEnvironment.put(\lastEvent, ev);
+			~lastEvent = ev;
 			ev
 		});
 	};

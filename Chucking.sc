@@ -693,7 +693,11 @@ PR : AbstractChuckNewDict {
 				var out;
 				out = true;
 				~requiredKeys.do({ |key|
-					key.envirGet.isNil.if({ out = false });
+					key.envirGet.isNil.if({
+						"Required variable BP(%).% is empty. Cannot play."
+							.format(~collIndex, key).warn;
+						out = false;
+					});
 				});
 					// if this is a wrapper process,
 				~canWrap.if({
@@ -712,9 +716,12 @@ PR : AbstractChuckNewDict {
 				// this is done after putting a new value into the Proto
 				// should not be global for Proto, but yes for PR/BP
 			~putAction = { |key, value|
-				var	streamKey = (key ++ "Stream").asSymbol;
-				(value.isPattern or: { streamKey.envirGet.notNil }).if({
-					streamKey.envirPut(value.asStream);
+				var	streamKey;
+				(value.isPattern
+					or: {	streamKey = (key ++ "Stream").asSymbol;
+							streamKey.envirGet.notNil })
+				.if({
+					(streamKey ?? { (key ++ "Stream").asSymbol }).envirPut(value.asStream);
 				});
 			};
 		});
@@ -1741,7 +1748,7 @@ Func : AbstractChuckNewDict {
 	}
 	
 	streamArgs { |collstream|
-		collstream << "Func(" <<< collIndex << ").doAction(";
+		collstream << "Func(" <<< collIndex << ").value(";
 		value.streamArgs(collstream);	// add function args
 		collstream << ");\n";
 	}

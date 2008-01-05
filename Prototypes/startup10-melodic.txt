@@ -49,9 +49,8 @@ PR(\abstractProcess).v.clone({
 	~resetSeg = true;	// by default, when resetting, start from the beginning
 	~requiredKeys = #[\mel];
 	~adTest = \adTest;		// this is a default, can change -- currently unused
-	~eugTest = \eugTest;
+	~eugTest = \dummyEugTest;
 	~adaptProb = 1; //0.4;
-	~eugenicizeProb = 1; //0.4;
 	~variantThreshold = 4;	// when more than 4 variants, drop some; see ~eugenicize
 	~splitFunc = \noSplit;	// specify using buf.chuck(aBP, mel, (splitFunc: \xxx))
 	
@@ -301,7 +300,7 @@ PR(\aiMel).v.clone({
 	~asBaseNotePattern = ~asNotePattern;
 
 		// defaults
-	~bassIDPattern = \currentBassNote;
+	~bassID = \currentBassNote;
 	~bassIDStream = \currentBassNote;
 
 	~asPattern = #{ 

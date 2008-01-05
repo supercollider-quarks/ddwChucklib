@@ -460,37 +460,44 @@ AbstractChuckArray.defaultSubType = \chordFit;
 
 // making a chord process is too hard, requiring 7 or more chucks
 // this sets the basic parameters in one go, puts in a BP, and returns the BP
-#{ |newBP, child, parent, ch, mel, macro, micro, arpeg, adaptKeys, mode, parms|
+#{ |newBPname, childName, parentName, chordMIDIBuf, topMelodyMIDIBuf, macrorhythm, microrhythmSelector, arpegPatSelector, adaptKeysForTopMelody, mode, parms|
 	var	new;
-	BP(newBP).v.isNil.if({
-		PR(parent).chuck(PR(child).chuck(new = BP(newBP), nil, parms), nil, parms);
+	BP.exists(newBPname).not.if({
+		new = PR(parentName).chuck(PR(childName).chuck(BP(newBPname), nil, parms), nil, parms);
 			// short form for ch.notNil.if({ ... })
+mode.debug("chuck mode");
 		mode.asMode !? { mode.asMode => new };
-		ch !? { ch =>.ch new };
-		mel !? { mel =>.mel new };
-		macro !? { macro =>.macro new };
-		micro !? { micro =>.micro new };
-		arpeg !? { arpeg =>.arpeg new };
-		adaptKeys !? { adaptKeys =>.adapt new };
+chordMIDIBuf.debug("chuck chordMIDIBuf");
+		chordMIDIBuf !? { chordMIDIBuf =>.ch new };
+topMelodyMIDIBuf.debug("chuck topMelodyMIDIBuf");
+		topMelodyMIDIBuf !? { topMelodyMIDIBuf =>.mel new };
+macrorhythm.debug("chuck macrorhythm");
+		macrorhythm !? { macrorhythm =>.macro new };
+microrhythmSelector.debug("chuck microrhythmSelector");
+		microrhythmSelector !? { microrhythmSelector =>.micro new };
+arpegPatSelector.debug("chuck arpegPatSelector");
+		arpegPatSelector !? { arpegPatSelector =>.arpeg new };
+adaptKeysForTopMelody.debug("chuck adaptKeysForTopMelody");
+		adaptKeysForTopMelody !? { adaptKeysForTopMelody =>.adapt new };
 		new
 	}, {
-		("BP(" ++ newBP ++ ") already exists. Using existing BP.").warn;
-		BP(newBP)
+		("BP(" ++ newBPname.asCompileString ++ ") already exists. Using existing BP.").warn;
 	});
+	BP(newBPname)
 } => Func(\makeCh).subType_(\factory);
 
 // same as makeCh, but frees the BP first
-#{ |... args|
+#{ |newBPname, childName, parentName, chordMIDIBuf, topMelodyMIDIBuf, macrorhythm, microrhythmSelector, arpegPatSelector, adaptKeysForTopMelody, mode, parms|
 	var	new;
-	BP(args[0]).v.notNil.if({ BP(args[0]).free });
-	Func(\makeCh).doAction(*args);
+	BP.exists(newBPname).if({ BP(newBPname).free });
+	Func(\makeCh).doAction(newBPname, childName, parentName, chordMIDIBuf, topMelodyMIDIBuf, macrorhythm, microrhythmSelector, arpegPatSelector, adaptKeysForTopMelody, mode, parms);
 } => Func(\newCh).subType_(\factory);
 
 
 // for melodic processes
 // intra-phrase segmenter
 // notes, currentEnvironment is a bit odd, but necessary for error protection
-#{ |notes, /*currentEnvironment,*/ nextNote, intervals, minSegSize, parms|
+#{ |notes, nextNote, intervals, minSegSize, parms|
 		var	durs;
 		var	lastTrueIndex, largeInterval;
 
@@ -522,7 +529,7 @@ AbstractChuckArray.defaultSubType = \chordFit;
 } => Func(\defaultMelSegmenter).subType_(\melPartition);
 
 // phrase splitter
-{ |notes, currentEnvironment|
+{ |notes|
 	var subsegs, phraseScores, avgScore, splitIndices;
 //"phrase splitter".debug;
 			// partition the melody into phrases
@@ -554,7 +561,7 @@ AbstractChuckArray.defaultSubType = \chordFit;
 // split notes into equal-length phrases
 // corner case not covered: if last phrase is too short, what do we do?
 // or, if last note exceeds bar length, there will be no compensation
-{ |notes, /*currentEnvironment,*/ parms|
+{ |notes, parms|
 	var	elapsed = 0, result = List.with(List.new),
 		barlength = parms.atBackup(\barLength, currentEnvironment) ? 4.0,
 		overflow;
@@ -584,7 +591,7 @@ AbstractChuckArray.defaultSubType = \chordFit;
 
 // user-defined phrase splits
 // give the size of each clump of notes
-{ |notes, /*currentEnvironment,*/ parms|
+{ |notes, parms|
 	var	splitsizes = parms.atBackup(\phrSplits, currentEnvironment);
 	(splitsizes.size > 0).if({
 		notes.clumps(splitsizes)
@@ -613,10 +620,10 @@ AbstractChuckArray.defaultSubType = \drumgenhelpers;
 	});
 } => Func(\expandKeys);
 
-{	~usedKeys.do({ |key|
+{	var	nonrests = ~amps.collectIndices(_ > 0);
+	~usedKeys.do({ |key|
 		(key != \amps).if({
-			key.envirPut(key.envirGet.asArray.wrapAt(~amps.collectIndices(_ > 0)));
-//			key.envirPut(key.envirGet.select(_ >= 0));
+			key.envirPut(key.envirGet.asArray.wrapAt(nonrests));
 			(key.envirGet.size == 0).if({
 				key.envirPut(#[0]);
 			});
@@ -627,11 +634,25 @@ AbstractChuckArray.defaultSubType = \drumgenhelpers;
 { |i, override|
 	var	temp;
 	~usedKeys.do({ |key|
-		(temp = (override ?? { (key ++ "genStream").asSymbol.envirGet }).next(i)).notNil.if({
+		(temp = (override ?? { (key ++ "genStream").asSymbol.envirGet }).value(i)).notNil.if({
 			key.envirGet[i] = temp;
 		});
 	});
 } => Func(\insertIntoKeys);
+
+{	var	basekey;
+	~usedKeys.do({ |key|
+		(basekey = (key ++ "base").asSymbol).envirGet.notNil.if({
+			key.envirPut(basekey.envirGet.copy)
+		}, {
+			~base.notNil.if({
+				key.envirPut(~base.copy)
+			}, {
+				key.envirPut(Array.fill(0, ~ampsSize.value))
+			});
+		});
+	});
+} => Func(\initKeys);
 
 { ~amps.collectIndicesOfItem(0) } => Func(\getRests);
 
@@ -641,7 +662,7 @@ AbstractChuckArray.defaultSubType = \drumgenhelpers;
 	var	action = ~driverEvent.tryPerform(\at, ~collIndex), func;
 	~genBase.value;
 	Func.exists(action).if({
-		Func(action).doAction(currentEnvironment);
+		Func(action).doAction;
 	});
 	~driverEvent = nil;
 } => Func(\drumRespDriver);

@@ -708,12 +708,12 @@ PR(\abstractProcess).v.clone({
 				~userprep.value;		// preparation specified in chuck parameters
 				~makeSynthDefs.value;
 			});
-		
-		~delta = 1.0;
-			// by default, delta and sustain will have the same value
-		~sustain = Pkey(\delta);
-		~synth = Pfunc({ ~objects.keys.choose });
 	};
+
+	~delta = 1.0;
+		// by default, delta and sustain will have the same value
+	~sustain = Pkey(\delta);
+	~synth = Pfunc({ ~objects.keys.choose });
 	
 		// when you clone, if you need extra preparation, do ~userpreps = ~userpreps.copy.add({  ... });
 	~userpreps = List.new;
@@ -727,8 +727,7 @@ PR(\abstractProcess).v.clone({
 		// definition is a function, Patch or SynthDef
 	~objects = (
 		default: (def: \default, args: [
-			freq: PdegreeToKey(Pwhite(35, 50, inf), #[0, 2, 4, 5, 7, 9, 11], 12).midicps,
-			hasGate: true
+			freq: PdegreeToKey(Pwhite(35, 50, inf), #[0, 2, 4, 5, 7, 9, 11], 12).midicps
 		])
 	);
 
@@ -790,7 +789,8 @@ PR(\abstractProcess).v.clone({
 		'SynthDef' -> \makeSynthDef,
 		'Function' -> \makeFnDef,
 		'Patch' -> \makePatchDef,
-		'WrapPatch' -> \makePatchDef
+		'WrapPatch' -> \makePatchDef,
+		'FxPatch' -> \makePatchDef
 	];
 
 	~prepareArgsForOneDef = { |id|
@@ -811,16 +811,17 @@ PR(\abstractProcess).v.clone({
 			\delta, BPStream(\delta),
 			\sustain, BPStream(\sustain),
 			\instrument, Pfunc({ |ev|
-				(ev[\synthKey] == \rest).if({ \rest }, { ~objects[ev[\synthKey]][\name] })
+				(ev[\synthKey] == \rest).if({ \rest },
+					{ ~objects[ev[\synthKey]].tryPerform(\at, \name) ? \rest })
 			}),
 			\chan, ~chan
 		)
 	};
 
 	~asPattern = { 
-		~basePattern.value.collect(e { |ev|
+		~basePattern.value.collect({ |ev|
 			(ev[\synthKey] != \rest).if({
-				/*currentEnvironment.use({*/ ~getUserArgs.(ev) /*})*/;
+				~getUserArgs.(ev);
 			}, { ev });
 		});
 	};

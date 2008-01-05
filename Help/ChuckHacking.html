@@ -11,16 +11,16 @@ p.p1 {margin: 0.0px 0.0px 0.0px 0.0px; font: 20.0px Helvetica}
 p.p2 {margin: 0.0px 0.0px 0.0px 0.0px; font: 12.0px Helvetica; min-height: 14.0px}
 p.p3 {margin: 0.0px 0.0px 0.0px 0.0px; font: 12.0px Helvetica}
 p.p4 {margin: 0.0px 0.0px 0.0px 0.0px; font: 16.0px Helvetica}
-p.p5 {margin: 0.0px 0.0px 0.0px 0.0px; font: 9.0px Monaco; color: #000000}
-p.p6 {margin: 0.0px 0.0px 0.0px 0.0px; font: 9.0px Monaco; color: #000000; min-height: 12.0px}
+p.p5 {margin: 0.0px 0.0px 0.0px 0.0px; font: 9.0px Monaco}
+p.p6 {margin: 0.0px 0.0px 0.0px 0.0px; font: 9.0px Monaco; min-height: 12.0px}
 p.p7 {margin: 0.0px 0.0px 0.0px 36.0px; font: 12.0px Helvetica}
-p.p8 {margin: 0.0px 0.0px 0.0px 0.0px; font: 9.0px Monaco; color: #0000bf}
-p.p9 {margin: 0.0px 0.0px 0.0px 0.0px; font: 9.0px Monaco; color: #007300}
-p.p10 {margin: 0.0px 0.0px 0.0px 0.0px; font: 9.0px Monaco; color: #bf0000}
+p.p8 {margin: 0.0px 0.0px 0.0px 0.0px; font: 9.0px Monaco; color: #0010c4}
+p.p9 {margin: 0.0px 0.0px 0.0px 0.0px; font: 9.0px Monaco; color: #007200}
+p.p10 {margin: 0.0px 0.0px 0.0px 0.0px; font: 9.0px Monaco; color: #c40000}
 span.s1 {text-decoration: underline}
-span.s2 {color: #0000bf}
+span.s2 {color: #0010c4}
 span.s3 {color: #000000}
-span.s4 {color: #007300}
+span.s4 {color: #007200}
 span.Apple-tab-span {white-space:pre}
 </style>
 </head>
@@ -33,7 +33,7 @@ span.Apple-tab-span {white-space:pre}
 <p class="p2"><br></p>
 <p class="p4"><b>API fundamentals:</b></p>
 <p class="p2"><br></p>
-<p class="p3">A process prototype is an Proto. Hard-coded classes are not permitted. Protos define variables and methods using environment variables:</p>
+<p class="p3">A process prototype is a Proto. Hard-coded classes are not permitted. Protos define variables and methods using environment variables:</p>
 <p class="p2"><br></p>
 <p class="p5">a = <span class="s2">Proto</span>({</p>
 <p class="p5"><span class="Apple-tab-span">	</span>~aVariable = 10;</p>
@@ -43,7 +43,7 @@ span.Apple-tab-span {white-space:pre}
 <p class="p5">a.aMethod(5);</p>
 <p class="p5">50<span class="Apple-converted-space"> </span></p>
 <p class="p2"><br></p>
-<p class="p7"><b>Note:</b> I tend to use closed functions for methods (indicated by the #). The functions are not required to be closed. Also, when you call a pseudo-method in an Proto, you will enter the Proto's environment. This is different from the behavior of functions in environments whose know variable has been set to true.</p>
+<p class="p7"><b>Note:</b> I tend to use closed functions for methods (indicated by the #). The functions are not required to be closed. Also, when you call a pseudo-method in a Proto, you will enter the Proto's environment. This is different from the behavior of functions in environments whose know variable has been set to true.</p>
 <p class="p2"><br></p>
 <p class="p3">Only one method is required in a process prototype: <i>asPattern</i>. The job of a process is to render itself as an event pattern to be played by the bound process (BP) container. Thus, a simple, single-purpose process prototype could be written as briefly as:<span class="Apple-converted-space"> </span></p>
 <p class="p2"><br></p>
@@ -112,7 +112,7 @@ span.Apple-tab-span {white-space:pre}
 <p class="p5"><span class="Apple-tab-span">	</span>~delta = 0.25;</p>
 <p class="p5"><span class="Apple-tab-span">	</span>~legato = 1.2;</p>
 <p class="p6"><span class="Apple-tab-span">	</span><span class="Apple-tab-span">	</span></p>
-<p class="p5"><span class="Apple-tab-span">	</span>~asPattern = { <span class="s2">|self|</span></p>
+<p class="p5"><span class="Apple-tab-span">	</span>~asPattern = {</p>
 <p class="p8"><span class="s3"><span class="Apple-tab-span">	</span><span class="Apple-tab-span">	</span></span>Pbind<span class="s3">(</span></p>
 <p class="p10"><span class="s3"><span class="Apple-tab-span">	</span><span class="Apple-tab-span">	</span><span class="Apple-tab-span">	</span><span class="Apple-tab-span">	</span></span>// makeProut renders the pattern into a changeable stream</p>
 <p class="p9"><span class="s3"><span class="Apple-tab-span">	</span><span class="Apple-tab-span">	</span><span class="Apple-tab-span">	</span></span>\degree<span class="s3">, </span><span class="s2">BPStream</span><span class="s3">(</span>\degree<span class="s3">),</span></p>
