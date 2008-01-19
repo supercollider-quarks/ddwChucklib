@@ -975,6 +975,7 @@ BP : AbstractChuckNewDict {
 				// process may need streams to be populated before midi input can commence
 				// must make them before wrapping in the midi process
 			this.prepareForPlay;
+			value.event.parent.isNil.if({ value[\event] = this.prepareEvent });
 			this.bindPR(PR((adverb ++ "MIDI").asSymbol), \nest);  // PR(wrapper) => this
 				// this chuck operation also makes the MIDIRecSocket
 			mrs.mbm.bindMRS(mrs, nil);	// always create a new buf here (nil); mrs => mbm
@@ -1074,7 +1075,6 @@ BP : AbstractChuckNewDict {
 	}
 
 		// play support
-		// will do nothing if not playing and doReset is false
 		// reversing argument order because quant is more important in performance
 	play { |argQuant, argClock, doReset, notify = true|
 		var	goTime;
@@ -1086,7 +1086,12 @@ BP : AbstractChuckNewDict {
 					{		// must set clock variable so event can be retriggered later
 						this.populateAdhocVariables(argClock);
 						value[\event] = this.prepareEvent;
-						goTime = this.eventSchedTime(argQuant)/*.debug("BP-play-gotime")*/;
+						(goTime = this.eventSchedTime(argQuant)).isNil.if({
+							"BP(%): Scheduling failed: scheduled time is earlier than now %.\n"
+								.format(collIndex, this.clock.beats).warn;
+							this.changed(\schedFailed);
+							^this
+						});
 						value[\eventSchedTime] = goTime;
 						value.put(\isPlaying, true);
 						notify.if({ this.changed(\play); });
@@ -1100,7 +1105,12 @@ BP : AbstractChuckNewDict {
 					{
 //"BP-play".postln;
 						this.populateAdhocVariables(argClock);
-						goTime = this.eventSchedTime(argQuant)/*.debug("BP-play-gotime")*/;
+						(goTime = this.eventSchedTime(argQuant)).isNil.if({
+							"BP(%): Scheduling failed: scheduled time is earlier than now %.\n"
+								.format(collIndex, this.clock.beats).warn;
+							this.changed(\schedFailed);
+							^this
+						});
 						value[\eventSchedTime] = goTime;
 						this.prepareForPlay(argQuant, argClock, doReset);
 						(this.clock == AppClock).if({
@@ -1154,13 +1164,11 @@ BP : AbstractChuckNewDict {
 			.put(\collIndex, collIndex);
 	}
 	eventSchedTime { |argQuant|
-		var	time, quant;
+		var	time;
 //"BP-eventSchedTime ".post;
 		this.exists.if({ 
-			time = (quant = this.quant(argQuant))
-//				.applyLatency(this.latency ? 0)
-				.schedTime(this.clock);
-			^quant.adjustTimeForLatency(time, this.leadTime, this.clock)
+			time = this.quant(argQuant).bpSchedTime(this);
+			(time >= this.clock.beats).if({ ^time }, { ^nil });
 		}, { ^nil });
 //.postln
 	}
@@ -1259,7 +1267,7 @@ BP : AbstractChuckNewDict {
 					// by entering the environment for asStream, PR/BP code can be simpler
 				this.asPattern.asStream;
 			});
-			^value.put(\eventStream, CleanupEventStream(stream,
+			^value.put(\eventStream, HJHCleanupStream(stream,
 				this.streamCleanupFunc(this, value), value.reuseCleanup ? false)).eventStream
 		}, { ^nil });
 	}
@@ -1270,7 +1278,7 @@ BP : AbstractChuckNewDict {
 			value.preparePlay;
 			value[\event] = event = this.prepareEvent;
 			value.put(\eventStreamPlayer, 
-				PausableEventStreamPlayer(this.asStream, event).refresh);
+				EventStreamPlayer(this.asStream, event).refresh);
 			^value[\eventStreamPlayer]
 		}, { ^nil });
 	}
@@ -1893,7 +1901,7 @@ MT : AbstractChuckNewDict {
 }
 
 MTNoteInfo {
-	var	<>bp, <>ready, <>noteNum, <owner;
+	var	<>bp, <>ready, <>noteNum, <owner, <schedFailed = false;
 	
 	*new { |bp, ready, noteNum, owner|
 		var new;
@@ -1906,6 +1914,7 @@ MTNoteInfo {
 	
 	playState {
 		^case { ready == true } { \ready } // ready takes precedence
+			{ schedFailed } { \late }
 			{ bp.isDriven } { \driven }
 			{ bp.isPlaying } { \playing }
 			{ \idle }
@@ -1914,12 +1923,25 @@ MTNoteInfo {
 	free { bp.removeDependant(this) }
 	
 	update { |obj, changer|
-		(changer == \free).if({
-			owner.removeAt(noteNum);
-		});
-		#[\play, \stop, \driven].includes(changer).if({  // ignore other messages
-			owner.changed(this);	// this should call the gui
-		});
+		case
+			{ changer == \free } {
+				owner.removeAt(noteNum);
+			}
+			{ #[\play, \stop, \driven].includes(changer) } {  // ignore other messages
+				schedFailed = false;
+				owner.changed(this);	// this should call the gui
+			}
+			{ changer == \schedFailed } {
+				schedFailed = true;
+				owner.changed(this);
+				AppClock.sched(3.0, {
+					schedFailed.if({
+						schedFailed = false;
+						owner.changed(this);
+					});
+					nil
+				});
+			}
 	}
 }
 
