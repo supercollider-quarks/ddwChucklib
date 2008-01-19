@@ -159,8 +159,31 @@ Event.default.copy => ProtoEvent(\default);
 // Event uses functions to schedule message sends according to timingOffset
 // copy these functions into Func repository for these events
 
-Event.default[\schedBundle] => Func(\schedEventBundle).subType_(\eventHelper);
-Event.default[\schedBundleArray] => Func(\schedEventBundleArray).subType_(\eventHelper);
+Event.default[\schedBundle] => Func(\basicSchedBundle).subType_(\eventHelper);
+Event.default[\schedBundleArray] => Func(\basicSchedBundleArray).subType_(\eventHelper);
+Event.default[\schedStrummedNote] => Func(\basicSchedStrummedNote).subType_(\eventHelper);
+
+
+//Func(\schedEventBundleArray).v.postcs
+//Func(\schedEventStrummedNote).v.postcs
+
+{ |lag, offset, server ...bundle|
+//[lag, offset, server, bundle].debug("in schedEventBundle");
+	(~immediateOSC ? false).if({
+		server.sendBundle(nil, *bundle)
+	}, {
+		Func(\basicSchedBundleArray).value(lag, offset, server, bundle)
+	});
+} => Func(\schedEventBundle).subType_(\eventHelper);
+{ |lag, offset, server, bundleArray|
+//[lag, offset, server, bundleArray].debug("in schedEventBundleArray");
+	(~immediateOSC ? false).if({
+		server.sendBundle(nil, *bundleArray)
+	}, {
+		Func(\basicSchedBundleArray).value(lag, offset, server, bundleArray)
+	});
+} => Func(\schedEventBundleArray).subType_(\eventHelper);
+
 Event.default[\schedStrummedNote] => Func(\schedEventStrummedNote).subType_(\eventHelper);
 
 
@@ -230,13 +253,13 @@ makeNode: {
 			(~polyargs.size > 0).if({
 				bundle = bundle.add(~node.setnMsg(*~polyargs));
 			});
-			Func(\schedEventBundleArray).doAction(~lag, ~server, bundle);
+			Func(\schedEventBundleArray).doAction(~lag, ~timingOffset, ~server, bundle);
 //			~server.listSendBundle(latency, bundle);
 (~trace == true).if({
-	Func(\schedEventBundle).doAction(~lag + 0.05, server, [\n_trace, nodeID]);
+	Func(\schedEventBundle).doAction(~lag + 0.05, ~timingOffset, server, [\n_trace, nodeID]);
 });
 			(~grain.not and: { ~hasGate ? false and: { (sustain = ~sustain.value).notNil } }).if({
-				Func(\schedEventBundle).doAction(~lag + sustain, ~server,
+				Func(\schedEventBundle).doAction(~lag + sustain, ~timingOffset, ~server,
 					[\n_set, nodeID, \gate, 0]);
 //				thisThread.clock.sched(sustain, {
 //					server.sendBundle(latency, [\n_set, nodeID, \gate, 0])
@@ -272,7 +295,7 @@ ProtoEvent(\singleSynthPlayer).v.copy.putAll((play: {
 		(~polyargs.size > 0).if({
 			msg = msg.add(~node.setnMsg(*~polyargs))
 		});
-		Func(\schedEventBundleArray).doAction(~lag, ~node.server, msg);
+		Func(\schedEventBundleArray).doAction(~lag, ~timingOffset, ~node.server, msg);
 //		~node.server.listSendBundle(~timingOffset !? { ~timingOffset / tempo }, msg);
 		(~debug ? false).if({
 			msg.postln 
@@ -303,7 +326,7 @@ play: { var args, nodeID;
 		~args = ~args.collect(_.flop).flop.collect(_.flat);
 		~node.do({ |node, i|
 //[node, ~args.wrapAt(i)].debug("arg set");
-			Func(\schedEventBundle).doAction(~lag, node.setMsg(*~args.wrapAt(i)));
+			Func(\schedEventBundle).doAction(~lag, ~timingOffset, node.setMsg(*~args.wrapAt(i)));
 //			node.server.sendBundle(~timingOffset !? { ~timingOffset / ~clock.tempo }, 
 //				node.setMsg(*~args.wrapAt(i)));
 		});
@@ -364,7 +387,7 @@ ProtoEvent(\singleSynthPlayer).v.copy.putAll((
 			nodeID = ~grain.if({ -1 }, { ~server.wrapAt(i).nextNodeID });
 			~node[i] = Synth.basicNew(instr, ~server.wrapAt(i), nodeID);
 			latency = (strum*i) + ~lag;
-			Func(\schedEventBundle).doAction(latency, ~server.wrapAt(i),
+			Func(\schedEventBundle).doAction(latency, ~timingOffset, ~server.wrapAt(i),
 				~node[i].newMsg(~target.wrapAt(i), 
 					~args.wrapAt(i) ++ [\out, ~bus.wrapAt(i).index,
 					\i_out, ~bus.wrapAt(i).index, \outbus, ~bus.wrapAt(i).index],
@@ -378,7 +401,7 @@ ProtoEvent(\singleSynthPlayer).v.copy.putAll((
 //						);
 // add gate handling here
 			(~grain.not and: { ~hasGate ? false and: { (sustain = ~sustain.value).notNil } }).if({
-				Func(\schedEventBundle).doAction(latency + sustain, ~server,
+				Func(\schedEventBundle).doAction(latency + sustain, ~timingOffset, ~server,
 					[\n_set, nodeID, \gate, 0]);
 			});
 		});
@@ -479,11 +502,12 @@ ProtoEvent(\polySynthPlayer).v.copy.putAll((
 //	currentEnvironment.debug;
 //});
 		~nodes.do({ |node, i|
-			var	freq = ~freq.wrapAt(i);
-			Func(\schedEventBundleArray).doAction(lag, node.server, node.server.makeBundle(false, {
-				node.trigger(freq, ~gate.wrapAt(i), ~args.wrapAt(i));
-			}));
-			~length.wrapAt(i).notNil.if({
+			var	freq = ~freq.wrapAt(i), length = ~length.wrapAt(i);
+			Func(\schedEventBundleArray).doAction(lag, ~timingOffset, node.server,
+				node.server.makeBundle(false, {
+					node.trigger(freq, ~gate.wrapAt(i), ~args.wrapAt(i));
+				}));
+			(length.notNil and: { length != inf }).if({
 					// can't use schedEventBundle
 					// because you must not release the VoicerNode
 					// until the proper time comes
@@ -497,11 +521,15 @@ ProtoEvent(\polySynthPlayer).v.copy.putAll((
 	releaseNote: #{
 //"\nvoicerNote-releaseNote".postln;
 //currentEnvironment.postln;
-		~voicer.release(~midiNoteToFreq.value(~freq ? ~note.freq),
-			((~lag + ~timingOffset) / ~clock.tempo) + ~voicer.target.server.latency);
+		(~immediateOSC ? false).if({
+			~voicer.release(~midiNoteToFreq.value(~freq ?? { ~note.freq }));
+		}, {
+			~voicer.release(~midiNoteToFreq.value(~freq ? ~note.freq),
+				((~lag + ~timingOffset) / ~clock.tempo) + ~voicer.target.server.latency);
+		});
 	},
 	
-	keysToPropagate: #[\voicer, \midi, \mode, \timingOffset, \argKeys]
+	keysToPropagate: #[\voicer, \midi, \mode, \timingOffset, \argKeys, \immediateOSC]
 ) => ProtoEvent(\voicerNote);
 
 // synthNote
@@ -549,7 +577,7 @@ ProtoEvent(\voicerNote).v.copy.putAll((
 		synth = Synth.basicNew(~instrument, server);
 			// if groupbus is not nil, then ~target is a MixerChannel
 		(groupbus = ~target.tryPerform(\groupBusInfo)).notNil.if({
-			Func(\schedEventBundle).doAction(~lag, server, synth.newMsg(groupbus[0],
+			Func(\schedEventBundle).doAction(~lag, ~timingOffset, server, synth.newMsg(groupbus[0],
 					~args ++ [\outbus, groupbus[1], \out, groupbus[1],
 					\freq, freq, \gate, gate], \addToTail));
 //			server.sendBundle(~timingOffset !? { ~timingOffset / ~clock.tempo }, 
@@ -557,13 +585,13 @@ ProtoEvent(\voicerNote).v.copy.putAll((
 //					~args ++ [\outbus, groupbus[1], \out, groupbus[1],
 //					\freq, freq, \gate, gate], \addToTail));
 		}, {
-			Func(\schedEventBundle).doAction(~lag, server, synth.newMsg(~target,
+			Func(\schedEventBundle).doAction(~lag, ~timingOffset, server, synth.newMsg(~target,
 					~args ++ [\outbus, ~out, \out, ~out, \freq, freq, \gate, gate], \addToTail));
 //			server.sendBundle(~timingOffset !? { ~timingOffset / ~clock.tempo }, synth.newMsg(~target,
 //				~args ++ [\outbus, ~out, \out, ~out, \freq, freq, \gate, gate], \addToTail));
 		});
 		~hasGate.if({
-			Func(\schedEventBundle).doAction(~lag + length, synth.server,
+			Func(\schedEventBundle).doAction(~lag + length, ~timingOffset, synth.server,
 				synth.setMsg(\gate, 0));
 //			~clock.sched(length, {
 //				server.sendBundle(~timingOffset !? { ~timingOffset / ~clock.tempo },
@@ -634,7 +662,7 @@ ProtoEvent(\voicerNote).v.copy.putAll((
 		));
 
 //"populating stream player".postln;
-		~child.put(\eventStreamPlayer, childStreamTemp = PausableEventStreamPlayer(
+		~child.put(\eventStreamPlayer, childStreamTemp = EventStreamPlayer(
 			~child.eventStream,
 			childEvent
 		).refresh);
@@ -681,7 +709,11 @@ ProtoEvent(\melWrap).v.copy.make({
 	~wrapPattern = #{ |pattern|
 //		var	id = UniqueID.next;
 //[~length, id, thisThread.clock.beats, thisThread.clock.beats + ~length].debug("wrapping child pattern");
-		pattern = Pfindur(~length-0.01, pattern);
+		(~length != inf).if({
+			pattern = Pfindur(~length-0.01, pattern);
+		}, {
+			pattern
+		});
 //		Pseq([pattern, Pfuncn({ [id, thisThread.clock.beats].debug("stopping child event"); nil }, 1)], 1);
 	};
 	
