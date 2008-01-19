@@ -53,6 +53,7 @@ PR(\abstractProcess).v.clone({
 	~adaptProb = 1; //0.4;
 	~variantThreshold = 4;	// when more than 4 variants, drop some; see ~eugenicize
 	~splitFunc = \noSplit;	// specify using buf.chuck(aBP, mel, (splitFunc: \xxx))
+	~defaultMIDIType = \mel;
 	
 	~newMelFlag = false;	// internal flag: when a new melody is given, this becomes true
 
