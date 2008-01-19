@@ -3,6 +3,8 @@
 // people keep making changes to streams that break compatibility,
 // so this is to make sure my stuff keeps working
 
+// most of these are deprecated now, though I still use HJHCleanupStream
+
 PauseStreamHJH : Stream
 {
 	var <stream, <originalStream, <clock, <nextBeat, <streamHasEnded=false;
@@ -71,7 +73,7 @@ PauseStreamHJH : Stream
 	}
 }
 
-CleanupEventStream : Stream {
+HJHCleanupStream : Stream {
 	var <stream, <>cleanup, <>reuseCleanupFunc;
 	
 	*new { arg stream, cleanup, reuseCleanupFunc = false;
@@ -101,8 +103,6 @@ CleanupEventStream : Stream {
 PausableEventStreamPlayer : PauseStreamHJH {
 	var <>event, <>muteCount = 0, <>cleanup;
 
-var <>id;
-	
 	*new { arg stream, event;
 		^super.new(stream).event_(event ? Event.default);
 	}
