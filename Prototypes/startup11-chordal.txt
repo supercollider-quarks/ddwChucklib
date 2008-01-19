@@ -123,6 +123,7 @@ error
 //"chord-asPattern".postln;
 //inEvent.postln;
 		result.notNil.if({
+			~lastFitNotes = result;
 			ArpegPat(inEvent[\arpegType]).asPattern(result, inEvent)
 //.postcs
 		}, {
@@ -449,7 +450,7 @@ PR(\basicMacroRh).v.clone({
 
 		// more modularization
 		// sans top is to allow MIDI input when top melody is not already given
-	~patternSansTop = #{ |inEvent|
+	~patternSansTop = #{
 		PbindMultiChan(#[\delta, \length], ~makeProut.value(\macro),
 			\arpegType, ~makeProut.value(\arpeg),
 			\microRhythm,	~makeProut.value(\micro),
@@ -460,7 +461,7 @@ PR(\basicMacroRh).v.clone({
 		.collect(e { |ev| currentEnvironment.put(\lastEvent, ev); ev });
 	};
 	
-	~patternAvecTop = #{ |inEvent|
+	~patternAvecTop = #{
 		~topNotePattern = ~topNote.asPattern;
 		PbindMultiChan(#[\delta, \length], ~makeProut.value(\macro),
 			\arpegType, ~makeProut.value(\arpeg),
@@ -476,18 +477,18 @@ PR(\basicMacroRh).v.clone({
 		});
 	};
 
-	~asPattern = #{ |inEvent|
+	~asPattern = #{
 		var	out;
 			// topNote may be supplied by MIDI; in that case, don't include in Pbind
 		~topNote.isNil.if({
-			out = ~patternSansTop.value(inEvent)
+			out = ~patternSansTop.value
 		}, {
-			out = ~patternAvecTop.value(inEvent)
+			out = ~patternAvecTop.value
 		});
 		(~argPairs.size > 0).if({
 				// ~argPairs[0, 2..] gets every even index (e.g. symbolic keys)
 			Pbindf(out, \argKeys, ~argPairs[0, 2..], * ~argPairs)
-		}, { out });
+		}, { out })
 	};
 	
 }, nil, #[\rewrapKeys, \requiredKeys]) => PR(\macroRh);
@@ -495,8 +496,8 @@ PR(\basicMacroRh).v.clone({
 PR(\macroRh).v.clone({
 	~requiredKeys = ~requiredKeys.copy;
 	~requiredKeys.remove(\macro);
-	~patternSansTop = #{ |inEvent|
-		PbindMultiChan(#[\delta, \length], inf,	// for midi input, we don't know the length yet
+	~patternSansTop = #{
+		PbindMultiChan(#[\delta, \length], [0.1, inf],	// for midi input, we don't know the length yet
 			\arpegType, ~makeProut.value(\arpeg),
 			\microRhythm,	~makeProut.value(\micro),
 			\bassID, Pfunc({ ~bassID ? \currentBassNote }),
@@ -507,7 +508,7 @@ PR(\macroRh).v.clone({
 		.collect(e { |ev| currentEnvironment.put(\lastEvent, ev); ev });
 	};
 	
-	~patternAvecTop = #{ |inEvent|
+	~patternAvecTop = #{
 //		~topNotePattern = ~topNote.asNotePattern;
 		~topNotePattern = ~topNote.asPattern;
 		PbindMultiChan(
