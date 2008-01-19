@@ -39,21 +39,28 @@ PR(\abstractProcess).v.clone({
 
 PR(\abstractMIDIInput).v.clone({
 	~defaultMIDIType = \mel;
-	~preparePlay = #{  currentEnvironment
+	~preparePlay = #{
+		~midiNotesOn = IdentitySet.new;
 	};
 	~getMIDIParser = #{ |socket|
 		~parser = MelodyParser(nil, currentEnvironment, socket, ~child.clock)
 	};
 		// use ~collIndex
 	~midiCleanup = #{ 
-		var	bp = BP(~collIndex), buf, quant = ~replayTimeSpec.applyLatency(bp.latency);
+		var	bp = BP(~collIndex), buf, quant;
 		bp.unwrap(false);
 			// insert your own processing here -- parsing, quantization
 		buf = ~postRecFunc.value(~parser.recSocket.buf, bp);
-		bp.clock.schedAbs(quant.schedTime(bp.clock) - 0.05, { bp.stopNow });
-		bp.clock.schedAbs(quant.schedTime(bp.clock), {
-			bp.bindMIDIRecBuf(buf, ~defaultMIDIType);
-			bp.play(NilTimeSpec.new, doReset:true);
+		bp.bindMIDIRecBuf(buf, ~defaultMIDIType);
+		quant = ~replayTimeSpec.asTimeSpec;
+		bp.clock.schedAbs(
+			quant.adjustTimeForLatency(quant.nextTimeOnGrid(bp.clock), bp.leadTime, bp.clock) - 0.05,
+			{ bp.stopNow });
+		(~doReplay ? false).if({
+			bp.clock.schedAbs(quant.adjustTimeForLatency(quant.nextTimeOnGrid(bp.clock),
+					bp.leadTime, bp.clock), {
+				bp.play(NilTimeSpec.new, doReset:true);
+			});
 		});
 	};
 	
@@ -68,7 +75,8 @@ PR(\abstractMIDIInput).v.clone({
 			// save this note -- when a note is released, this goes into that event
 			// so that event can check for overlapping notes
 "saving last midi note".postln;
-		~child.put(\lastMIDINoteOn, note);
+		~midiNotesOn.add(note.asFloat);
+		~lastMIDINoteOn = note.asFloat;
 			// let child process determine how to handle the note
 			// by setting length to nil, we tell child process the note will be terminated later
 "playing event".postln;
@@ -77,13 +85,17 @@ PR(\abstractMIDIInput).v.clone({
 	~preparePlayEvent = #{ |note|
 		~child.event.copy.put(\note, note.copy.length_(nil))
 			.put(\midi, true)
+			.put(\immediateOSC, true)
 			.play;
 	};
 		// should be able to receive an array of notes
 	~melNoteOff = #{ |note|
 //["MIDI process-noteOff", note.asString].postln;
+//~child.event[\releaseNote].postcs;
+		~midiNotesOn.remove(note.asFloat);
 		~child.event.copy
 			.put(\note, note)
+			.put(\immediateOSC, true)
 //			.put(\lastMIDINoteOn, ~child[\lastMIDINoteOn])
 			.use({ ~releaseNote.value; });
 	};
@@ -135,8 +147,11 @@ PR(\melMIDI).v.clone({
 	~defaultMIDIType = \mel;	// chord processes place mel into topNote
 	~preparePlayEvent = #{ |note|
 		var	mode = ~parser.recSocket.buf.properties.tryPerform(\at, \mode) ?? { ~child.mode ? \default };
+		~melNoteOff.(note);	// polyphony is not allowed
 		~child.eventStream.next(~child.event.copy)
+			.put(\delta, 0.1)
 			.put(\length, inf)
+			.put(\immediateOSC, true)
 			.put(\top, (note: note.copy.mapMode(mode), mode: mode))
 			.put(\midi, false)
 			.play;
@@ -147,12 +162,19 @@ PR(\melMIDI).v.clone({
 
 		// this one should only stop the stream if releasing the last played note
 	~melNoteOff = #{ |note|
-//["MIDI process-noteOff", note.asString].postln;
-		(~lastMIDINoteOn == note).if({
-			~child.event.copy
-				.put(\note, note)
-				.use({ ~releaseNote.value; });
+		var	currentChord = ~child.child.currentChord, notes;
+note.asFloat.debug("melNoteOff");
+		currentChord.notNil.if({
+			notes = currentChord.lastFitNotes.asFloat
+				.unmapMode(currentChord.modeForEvent(~child.lastEvent));
+			(~lastMIDINoteOn == note.asFloat).if({
+				~child.child.event.copy
+					.put(\freq, notes)
+					.put(\immediateOSC, true)
+					.use({ ~releaseNote.value; });
+			});
 		});
+		~midiNotesOn.remove(note.asFloat);
 	};
 }) => PR(\topMIDI);
 
