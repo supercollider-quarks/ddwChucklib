@@ -871,7 +871,7 @@ PR(\transient_analysis_buffer).v.clone({
 	};
 	
 	~makeFFTThread = { 
-		~fftThread = CleanupEventStream(
+		~fftThread = HJHCleanupStream(
 			Routine({
 				var	audio, srcfft, spec;
 				loop {
@@ -940,7 +940,7 @@ PR(\transient_analysis_buffer).v.clone({
 	};
 	
 	~makeCmpThread = { 
-		~cmpThread = CleanupEventStream(
+		~cmpThread = HJHCleanupStream(
 			Routine({
 				var	spec, lastspec, errors = 0, recoveredFrom;
 				loop {
