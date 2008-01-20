@@ -7,7 +7,7 @@
 <meta name="Generator" content="Cocoa HTML Writer">
 <meta name="CocoaVersion" content="824.44">
 <style type="text/css">
-p.p1 {margin: 0.0px 0.0px 0.0px 0.0px; font: 16.0px Helvetica; color: #000000}
+p.p1 {margin: 0.0px 0.0px 0.0px 0.0px; font: 16.0px Helvetica}
 p.p2 {margin: 0.0px 0.0px 0.0px 0.0px; font: 12.0px Helvetica; min-height: 14.0px}
 p.p3 {margin: 0.0px 0.0px 0.0px 0.0px; font: 12.0px Helvetica}
 p.p4 {margin: 0.0px 0.0px 0.0px 0.0px; font: 9.0px Monaco; color: #007300}
@@ -85,7 +85,7 @@ span.Apple-tab-span {white-space:pre}
 <p class="p6"><span class="s2">Prand</span>([<span class="s4">\up</span>, <span class="s4">\down</span>, <span class="s4">\random</span>], <span class="s2">inf</span>) =&gt;.arpeg <span class="s2">BP</span>(<span class="s4">\ch1</span>);</p>
 <p class="p2"><br></p>
 <p class="p3">A Symbol may be used to retrieve a predefined pattern from the Pdefn class; if the Pdefn doesn't exist, the Symbol will be turned into a pattern that outputs itself: Pn(symbol, inf).</p>
-<p class="p2"><br></p>
+<p class="p7"><br></p>
 <p class="p5"><span class="s2">Pdefn</span><span class="s3">(</span><span class="s4">\randomArpeg</span><span class="s3">, </span><span class="s2">Prand</span><span class="s3">([</span><span class="s4">\up</span><span class="s3">, </span><span class="s4">\down</span><span class="s3">, </span><span class="s4">\random</span><span class="s3">], </span><span class="s2">inf</span><span class="s3">));<span class="Apple-converted-space">  </span></span>// in your setup code; then...</p>
 <p class="p4">\randomArpeg<span class="s3"> =&gt;.arpeg </span><span class="s2">BP</span><span class="s3">(</span>\ch1<span class="s3">);</span></p>
 <p class="p9"><br></p>
@@ -101,11 +101,10 @@ span.Apple-tab-span {white-space:pre}
 <p class="p3"><b>1</b> (any SimpleNumber) -- begin playing at the next multiple of this number</p>
 <p class="p3"><b>[a, b]</b> (where a and b are simple numbers) -- begin playing at b + the next multiple of a</p>
 <p class="p3"><b>NilTimeSpec()</b> -- begin playing exactly now</p>
+<p class="p3"><b>BasicTimeSpec(quant, phase, offset)</b> -- like standard scheduling: quant, phase, timing offset (see <b>[</b><b><span class="s1">Quant</span></b><b>]</b>)</p>
 <p class="p3"><b>DelayTimeSpec(number)</b> -- begin playing exactly now + number</p>
 <p class="p3"><b>AbsoluteTimeSpec(number)</b> -- begin playing at exactly the time specified</p>
 <p class="p3"><span class="Apple-tab-span">	</span>This object is not valid after the given time passes.</p>
-<p class="p3"><b>BasicTimeSpec(number)</b> -- begin playing at the next multiple of this number</p>
-<p class="p3"><b>QuantOffsetTimeSpec(a, b)</b> -- begin playing at b + the next multiple of a</p>
 <p class="p2"><br></p>
 <p class="p3">Note that BasicTimeSpec is the same thing as using a simple number, and QuantOffsetTimeSpec is the same as a two element array.</p>
 <p class="p2"><br></p>
