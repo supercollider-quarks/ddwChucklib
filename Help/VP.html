@@ -9,16 +9,16 @@
 <style type="text/css">
 p.p1 {margin: 0.0px 0.0px 0.0px 0.0px; font: 12.0px Helvetica}
 p.p2 {margin: 0.0px 0.0px 0.0px 0.0px; font: 12.0px Helvetica; min-height: 14.0px}
-p.p3 {margin: 0.0px 0.0px 0.0px 0.0px; font: 9.0px Monaco; color: #bf0000}
-p.p4 {margin: 0.0px 0.0px 0.0px 0.0px; font: 9.0px Monaco; color: #007300}
-p.p5 {margin: 0.0px 0.0px 0.0px 0.0px; font: 9.0px Monaco; color: #000000; min-height: 12.0px}
-p.p6 {margin: 0.0px 0.0px 0.0px 0.0px; font: 9.0px Monaco; color: #000000}
-p.p7 {margin: 0.0px 0.0px 0.0px 0.0px; font: 9.0px Monaco; color: #0000bf}
+p.p3 {margin: 0.0px 0.0px 0.0px 0.0px; font: 9.0px Monaco; color: #a41919}
+p.p4 {margin: 0.0px 0.0px 0.0px 0.0px; font: 9.0px Monaco; color: #36701f}
+p.p5 {margin: 0.0px 0.0px 0.0px 0.0px; font: 9.0px Monaco; min-height: 12.0px}
+p.p6 {margin: 0.0px 0.0px 0.0px 0.0px; font: 9.0px Monaco}
+p.p7 {margin: 0.0px 0.0px 0.0px 0.0px; font: 9.0px Monaco; color: #001ab2}
 span.s1 {font: 14.0px Helvetica}
-span.s2 {text-decoration: underline}
-span.s3 {color: #0000bf}
+span.s2 {color: #0000ff}
+span.s3 {color: #001ab2}
 span.s4 {color: #000000}
-span.s5 {color: #007300}
+span.s5 {color: #36701f}
 span.s6 {color: #606060}
 span.Apple-tab-span {white-space:pre}
 </style>
@@ -26,7 +26,7 @@ span.Apple-tab-span {white-space:pre}
 <body>
 <p class="p1"><span class="s1"><b>VP(int)</b></span> -- VoicerProxy -- prNew<span class="Apple-converted-space"> </span></p>
 <p class="p2"><br></p>
-<p class="p1">A Voicer GUI is not actually connected directly to its model (which is the Voicer itself). In normal use, it silently creates a <b>[</b><b><span class="s2">VoicerProxy</span></b><b>]</b> object. This enables you to reuse the Voicer GUI for a different Voicer, simply by changing the target of the proxy.</p>
+<p class="p1">A Voicer GUI is not actually connected directly to its model (which is the Voicer itself). In normal use, it silently creates a <a href="../../ddwVoicer/Help/VoicerProxy.html"><span class="s2">VoicerProxy</span></a> object. This enables you to reuse the Voicer GUI for a different Voicer, simply by changing the target of the proxy.</p>
 <p class="p2"><br></p>
 <p class="p1">The example GUI design creates an array of empty Voicer GUIs that can be used for different Voicers, or process parameters, at different times in a performance. The proxies are stored in the VP class. At any time, you can chuck a VC into the VP and the display will update automatically.</p>
 <p class="p2"><br></p>

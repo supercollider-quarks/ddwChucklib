@@ -11,15 +11,15 @@ p.p1 {margin: 0.0px 0.0px 0.0px 0.0px; font: 18.0px Helvetica}
 p.p2 {margin: 0.0px 0.0px 0.0px 0.0px; font: 12.0px Helvetica; min-height: 14.0px}
 p.p3 {margin: 0.0px 0.0px 0.0px 0.0px; font: 12.0px Helvetica}
 p.p4 {margin: 0.0px 0.0px 0.0px 0.0px; font: 14.0px Helvetica}
-p.p5 {margin: 0.0px 0.0px 0.0px 0.0px; font: 9.0px Monaco; color: #bf0000}
-p.p6 {margin: 0.0px 0.0px 0.0px 0.0px; font: 9.0px Monaco; color: #000000}
-p.p7 {margin: 0.0px 0.0px 0.0px 0.0px; font: 9.0px Monaco; color: #000000; min-height: 12.0px}
-p.p8 {margin: 0.0px 0.0px 0.0px 0.0px; font: 9.0px Monaco; color: #007300}
-span.s1 {text-decoration: underline}
-span.s2 {color: #0000bf}
+p.p5 {margin: 0.0px 0.0px 0.0px 0.0px; font: 9.0px Monaco; color: #a41919}
+p.p6 {margin: 0.0px 0.0px 0.0px 0.0px; font: 9.0px Monaco}
+p.p7 {margin: 0.0px 0.0px 0.0px 0.0px; font: 9.0px Monaco; min-height: 12.0px}
+p.p8 {margin: 0.0px 0.0px 0.0px 0.0px; font: 9.0px Monaco; color: #36701f}
+span.s1 {color: #0000ff}
+span.s2 {color: #001ab2}
 span.s3 {color: #000000}
-span.s4 {color: #007300}
-span.s5 {color: #bf0000}
+span.s4 {color: #36701f}
+span.s5 {color: #a41919}
 span.Apple-tab-span {white-space:pre}
 </style>
 </head>
@@ -32,7 +32,7 @@ span.Apple-tab-span {white-space:pre}
 <p class="p2"><br></p>
 <p class="p3">To begin playing, you need to chuck the BP instance into a VC to specify what should play the notes, and chuck in a MIDIRecBuf holding the notes to play.</p>
 <p class="p2"><br></p>
-<p class="p3"><b>Note:</b> Code in this help file is intended for illustration only. Proper execution depends on resources that will not be created in this file. For a working example, see <b>[</b><b><span class="s1">ChuckExamples</span></b><b>]</b>.</p>
+<p class="p3"><b>Note:</b> Code in this help file is intended for illustration only. Proper execution depends on resources that will not be created in this file. For a working example, see <a href="ChuckExamples.html"><span class="s1">ChuckExamples</span></a>.</p>
 <p class="p2"><br></p>
 <p class="p5"><span class="s2">PR</span><span class="s3">(</span><span class="s4">\aiMel</span><span class="s3">) =&gt; </span><span class="s2">BP</span><span class="s3">(</span><span class="s4">\mel</span><span class="s3">);<span class="Apple-tab-span">	</span></span>// create the instance</p>
 <p class="p5"><span class="s2">BP</span><span class="s3">(</span><span class="s4">\mel</span><span class="s3">) =&gt; </span><span class="s2">VC</span><span class="s3">(</span><span class="s4">\instrument</span><span class="s3">);<span class="Apple-tab-span">	</span></span>// assign to a Voicer to render the notes</p>
@@ -55,7 +55,7 @@ span.Apple-tab-span {white-space:pre}
 <p class="p2"><br></p>
 <p class="p4"><b>Modal representation</b></p>
 <p class="p2"><br></p>
-<p class="p3">The MIDI buffers should contain the pitches in a chromatic representation, typically MIDI note numbers but you can use a different representation for non twelve-tone temperaments. It converts the notes to a modal representation by reference to a <b>[</b><b><span class="s1">ModalSpec</span></b><b>]</b> object, which may be held in the <b>[</b><b><span class="s1">Mode</span></b><b>]</b> storage class.</p>
+<p class="p3">The MIDI buffers should contain the pitches in a chromatic representation, typically MIDI note numbers but you can use a different representation for non twelve-tone temperaments. It converts the notes to a modal representation by reference to a <a href="../../ddwTemperament/Help/ModalSpec.html"><span class="s1">ModalSpec</span></a> object, which may be held in the <a href="Mode.html"><span class="s1">Mode</span></a> storage class.</p>
 <p class="p2"><br></p>
 <p class="p3">If no mode is specified, Mode(\default) is used. You may specify the mode as a property of the MIDI buffer, or as a chucking parameter.</p>
 <p class="p2"><br></p>

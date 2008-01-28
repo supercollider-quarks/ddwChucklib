@@ -10,16 +10,16 @@
 p.p1 {margin: 0.0px 0.0px 0.0px 0.0px; font: 16.0px Helvetica}
 p.p2 {margin: 0.0px 0.0px 0.0px 0.0px; font: 12.0px Helvetica; min-height: 14.0px}
 p.p3 {margin: 0.0px 0.0px 0.0px 0.0px; font: 12.0px Helvetica}
-p.p4 {margin: 0.0px 0.0px 0.0px 0.0px; font: 9.0px Monaco; color: #007300}
-p.p5 {margin: 0.0px 0.0px 0.0px 0.0px; font: 9.0px Monaco; color: #bf0000}
-p.p6 {margin: 0.0px 0.0px 0.0px 0.0px; font: 9.0px Monaco; color: #000000}
-p.p7 {margin: 0.0px 0.0px 0.0px 0.0px; font: 12.0px Helvetica; color: #000000; min-height: 14.0px}
-p.p8 {margin: 0.0px 0.0px 0.0px 0.0px; font: 14.0px Helvetica}
-p.p9 {margin: 0.0px 0.0px 0.0px 0.0px; font: 9.0px Monaco; color: #000000; min-height: 12.0px}
+p.p4 {margin: 0.0px 0.0px 0.0px 0.0px; font: 9.0px Monaco; color: #36701f}
+p.p5 {margin: 0.0px 0.0px 0.0px 0.0px; font: 9.0px Monaco; color: #a41919}
+p.p6 {margin: 0.0px 0.0px 0.0px 0.0px; font: 9.0px Monaco}
+p.p7 {margin: 0.0px 0.0px 0.0px 0.0px; font: 14.0px Helvetica}
+p.p8 {margin: 0.0px 0.0px 0.0px 0.0px; font: 9.0px Monaco; min-height: 12.0px}
 span.s1 {text-decoration: underline}
-span.s2 {color: #0000bf}
+span.s2 {color: #001ab2}
 span.s3 {color: #000000}
-span.s4 {color: #007300}
+span.s4 {color: #36701f}
+span.s5 {color: #0000ff}
 span.Apple-tab-span {white-space:pre}
 </style>
 </head>
@@ -33,10 +33,10 @@ span.Apple-tab-span {white-space:pre}
 <p class="p4"><span class="s2">PR</span><span class="s3">(</span>\simplePbind<span class="s3">) =&gt; </span><span class="s2">BP</span><span class="s3">(</span>\pbind1<span class="s3">);</span></p>
 <p class="p5"><span class="s2">BP</span><span class="s3">(</span><span class="s4">\pbind1</span><span class="s3">).play(4);<span class="Apple-converted-space">  </span></span>// start it on the next multiple of 4 beats</p>
 <p class="p6"><span class="s2">BP</span>(<span class="s4">\pbind1</span>).stop(4);<span class="Apple-converted-space"> </span></p>
-<p class="p7"><br></p>
+<p class="p2"><br></p>
 <p class="p5"><span class="s2">BP</span><span class="s3">(</span><span class="s4">\pbind1</span><span class="s3">).free;<span class="Apple-converted-space">  </span></span>// you ought to clean up after yourself</p>
 <p class="p2"><br></p>
-<p class="p8"><b>Objects that can be chucked into a bound process:</b></p>
+<p class="p7"><b>Objects that can be chucked into a bound process:</b></p>
 <p class="p2"><br></p>
 <p class="p3"><b>Processes:</b></p>
 <p class="p3"><i>BP</i></p>
@@ -54,7 +54,7 @@ span.Apple-tab-span {white-space:pre}
 <p class="p6"><span class="s2">BP</span>(<span class="s4">\ch1</span>).unwrap =&gt; <span class="s2">BP</span>(<span class="s4">\saveWrapper</span>);</p>
 <p class="p5">// or:</p>
 <p class="p6"><span class="s2">BP</span>(<span class="s4">\ch1</span>).v.child =&gt; <span class="s2">BP</span>(<span class="s4">\saveChild</span>);</p>
-<p class="p9"><br></p>
+<p class="p8"><br></p>
 <p class="p5">// later:</p>
 <p class="p5"><span class="s2">BP</span><span class="s3">(</span><span class="s4">\saveWrapper</span><span class="s3">) =&gt;.wrap </span><span class="s2">BP</span><span class="s3">(</span><span class="s4">\ch2</span><span class="s3">);<span class="Apple-converted-space">  </span></span>// apply earlier wrapper to another chord process</p>
 <p class="p2"><br></p>
@@ -85,35 +85,33 @@ span.Apple-tab-span {white-space:pre}
 <p class="p6"><span class="s2">Prand</span>([<span class="s4">\up</span>, <span class="s4">\down</span>, <span class="s4">\random</span>], <span class="s2">inf</span>) =&gt;.arpeg <span class="s2">BP</span>(<span class="s4">\ch1</span>);</p>
 <p class="p2"><br></p>
 <p class="p3">A Symbol may be used to retrieve a predefined pattern from the Pdefn class; if the Pdefn doesn't exist, the Symbol will be turned into a pattern that outputs itself: Pn(symbol, inf).</p>
-<p class="p7"><br></p>
+<p class="p2"><br></p>
 <p class="p5"><span class="s2">Pdefn</span><span class="s3">(</span><span class="s4">\randomArpeg</span><span class="s3">, </span><span class="s2">Prand</span><span class="s3">([</span><span class="s4">\up</span><span class="s3">, </span><span class="s4">\down</span><span class="s3">, </span><span class="s4">\random</span><span class="s3">], </span><span class="s2">inf</span><span class="s3">));<span class="Apple-converted-space">  </span></span>// in your setup code; then...</p>
 <p class="p4">\randomArpeg<span class="s3"> =&gt;.arpeg </span><span class="s2">BP</span><span class="s3">(</span>\ch1<span class="s3">);</span></p>
-<p class="p9"><br></p>
+<p class="p8"><br></p>
 <p class="p5">// to use only one arpeggiation pattern:</p>
 <p class="p5"><span class="s4">\down</span><span class="s3"> =&gt;.arpeg </span><span class="s2">BP</span><span class="s3">(</span><span class="s4">\ch1</span><span class="s3">);<span class="Apple-tab-span">	</span></span>// BP receives Pn(\down, inf)</p>
 <p class="p2"><br></p>
-<p class="p8"><b>BP scheduling:</b></p>
+<p class="p7"><b>BP scheduling:</b></p>
 <p class="p2"><br></p>
-<p class="p3">Chucklib scheduling is compatible with pattern scheduling. The quant argument helps compute the absolute time (in beats) when the first event should occur. The event stream player thread will wake up at exactly that time. Events use the server's latency settings to delay execution of OSC messages to the server just slightly, preventing timing jitter due to inconsistencies in the amount of time it takes to transmit each message over the network. (See the server timing help file for more information.) Since all events delay by the same amount, everything remains in sync.</p>
+<p class="p3">Chucklib scheduling is compatible with pattern scheduling. The quant argument helps compute the absolute time (in beats) when the first event should occur. The event stream player thread will wake up at exactly that time. Events use the server's latency settings to delay execution of OSC messages to the server just slightly, preventing timing jitter due to inconsistencies in the amount of time it takes to transmit each message over the network. (See the <a href="SC://ServerTiming"><span class="s5">ServerTiming</span></a> help file for more information.) Since all events delay by the same amount, everything remains in sync.</p>
 <p class="p2"><br></p>
-<p class="p3">For the quant argument, you may use:</p>
+<p class="p3">For the quant argument, you may use -- see <a href="../../ddwCommon/Help/TimeSpec.html"><span class="s5">TimeSpec</span></a> for more details.</p>
 <p class="p2"><br></p>
 <p class="p3"><b>1</b> (any SimpleNumber) -- begin playing at the next multiple of this number</p>
 <p class="p3"><b>[a, b]</b> (where a and b are simple numbers) -- begin playing at b + the next multiple of a</p>
 <p class="p3"><b>NilTimeSpec()</b> -- begin playing exactly now</p>
-<p class="p3"><b>BasicTimeSpec(quant, phase, offset)</b> -- like standard scheduling: quant, phase, timing offset (see <b>[</b><b><span class="s1">Quant</span></b><b>]</b>)</p>
+<p class="p3"><b>BasicTimeSpec(quant, phase, offset)</b> -- like standard scheduling: quant, phase, timing offset (see <a href="SC://Quant"><span class="s5">Quant</span></a>)</p>
 <p class="p3"><b>DelayTimeSpec(number)</b> -- begin playing exactly now + number</p>
 <p class="p3"><b>AbsoluteTimeSpec(number)</b> -- begin playing at exactly the time specified</p>
 <p class="p3"><span class="Apple-tab-span">	</span>This object is not valid after the given time passes.</p>
-<p class="p2"><br></p>
-<p class="p3">Note that BasicTimeSpec is the same thing as using a simple number, and QuantOffsetTimeSpec is the same as a two element array.</p>
 <p class="p2"><br></p>
 <p class="p3">Each BP also has a leadTime property, which is normally zero (in which case it has no effect on the above scheme). Values greater than zero shift the thread scheduling earlier by that number of beats. At the same time, events are delayed by the same number of beats. Processes with different values of leadTime should sound exactly in sync, but processes with higher values will execute earlier on the client. This is helpful if one process supplies information to another process -- the supplier must always execute earlier.</p>
 <p class="p2"><br></p>
 <p class="p3">You may not change the leadTime while the BP is playing. Negative values are not permitted.</p>
 <p class="p2"><br></p>
 <p class="p2"><br></p>
-<p class="p8"><b>Using BP:</b></p>
+<p class="p7"><b>Using BP:</b></p>
 <p class="p2"><br></p>
 <p class="p3"><b>Methods:</b></p>
 <p class="p3"><i>free</i> -- Stop playing now and clear references to objects for garbage collection.</p>

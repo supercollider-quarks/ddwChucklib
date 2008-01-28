@@ -11,22 +11,19 @@ p.p1 {margin: 0.0px 0.0px 0.0px 0.0px; font: 20.0px Helvetica}
 p.p2 {margin: 0.0px 0.0px 0.0px 0.0px; font: 12.0px Helvetica; min-height: 14.0px}
 p.p3 {margin: 0.0px 0.0px 0.0px 0.0px; font: 12.0px Helvetica}
 p.p4 {margin: 0.0px 0.0px 0.0px 0.0px; font: 14.0px Helvetica}
-p.p5 {margin: 0.0px 0.0px 0.0px 0.0px; font: 9.0px Monaco}
-p.p6 {margin: 0.0px 0.0px 0.0px 0.0px; font: 9.0px Monaco; color: #a41919}
-p.p7 {margin: 0.0px 0.0px 0.0px 0.0px; font: 9.0px Monaco; min-height: 12.0px}
-p.p8 {margin: 0.0px 0.0px 0.0px 0.0px; font: 9.0px Monaco; color: #001ab2}
-p.p9 {margin: 0.0px 0.0px 0.0px 0.0px; font: 9.0px Monaco; color: #36701f}
-p.p10 {margin: 0.0px 0.0px 0.0px 0.0px; font: 9.0px Monaco; color: #bf0000}
+p.p5 {margin: 0.0px 0.0px 0.0px 0.0px; font: 9.0px Monaco; color: #000000}
+p.p6 {margin: 0.0px 0.0px 0.0px 0.0px; font: 9.0px Monaco; color: #bf0000}
+p.p7 {margin: 0.0px 0.0px 0.0px 0.0px; font: 9.0px Monaco; color: #000000; min-height: 12.0px}
+p.p8 {margin: 0.0px 0.0px 0.0px 0.0px; font: 9.0px Monaco; color: #0000bf}
+p.p9 {margin: 0.0px 0.0px 0.0px 0.0px; font: 9.0px Monaco; color: #007300}
+p.p10 {margin: 0.0px 0.0px 0.0px 0.0px; font: 12.0px Helvetica; color: #000000; min-height: 14.0px}
 p.p11 {margin: 0.0px 0.0px 0.0px 0.0px; font: 9.0px Monaco; color: #606060}
-p.p12 {margin: 0.0px 0.0px 0.0px 0.0px; font: 9.0px Monaco; color: #000000}
-span.s1 {text-decoration: underline}
-span.s2 {color: #001ab2}
+span.s1 {color: #0000ff}
+span.s2 {color: #0000bf}
 span.s3 {color: #000000}
-span.s4 {color: #a41919}
-span.s5 {color: #36701f}
-span.s6 {color: #0000bf}
-span.s7 {color: #007300}
-span.s8 {color: #606060}
+span.s4 {color: #bf0000}
+span.s5 {color: #007300}
+span.s6 {color: #606060}
 span.Apple-tab-span {white-space:pre}
 </style>
 </head>
@@ -60,7 +57,7 @@ span.Apple-tab-span {white-space:pre}
 <p class="p2"><br></p>
 <p class="p3">Musical processes in chucklib are implemented as prototypes. Since writing prototypes is a lot like writing classes, this might be scary if you feel that writing classes is intimidating. Don't worry -- the minimum that you need to write a chucklib process is small and straightforward. In this context, prototypes provide the opportunity to grow into highly complex algorithms while keeping the code clear. But you don't need to write complex code to use prototypes!</p>
 <p class="p2"><br></p>
-<p class="p3">The <b>[</b><b><span class="s1">Proto</span></b><b>]</b> class implements prototypes for chucklib -- see its help file for details. It's just like an <b>[</b><b><span class="s1">Environment</span></b><b>]</b>, with some additional features that simplify prototype usage. The basics work like this:</p>
+<p class="p3">The <a href="../../ddwPrototype/Help/Proto.html"><span class="s1">Proto</span></a> class implements prototypes for chucklib -- see its help file for details. It's just like an <a href="SC://Environment"><span class="s1">Environment</span></a>, with some additional features that simplify prototype usage. The basics work like this:</p>
 <p class="p2"><br></p>
 <p class="p5">~myProto = <span class="s2">Proto</span>.new({</p>
 <p class="p6"><span class="s3"><span class="Apple-tab-span">	</span><span class="Apple-tab-span">	</span></span>// use ~environmentVariables inside the Proto</p>
@@ -95,7 +92,7 @@ span.Apple-tab-span {white-space:pre}
 <p class="p2"><br></p>
 <p class="p3">A chucklib process uses a Proto object to hold a behavioral definition (a Pattern or Routine) along with data the Pattern needs to do its work.</p>
 <p class="p2"><br></p>
-<p class="p3">Not much is needed to create a process. In fact, all you have to do is write a function to return the desired Pattern, and save that function into the Proto under the name <b>~asPattern</b>. (For convenience, I will stop saying "Pattern or Routine" and just say "Pattern." This is actually more technically accurate -- the ~asPattern function is expected to return some kind of playable Pattern. But, if you're more accustomed to writing Routines or Tasks, you can use the <b>[</b><b><span class="s1">Prout</span></b><b>]</b> Pattern, which, for playing purposes, behaves just like a Task.)</p>
+<p class="p3">Not much is needed to create a process. In fact, all you have to do is write a function to return the desired Pattern, and save that function into the Proto under the name <b>~asPattern</b>. (For convenience, I will stop saying "Pattern or Routine" and just say "Pattern." This is actually more technically accurate -- the ~asPattern function is expected to return some kind of playable Pattern. But, if you're more accustomed to writing Routines or Tasks, you can use the <a href="SC://Prout"><span class="s1">Prout</span></a> Pattern, which, for playing purposes, behaves just like a Task.)</p>
 <p class="p2"><br></p>
 <p class="p8">Proto<span class="s3">({</span></p>
 <p class="p5"><span class="Apple-tab-span">	</span>~asPattern = {</p>
@@ -162,7 +159,7 @@ span.Apple-tab-span {white-space:pre}
 <p class="p5"><span class="Apple-tab-span">	</span>~calcPitch = { (rrand(0, 7).degreeToKey(#[0, 2, 4, 5, 7, 9, 11], 12) + 60).midicps };</p>
 <p class="p5"><span class="Apple-tab-span">	</span>~calcDur = { #[0.125, 0.25, 0.5].choose };</p>
 <p class="p5"><span class="Apple-tab-span">	</span>~asPattern = {</p>
-<p class="p10"><span class="s3"><span class="Apple-tab-span">	</span><span class="Apple-tab-span">	</span></span><span class="s6">Prout</span><span class="s3">({<span class="Apple-tab-span">	</span></span>// note Prout - NOT Routine or Task - here</p>
+<p class="p6"><span class="s3"><span class="Apple-tab-span">	</span><span class="Apple-tab-span">	</span></span><span class="s2">Prout</span><span class="s3">({<span class="Apple-tab-span">	</span></span>// note Prout - NOT Routine or Task - here</p>
 <p class="p5"><span class="Apple-tab-span">	</span><span class="Apple-tab-span">	</span><span class="Apple-tab-span">	</span>loop {</p>
 <p class="p5"><span class="Apple-tab-span">	</span><span class="Apple-tab-span">	</span><span class="Apple-tab-span">	</span><span class="Apple-tab-span">	</span>s.makeBundle(0.2, {</p>
 <p class="p5"><span class="Apple-tab-span">	</span><span class="Apple-tab-span">	</span><span class="Apple-tab-span">	</span><span class="Apple-tab-span">	</span><span class="Apple-tab-span">	</span><span class="s2">Synth</span>(<span class="s5">\sinGrain</span>, [freq: ~calcPitch.value]);</p>
@@ -188,7 +185,7 @@ span.Apple-tab-span {white-space:pre}
 <p class="p4"><b>4. Automatic initialization and clean-up</b></p>
 <p class="p2"><br></p>
 <p class="p3">Suppose you write a Pattern that plays bits of a sound file. If you use it in performance, you have to remember to load the file into a server buffer before playing the Pattern (easily forgotten).</p>
-<p class="p2"><br></p>
+<p class="p10"><br></p>
 <p class="p6">// Here, we use a standard synthdef installed by chucklib.</p>
 <p class="p7"><br></p>
 <p class="p11"><span class="s3">b = </span><span class="s2">Buffer</span><span class="s3">.read(s, </span>"sounds/a11wlk01.wav"<span class="s3">);</span></p>
@@ -245,12 +242,12 @@ span.Apple-tab-span {white-space:pre}
 <p class="p2"><br></p>
 <p class="p3">That's all well and good, but you might want it to work on a different sound file. It isn't as obvious as it sounds at first. If you do this:</p>
 <p class="p2"><br></p>
-<p class="p10">// Doesn't work - buffer is loaded before you give it the right path</p>
-<p class="p12"><span class="s6">PR</span>(<span class="s7">\bufSlice</span>) =&gt; <span class="s6">BP</span>(<span class="s7">\buf</span>); <span class="s6">BP</span>(<span class="s7">\buf</span>).path = <span class="s8">"newpath"</span>;</p>
+<p class="p6">// Doesn't work - buffer is loaded before you give it the right path</p>
+<p class="p5"><span class="s2">PR</span>(<span class="s5">\bufSlice</span>) =&gt; <span class="s2">BP</span>(<span class="s5">\buf</span>); <span class="s2">BP</span>(<span class="s5">\buf</span>).path = <span class="s6">"newpath"</span>;</p>
 <p class="p2"><br></p>
 <p class="p3">-- it's already too late to change the path, because the buffer loads immediately. Chucklib's answer is to let you add arbitrary parameters to a chuck operation. These parameters go into the process object before initialization, so you can change the path, and then the buffer loads.</p>
 <p class="p2"><br></p>
-<p class="p5"><span class="s2">PR</span>(<span class="s5">\bufSlice</span>).chuck(<span class="s2">BP</span>(<span class="s5">\buf</span>), <span class="s2">nil</span>, parms: (path: <span class="s8">"sounds/a11wlk01-44_1.aiff"</span>));</p>
+<p class="p5"><span class="s2">PR</span>(<span class="s5">\bufSlice</span>).chuck(<span class="s2">BP</span>(<span class="s5">\buf</span>), <span class="s2">nil</span>, parms: (path: <span class="s6">"sounds/a11wlk01-44_1.aiff"</span>));</p>
 <p class="p5"><span class="s2">BP</span>(<span class="s5">\buf</span>).play;</p>
 <p class="p5"><span class="s2">BP</span>(<span class="s5">\buf</span>).stop;</p>
 <p class="p5"><span class="s2">BP</span>(<span class="s5">\buf</span>).free;</p>

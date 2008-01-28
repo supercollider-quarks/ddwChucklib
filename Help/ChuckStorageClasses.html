@@ -10,18 +10,18 @@
 p.p1 {margin: 0.0px 0.0px 0.0px 0.0px; font: 20.0px Helvetica}
 p.p2 {margin: 0.0px 0.0px 0.0px 0.0px; font: 12.0px Helvetica; min-height: 14.0px}
 p.p3 {margin: 0.0px 0.0px 0.0px 0.0px; font: 12.0px Helvetica}
-p.p4 {margin: 0.0px 0.0px 0.0px 0.0px; font: 9.0px Monaco; color: #007300}
-p.p5 {margin: 0.0px 0.0px 0.0px 0.0px; font: 9.0px Monaco; color: #000000}
-p.p6 {margin: 0.0px 0.0px 0.0px 0.0px; font: 9.0px Monaco; color: #bf0000}
+p.p4 {margin: 0.0px 0.0px 0.0px 0.0px; font: 9.0px Monaco; color: #36701f}
+p.p5 {margin: 0.0px 0.0px 0.0px 0.0px; font: 9.0px Monaco}
+p.p6 {margin: 0.0px 0.0px 0.0px 0.0px; font: 9.0px Monaco; color: #a41919}
 p.p7 {margin: 0.0px 0.0px 0.0px 0.0px; font: 14.0px Helvetica}
-span.s1 {color: #0000bf}
+span.s1 {color: #001ab2}
 span.s2 {color: #000000}
-span.s3 {color: #007300}
-span.s4 {color: #bf0000}
-span.s5 {text-decoration: underline}
-span.s6 {font: 9.0px Monaco; color: #0000bf}
-span.s7 {font: 9.0px Monaco; color: #000000}
-span.s8 {font: 9.0px Monaco; color: #007300}
+span.s3 {color: #36701f}
+span.s4 {color: #a41919}
+span.s5 {color: #0000ff}
+span.s6 {font: 9.0px Monaco; color: #001ab2}
+span.s7 {font: 9.0px Monaco}
+span.s8 {font: 9.0px Monaco; color: #36701f}
 span.Apple-tab-span {white-space:pre}
 td.td1 {width: 41.0px; padding: 2.0px 2.0px 2.0px 2.0px}
 td.td2 {width: 77.0px; padding: 2.0px 2.0px 2.0px 2.0px}
@@ -155,7 +155,7 @@ td.td4 {width: 94.0px; padding: 2.0px 2.0px 2.0px 2.0px}
 <p class="p3"><b>value</b></p>
 <p class="p3">Responds with the object being stored in this storage object. If the <b>passThru</b> flag (see below) is true, it may not be necessary to access the object explicitly. <b>v</b> is included as a short form for convenience.</p>
 <p class="p2"><br></p>
-<p class="p3">Note one exception: <b>[</b><b><span class="s5">Func</span></b><b>]</b> responds to <b>.value</b> by executing its function, rather than returning the function. If you need to get the function object itself, use <b>v</b>.</p>
+<p class="p3">Note one exception: <a href="Func.html"><span class="s5">Func</span></a> responds to <b>.value</b> by executing its function, rather than returning the function. If you need to get the function object itself, use <b>v</b>.</p>
 <p class="p2"><br></p>
 <p class="p3"><b>exists</b></p>
 <p class="p3">A storage class instance may exist but not hold anything at this time. Check whether the storage object is active using this method. Answers with a Boolean.</p>
@@ -230,31 +230,31 @@ td.td4 {width: 94.0px; padding: 2.0px 2.0px 2.0px 2.0px}
 <p class="p2"><br></p>
 <p class="p3"><b>Process management</b></p>
 <p class="p2"><br></p>
-<p class="p3"><b>[</b><b><span class="s5">PR</span></b><b>]</b> -- Process prototype</p>
-<p class="p3"><b>[</b><b><span class="s5">BP</span></b><b>]</b> -- Bound Process</p>
+<p class="p3"><span class="s5"><a href="PR.html">PR</a></span> -- Process prototype</p>
+<p class="p3"><span class="s5"><a href="BP.html">BP</a></span> -- Bound Process</p>
 <p class="p2"><br></p>
 <p class="p3"><b>Voicer and Synth management</b></p>
 <p class="p2"><br></p>
-<p class="p3"><b>[</b><b><span class="s5">Fact</span></b><b>]</b> -- factory -- automatic creation<span class="Apple-converted-space"> </span></p>
-<p class="p3"><b>[</b><b><span class="s5">VC</span></b><b>]</b> -- VoiCer -- automatic creation<span class="Apple-converted-space"> </span></p>
-<p class="p3"><b>[</b><b><span class="s5">SY</span></b><b>]</b> -- SYnth -- automatic creation</p>
+<p class="p3"><span class="s5"><a href="Fact.html">Fact</a></span> -- factory -- automatic creation<span class="Apple-converted-space"> </span></p>
+<p class="p3"><span class="s5"><a href="VC.html">VC</a></span> -- VoiCer -- automatic creation<span class="Apple-converted-space"> </span></p>
+<p class="p3"><span class="s5"><a href="SY.html">SY</a></span> -- SYnth -- automatic creation</p>
 <p class="p2"><br></p>
 <p class="p3"><b>GUI management</b></p>
 <p class="p2"><br></p>
-<p class="p3"><b>[</b><b><span class="s5">VP</span></b><b>]</b> -- VoicerProxy -- prNew<span class="Apple-converted-space"> </span></p>
-<p class="p3"><b>[</b><b><span class="s5">MCG</span></b><b>]</b> -- MixerChannel Gui -- prNew<span class="Apple-converted-space"> </span></p>
-<p class="p3"><b>[</b><b><span class="s5">MT</span></b><b>]</b> -- MIDI Trigger -- automatic</p>
+<p class="p3"><span class="s5"><a href="VP.html">VP</a></span> -- VoicerProxy -- prNew<span class="Apple-converted-space"> </span></p>
+<p class="p3"><span class="s5"><a href="MCG.html">MCG</a></span> -- MixerChannel Gui -- prNew<span class="Apple-converted-space"> </span></p>
+<p class="p3"><span class="s5"><a href="MT.html">MT</a></span> -- MIDI Trigger -- automatic</p>
 <p class="p2"><br></p>
 <p class="p3"><b>MIDI input management</b></p>
 <p class="p2"><br></p>
-<p class="p3"><b>[</b><b><span class="s5">MBM</span></b><b>]</b> -- MIDIBufManager -- prNew<span class="Apple-converted-space"> </span></p>
-<p class="p3"><b>[</b><b><span class="s5">MRS</span></b><b>]</b> -- MIDIRecSocket<span class="Apple-converted-space"> </span></p>
+<p class="p3"><span class="s5"><a href="MBM.html">MBM</a></span> -- MIDIBufManager -- prNew<span class="Apple-converted-space"> </span></p>
+<p class="p3">MRS -- MIDIRecSocket<span class="Apple-converted-space"> </span></p>
 <p class="p2"><br></p>
 <p class="p3"><b>Process component management</b></p>
 <p class="p2"><br></p>
-<p class="p3"><b>[</b><b><span class="s5">Func</span></b><b>]</b> -- adaptation function -- automatic<span class="Apple-converted-space"> </span></p>
-<p class="p3"><b>[</b><b><span class="s5">ProtoEvent</span></b><b>]</b> -- automatic<span class="Apple-converted-space"> </span></p>
-<p class="p3"><b>[</b><b><span class="s5">Mode</span></b><b>]</b> -- automatic<span class="Apple-converted-space"> </span></p>
+<p class="p3"><span class="s5"><a href="Func.html">Func</a></span> -- adaptation function -- automatic<span class="Apple-converted-space"> </span></p>
+<p class="p3"><span class="s5"><a href="ProtoEvent.html">ProtoEvent</a></span> -- automatic<span class="Apple-converted-space"> </span></p>
+<p class="p3"><span class="s5"><a href="Mode.html">Mode</a></span> -- automatic<span class="Apple-converted-space"> </span></p>
 <p class="p2"><br></p>
 <p class="p3"><b>MicRh</b> -- microrhythm -- automatic</p>
 <p class="p3"><b>MacRh</b> -- macrorhythm -- automatic</p>

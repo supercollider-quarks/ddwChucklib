@@ -14,20 +14,21 @@ p.p4 {margin: 0.0px 0.0px 0.0px 0.0px; font: 16.0px Helvetica}
 p.p5 {margin: 0.0px 0.0px 0.0px 0.0px; font: 9.0px Monaco}
 p.p6 {margin: 0.0px 0.0px 0.0px 0.0px; font: 9.0px Monaco; min-height: 12.0px}
 p.p7 {margin: 0.0px 0.0px 0.0px 36.0px; font: 12.0px Helvetica}
-p.p8 {margin: 0.0px 0.0px 0.0px 0.0px; font: 9.0px Monaco; color: #0010c4}
-p.p9 {margin: 0.0px 0.0px 0.0px 0.0px; font: 9.0px Monaco; color: #007200}
-p.p10 {margin: 0.0px 0.0px 0.0px 0.0px; font: 9.0px Monaco; color: #c40000}
-span.s1 {text-decoration: underline}
-span.s2 {color: #0010c4}
+p.p8 {margin: 0.0px 0.0px 0.0px 0.0px; font: 9.0px Monaco; color: #0020b7}
+p.p9 {margin: 0.0px 0.0px 0.0px 0.0px; font: 9.0px Monaco; color: #366f1f}
+p.p10 {margin: 0.0px 0.0px 0.0px 0.0px; font: 9.0px Monaco; color: #a81a1a}
+span.s1 {color: #0000ff}
+span.s2 {color: #0020b7}
 span.s3 {color: #000000}
-span.s4 {color: #007200}
+span.s4 {color: #366f1f}
+span.s5 {text-decoration: underline}
 span.Apple-tab-span {white-space:pre}
 </style>
 </head>
 <body>
 <p class="p1"><b>Hacking chucklib</b></p>
 <p class="p2"><br></p>
-<p class="p3">Please see the <b>[</b><b><span class="s1">ChuckPrototypes</span></b><b>]</b> help file for a list of the provided process and prototypes, and how to use them.</p>
+<p class="p3">Please see the <a href="ChuckPrototypes.html"><span class="s1">ChuckPrototypes</span></a> help file for a list of the provided process and prototypes, and how to use them.</p>
 <p class="p2"><br></p>
 <p class="p3">Users are encouraged to write new components and new process structures. This document provides advice on hooking into the framework for your own evil purposes.</p>
 <p class="p2"><br></p>
@@ -61,7 +62,7 @@ span.Apple-tab-span {white-space:pre}
 <p class="p6"><br></p>
 <p class="p5"><span class="s2">BP</span>(<span class="s4">\cscale</span>).stop;<span class="Apple-converted-space"> </span></p>
 <p class="p2"><br></p>
-<p class="p3">The prototype must also contain a key to a ProtoEvent in the ~event variable. This process uses the default event (see <b>[Streams-Patterns-Events1]</b> and help files 2-6 for a full description). As part of normal startup, Event.default is saved into ProtoEvent(\default), where it is accessed by <b>eventKey: \default</b>.</p>
+<p class="p3">The prototype must also contain a key to a ProtoEvent in the ~event variable. This process uses the default event (see <a href="SC://Streams-Patterns-Events1"><span class="s1">Streams-Patterns-Events1</span></a> and help files 2-6 for a full description). As part of normal startup, Event.default is saved into ProtoEvent(\default), where it is accessed by <b>eventKey: \default</b>.</p>
 <p class="p2"><br></p>
 <p class="p3">This is, of course, a silly example because you gain little in functionality over a regular Pbind. (You do gain some interface building features doing it this way.) The real flexibility of process prototypes is that the pattern can be defined using a variety of methods and objects contained within the Proto. If defined correctly, the behavior of the process can change while the process is playing (something difficult to do with the out of the box pattern classes).<span class="Apple-converted-space"> </span></p>
 <p class="p2"><br></p>
@@ -167,6 +168,6 @@ span.Apple-tab-span {white-space:pre}
 <p class="p3">If even one of the environment variables referenced in the required keys array is nil, the process will not begin. It will fail silently.</p>
 <p class="p3">_________________________<span class="Apple-converted-space"> </span></p>
 <p class="p2"><br></p>
-<p class="p3">I'm sure this document by itself is not enough, but I'm not sure what questions people are going to have. If you want to know something not covered here, please contact me through my website (<span class="s1">http://www.dewdrop-world.net</span>) or ask on the SuperCollider mailing list.</p>
+<p class="p3">I'm sure this document by itself is not enough, but I'm not sure what questions people are going to have. If you want to know something not covered here, please contact me through my website (<span class="s5">http://www.dewdrop-world.net</span>) or ask on the SuperCollider mailing list.</p>
 </body>
 </html>
