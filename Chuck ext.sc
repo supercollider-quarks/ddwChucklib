@@ -19,8 +19,6 @@
 		// for a chuck receiver
 	bindClassName { ^this.class.name }
 	
-//	freeByGui { ^this.free }
-
 	isValidIDictKey { ^false }
 	isPattern { ^false }
 }

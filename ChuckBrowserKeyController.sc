@@ -169,11 +169,9 @@ ChuckBrowserKeyController {
 					obj = instance.browser.currentObject;
 					method = obj.isPlaying.if({ \stop }, { \play });
 					"%.%".format(obj.asCompileString, method).debug("Executing");
-//					(string.size == 0).if({
-						obj.isKindOf(BP).if({
-							obj.perform(method);
-						});
-//					}, { });
+					obj.isKindOf(BP).if({
+						obj.perform(method);
+					});
 				});
 				nil
 			},
@@ -298,10 +296,7 @@ ChuckBrowserKeyController {
 					envir;
 				loop {
 					#view, char, modifiers, unicode, keycode, envir = keyspec;
-//	unicode.debug("got key");
-//envir.debug("passed in environment");
 					(action = states.matchAt(unicode)).notNil.if({
-//	"matched key to state".debug;
 							// if an error occurs, it might crash the routine
 							// and kill the interface
 						try {
@@ -320,11 +315,9 @@ ChuckBrowserKeyController {
 						// if the action didn't return a keyspec,
 						// we have to wait for another key
 					newkeyspec.isNil.if({
-//	"no keyspec returned, resetting and waiting for key".debug;
 						this.resetState;
 						keyspec = true.yield;	// running
 					}, {
-//	unicode.debug("using new keyspec");
 						keyspec = newkeyspec;
 					});
 				}
@@ -342,9 +335,7 @@ ChuckBrowserKeyController {
 			identifierCodes.matchItem(unicode)
 		}.while({
 			(unicode == 127).if({
-//string.debug("deleting char");
 				string = string.left(string.size-1);
-//string.debug("char  deleted");
 				this.updateString;
 				action.value(string);
 			}, {
@@ -355,7 +346,6 @@ ChuckBrowserKeyController {
 				});
 			});
 		});
-//unicode.debug("exiting parseIdentifier");
 		^[string, [view, char, modifiers, unicode, keycode, envir]]
 	}
 	
@@ -380,7 +370,6 @@ ChuckBrowserKeyController {
 				});
 			});
 		});
-//string.debug("exiting parseNumber");
 		^[(string.size > 0).if({ string.asInteger }),
 			[view, char, modifiers, unicode, keycode, envir]]
 	}
@@ -400,7 +389,6 @@ ChuckBrowserKeyController {
 				string = string ++ char;
 			});
 		});
-//unicode.debug("exiting getCmdString");
 		^[this.processWildcards(string), [view, char, modifiers, unicode, keycode, envir]]
 
 	}

@@ -25,7 +25,6 @@ BPStream : Pattern {
 			});
 		});
 		^FuncStream({ |inval|
-//streamKey.envirGet.debug(streamKey).next(inval).debug("output");
 			streamKey.envirGet.next(inval)
 		}).envir_(envir)   // by default FuncStreamEnvir assigns the current envir
 	}

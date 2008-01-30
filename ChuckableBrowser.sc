@@ -48,10 +48,7 @@ ChuckableBrowser {
 	changeClass { |class|
 		var	thisClass, thisType;
 		thisClass = class ?? { this.currentClass };
-//		(thisClass != class).if({
-			classMenu.value = chuckClasses.indexOf(thisClass);
-//		});
-//		thisType = subTypes.tryPerform(\at, subTypeMenu.value - 1);
+		classMenu.value = chuckClasses.indexOf(thisClass);
 		thisType = this.subTypeForClass(thisClass);
 			// this use of IdentitySet is like "select distinct" in SQL
 		subTypes = IdentitySet.new.addAll(thisClass.collection
@@ -66,12 +63,10 @@ ChuckableBrowser {
 	}
 	
 	getInstances { |thisClass, currentSubType|
-//		var	thisType;
 		thisClass = thisClass ?? { this.currentClass };
 		instanceList = thisClass.collection.keys;
 		currentSubType = currentSubType ?? { this.currentSubtype };
 		(currentSubType.notNil).if({
-//			thisType = subTypes[subTypeMenu.value - 1];
 			instanceList = instanceList.select({ |key|
 				thisClass.new(key).respondsTo(\subType) and: {
 					thisClass.new(key).subType == currentSubType
@@ -185,7 +180,6 @@ ChuckableBrowser {
 	}
 	
 	currentSubtype {
-//		^subTypes[subTypeMenu.value]
 		^(subTypes[subTypeMenu.value] == \all).if({ ^nil }, { subTypes[subTypeMenu.value] });
 	}
 	

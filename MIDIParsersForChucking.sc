@@ -64,19 +64,19 @@ ChordParser : MelodyParser {
 		unresolvedCount = unresolvedCount + 1;
 //		unresolvedNotes = unresolvedNotes.add(note);
 		comparisonKey = chordNotes.hash;
-[\noteOn, unresolvedCount, comparisonKey, chordNotes].postcs;
+//[\noteOn, unresolvedCount, comparisonKey, chordNotes].postcs;
 			// or, if the chord was sent and another note comes in while holding,
 			// update dest
 		(chordSent and: (chordNotes.size > 0)).if({
-"chord sent, still notes holding".postln;
+//"chord sent, still notes holding".postln;
 			destination.chordNoteAdd(note)
 		}, {
 			SystemClock.sched(deltaThresh, {
 					// if these are ==, nothing happened so assume the chord is finished
-[\noteOn_checking, unresolvedCount, comparisonKey, chordNotes.hash].postcs;
+//[\noteOn_checking, unresolvedCount, comparisonKey, chordNotes.hash].postcs;
 // need to test chordSent here
 				(comparisonKey == chordNotes.hash).if({
-[\sending].postln;
+//[\sending].postln;
 					this.dropShortNotes;
 					destination.chordNoteOn(chordNotes);
 					chordSent = true;

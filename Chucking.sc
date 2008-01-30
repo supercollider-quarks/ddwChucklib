@@ -14,7 +14,6 @@
 	// methods that should be inherited by all chuckables should be defined here
 AbstractChuckArray {
 	classvar	collection,	// each chuckable is a collection of related objects
-//			<lastIndex,	// indexed by name or symbol
 			<>directories,
 			<>defaultSubType = \basic,	// set this when loading a piece to differentiate
 									// in the browser
@@ -326,20 +325,17 @@ VC : AbstractChuckNewDict {
 	
 	bindFact { |fact, adverb, parms|
 			// can be a voicer or an fx factory
-//"Entered bindFact".debug;
 		(fact.isVoicer.not).if({ "wrong type".warn },
 				// default, assume voicer
 			{ this.prBindFact(fact, adverb, parms) });
-//"Exited bindFact".debug;
 	}
 	
 		// does the work, but does not check Factory type
 	prBindFact { |fact, adverb, parms|
 		value.notNil.if({ this.free });  // free system resources before replacing
 		env = fact.make(parms).know_(true);
-		// make func must return voicer and place support objects (mixer, buffers, etc)
-		// in the environment
-//				value = env.use({ ~make.value });
+			// make func must return voicer and place support objects (mixer, buffers, etc)
+			// in the environment
 		value = env[\value];
 		subType = fact.subType;
 		env[\error].notNil.if({		// oops, something bad happened
@@ -359,7 +355,6 @@ VC : AbstractChuckNewDict {
 		});
 		value.free;
 		this.removeFromCollection;
-//		value = env = nil;
 	}
 	
 	bindBP { |bp|
@@ -463,8 +458,7 @@ Fact : AbstractChuckNewDict {
 			error.reportError;
 			env[\error] = error;
 			env[\backtrace] = error.getBackTrace.caller;
-//			env.use({ ~free.value })	// on failure must free resources
-		};							//  -- doesn't work because of mixer queue
+		};
 		^env
 	}
 		// makes the value, but throws out the environment and returns only value
@@ -600,14 +594,6 @@ VP : AbstractChuckArray {
 			vc.value === this.value.voicer
 		});
 	}
-
-// this is a nice idea but I don't have the VC object to free
-// that would result in memory leaks
-//	freeByGui {
-//		value.active.if({
-//			^value.voicer.free
-//		});
-//	}
 }
 
 /// midi recording and buffer management
@@ -633,9 +619,6 @@ MRS {
 				?? { MIDIBufManager(TempoClock.default, 0, nil) => MBM.prNew(0) }
 		)
 	}
-//	init { |n|
-//		name = n;
-//	}
 }
 
 MBM : AbstractChuckArray {
@@ -745,12 +728,6 @@ PR : AbstractChuckNewDict {
 		};
 	}
 	
-//	hasDefaultMethods {
-//		var	e = value.parent;
-//		{ e.notNil and: { e !== defaultEnv } }.while({ e = e.parent });
-//		^e === defaultEnv
-//	}
-
 	hasDefaultMethods {
 		defaultEnv.keysDo({ |key|
 			value[key].isNil.if({ ^false })
@@ -793,7 +770,6 @@ BP : AbstractChuckNewDict {
 			<>useVoicerProxy = true;
 
 	var	<leadTime;	// leadTime is given in beats and corresponds to ~timingOffset in Event
-					// (no longer true:) EVENT PROTOTYPES MUST CONVERT TO SECONDS
 
 	*initClass {
 		Class.initClassTree(Clock);
@@ -827,7 +803,6 @@ BP : AbstractChuckNewDict {
 	
 		// BPs can store state of wrapper processes, which can be reused by
 		// BP(\wrapper) => BP(\child)
-// should I clone it? Maybe I want to use the same wrapper on multiple processes
 	bindBP { |process, adverb, parms|
 			// if the Adhoc implements bindBP, use the Adhoc's method
 			// this is for support of driver processes
@@ -851,7 +826,6 @@ BP : AbstractChuckNewDict {
 		});
 			// PR(\xyz).v => BP(\abc) is dangerous
 		process.isPrototype.if({
-//			Error("% received an Proto that is a prototype.".format(this)).throw;
 			process = process.copy;	// you need a new instance, not the prototype
 		});
 			// midi input needs to be able to access this object from within the Proto
@@ -914,7 +888,6 @@ BP : AbstractChuckNewDict {
 	}
 	
 		// 4 => BP(0) sets quant to BasicTimeSpec(4)
-// handling of leadTime?
 	bindNilTimeSpec { |spec|
 		this.exists.if({ value.put(\quant, spec); });
 	}
@@ -985,7 +958,6 @@ BP : AbstractChuckNewDict {
 				this.asEventStreamPlayer;
 			});
 			value.preparePlay;
-// anything else?
 		});
 	}
 	
@@ -1103,7 +1075,6 @@ BP : AbstractChuckNewDict {
 					}
 				{ this.canStream }
 					{
-//"BP-play".postln;
 						this.populateAdhocVariables(argClock);
 						(goTime = this.eventSchedTime(argQuant)).isNil.if({
 							"BP(%): Scheduling failed: scheduled time is earlier than now %.\n"
@@ -1165,12 +1136,10 @@ BP : AbstractChuckNewDict {
 	}
 	eventSchedTime { |argQuant|
 		var	time;
-//"BP-eventSchedTime ".post;
 		this.exists.if({ 
 			time = this.quant(argQuant).bpSchedTime(this);
 			(time >= this.clock.beats).if({ ^time }, { ^nil });
 		}, { ^nil });
-//.postln
 	}
 		// dereference allows you to force play to start exactly now on the clock with `nil
 	quant { |argQuant|
@@ -1214,8 +1183,6 @@ BP : AbstractChuckNewDict {
 	}
 			
 	stop { |argQuant|
-// is this a valid test? midi wrapper does not have an eventStreamPlayer
-// removing check b/c some processes might have a finite pattern but require stopCleanup later
 		var	time;
 		this.exists.if({
 			try {
@@ -1241,8 +1208,6 @@ BP : AbstractChuckNewDict {
 		// there may be cases where I don't want to notify dependents
 	stopNow { |adhoc, quant, notify = true, doCleanup = true|
 		var	child;	// to iterate down the chain of child processes
-//this.dumpBackTrace;
-//"BP-stopNow".postln;
 		this.exists.if({
 			adhoc = adhoc ? value;
 			adhoc.eventStreamPlayer.stop;
@@ -1260,7 +1225,6 @@ BP : AbstractChuckNewDict {
 	}
 	
 	asStream {
-//"BP-asStream".postln;
 		var	stream;
 		this.exists.if({ 
 			stream = value.use({
@@ -1300,7 +1264,7 @@ BP : AbstractChuckNewDict {
 		// so I need to refer to other adhocs than my own in that case
 	streamCleanupFunc { |self, adhoc|
 		^{
-"% stream stopped, cleaning up".format(this).postln;
+			"% stream stopped, cleaning up".format(this).postln;
 				// if a sequence stops of its own accord, eventStreamPlayer needs to be nil
 				// so that stream will be recreated on next play
 			adhoc.put(\eventStreamPlayer, nil);
@@ -1352,7 +1316,6 @@ BP : AbstractChuckNewDict {
 			process.put(\child, value)
 				.put(\clock, value[\clock]);
 			saveAdhoc = value;
-//			saveEventStreamPlayer = value[\eventStreamPlayer];
 			value = process;
 			this.recalcPropagateKeys;
 			doReplay.if({ this.replay(saveAdhoc[\eventStreamPlayer], saveAdhoc) });
@@ -1384,7 +1347,7 @@ BP : AbstractChuckNewDict {
 				// and save; typical chucking use precludes saving, so I do it automatically
 				// user should do BP(\saved) => BP(\myWrapper) after rewrap
 				// this should also be used for freeing resources
-			saveAdhoc/*.put(\child, nil)*/ =>.overwrite BP(\saved);
+			saveAdhoc =>.overwrite BP(\saved);
 			value = process;
 			this.recalcPropagateKeys;
 			doReplay.if({ this.replay(saveAdhoc[\eventStreamPlayer], saveAdhoc) });
@@ -1409,9 +1372,6 @@ BP : AbstractChuckNewDict {
 		^oldWrapper	// returns nil on failure
 	}
 	
-// What the hell was I thinking with this one (replace)? I can't even remember.
-// maybe replace the child with the child from another process? But this code isn't right
-
 // throw everything out and start with this incoming process
 // this method is not fully supported yet
 	overwrite { |process|
@@ -1431,18 +1391,14 @@ BP : AbstractChuckNewDict {
 	
 	replay { |oldEventStreamPlayer, oldAdhoc|	// process must be playing
 		var	nextTime;
-//"enter replay".debug;
 		(oldEventStreamPlayer.isPlaying and: { oldEventStreamPlayer.nextBeat.notNil }).if({
 			nextTime = oldEventStreamPlayer.nextBeat;
-//nextTime.debug("old player was playing; nextTime");
-//"stopping old player".debug;
 				// to prevent the stream's cleanup from messing up my flags
 			oldEventStreamPlayer.stream.tryPerform(\cleanup_,
 				this.streamCleanupFunc(nil, oldAdhoc));
 			oldEventStreamPlayer.stop;
 			value[\isPlaying] = true;
 				// make a new one and schedule it for the next event time
-//"scheduling new player; inspecting".debug;
 			value[\clock].schedAbs(nextTime, this.asEventStreamPlayer.refresh);
 		});
 	}
@@ -1575,11 +1531,6 @@ MicRh : AbstractChuckNewDict {
 // process should pattern as Pbind(#[\delta, \length], pattern)
 
 MacRh : MicRh {
-//	bindPattern { |pattern|
-//		value = pattern;
-//	}
-//	
-//	// also inherits bindFunction
 }
 
 // proto-event holder
