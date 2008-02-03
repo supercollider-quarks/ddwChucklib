@@ -471,8 +471,8 @@ ProtoEvent(\polySynthPlayer).v.copy.putAll((
 					// can't use schedEventBundle
 					// because you must not release the VoicerNode
 					// until the proper time comes
-				thisThread.clock.sched(~length.wrapAt(i), {
-					node.release(0, ((lag + timingOffset) / clock.tempo) + node.server.latency, freq);
+				thisThread.clock.sched(length + timingOffset, {
+					node.release(0, lag + node.server.latency, freq);
 				});
 			});
 		});
