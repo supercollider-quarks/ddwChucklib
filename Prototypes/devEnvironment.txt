@@ -36,7 +36,7 @@ masterLayout = ~masterLayout;
 
 ~toolbarFlow = FlowView(~masterLayout.view, Rect(0, 0, 290, GUI.window.screenBounds.height-5));
 (~useScroll ? false).if({
-	~voicerScroll = SCScrollView(~masterLayout.view, Rect(0, 0, 450 * ~voicerColumns,
+	~voicerScroll = GUI.scrollView.new(~masterLayout.view, Rect(0, 0, 450 * ~voicerColumns,
 		GUI.window.screenBounds.height-50)).hasHorizontalScroller_(false);
 }, {
 	~voicerScroll = ~masterLayout.view;
