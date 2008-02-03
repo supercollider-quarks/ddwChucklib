@@ -891,6 +891,10 @@ BP : AbstractChuckNewDict {
 	bindNilTimeSpec { |spec|
 		this.exists.if({ value.put(\quant, spec); });
 	}
+
+	bindQuant { |quant|
+		this.bindNilTimeSpec(quant.asTimeSpec);
+	}
 	
 	bindSimpleNumber { |num, adverb|
 		adverb.isNil.if({
