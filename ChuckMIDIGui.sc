@@ -131,14 +131,14 @@ MTGui : HJHObjectGui {
 	
 	populateView { |entry|
 		{ dragViews[entry.noteNum - model.minNote].object_(entry.bp)
-			.string_("  " ++ entry.asString)
+			.string_(" " ++ entry.asString)
 			.background_(backColors[entry.playState]
 				[blackKeys.includes(entry.noteNum % 12).binaryValue])
 		}.defer;
 	}
 	
 	emptyView { |view, index|
-		{ view.string_("  " ++ (index + model.minNote).asMIDINote)
+		{ view.string_(" " ++ (index + model.minNote).asMIDINote)
 			.background_(backColors[\idle]
 				[blackKeys.includes(index % 12).binaryValue])
 		}.defer;
