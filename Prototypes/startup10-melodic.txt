@@ -166,7 +166,7 @@ PR(\abstractProcess).v.clone({
 		var	out;
 		out = ();
 		keys.do({ |key|
-			out.put(key, ~key.isFunction.if({ ~key.value }, { ~key }));
+			out.put(key, key.envirGet.isFunction.if({ key.envirGet.value }, { key.envirGet }));
 		});
 		(save ? false).if({ ~passInValue = out; });
 		out
