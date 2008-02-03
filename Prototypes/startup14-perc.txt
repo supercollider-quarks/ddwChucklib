@@ -409,16 +409,16 @@ PR(\bufPerc).v.clone({
 	~makeFnDef = #{ |fn|
 		var def;
 		def = fn.asSynthDef(outClass: 
-			(~isFx ? false).if({ \ReplaceOut }, { \Out })).memStore;  // .send(~chan.server);
+			(~isFx ? false).if({ \ReplaceOut }, { \Out })).memStore;
 		def.name
 	};
 	~makePatchDef = #{ |patch|
 		var def;
-		def = patch.asSynthDef.memStore;  // .send(~chan.server);
+		def = patch.asSynthDef.memStore;
 		~patchesToFree.add(patch);
 		def.name
 	};
-	~makeSynthDef = #{ |def| def.memStore /*.send(~chan.server)*/ .name };
+	~makeSynthDef = #{ |def| def.memStore.name };
 	~replaceDef = { |i, obj|
 		(i >= ~buffers.size).if({
 			~addBuf.(obj);

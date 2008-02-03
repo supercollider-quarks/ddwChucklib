@@ -1,4 +1,7 @@
 
+// Basically deprecated. This scheme was too complicated and prone to break.
+// Use at your own risk. Good luck!
+
 var saveSubtype = AbstractChuckArray.defaultSubType;
 
 AbstractChuckArray.defaultSubType = \contrapunct;

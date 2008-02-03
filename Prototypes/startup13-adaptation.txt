@@ -46,20 +46,15 @@ AbstractChuckArray.defaultSubType = \melAdapt;
 	splice = ((s1.size-2).rand + 1).max(1);	// splice coordinates
 	spl2size = rrand(3, (s2.size * 0.7).roundUp.asInteger);
 	spl2 = (s2.size - spl2size).rand;
-//	(spl2 >= 2).if({
-		newSeg = s1.copyRange(0, splice-1);
-		newSeg = newSeg ++ s2.copyRange(spl2, spl2 + spl2size);
-		/*newSeg =*/ newSeg ++ s1.copyRange(splice, s1.size - 1);
-//	});
+	newSeg = s1.copyRange(0, splice-1);
+	newSeg = newSeg ++ s2.copyRange(spl2, spl2 + spl2size);
+	newSeg ++ s1.copyRange(splice, s1.size - 1);
 } => Func(\absSplice);
 
 #{ |source, cross|
 	// diatonic splice -- take part of s1 as is, insert intervals from part of s2,
 	// and finish with s1
 	var s1, s2, temp, s1ang, splice, current, new, spl2, spl2size;
-//"diatonic splice - 1st phase".postln;
-//	s1 = source.notes;		// not worrying about weighting b/c poor adaptations
-//	s2 = cross.notes;		// will die after a few generations
 	splice = ((source.notes.size-2).rand + 1).max(1);
 	spl2size = rrand(3, (cross.notes.size * 0.7).round.asInteger);
 	spl2 = (cross.notes.size - spl2size).rand.max(1);
@@ -74,7 +69,7 @@ AbstractChuckArray.defaultSubType = \melAdapt;
 			// last note copied + transposition + next interval from source - next note (source)
 			// algebraically simplifies to last note(s2) + transposition - last note (source)
 		current = cross.notes[spl2 + spl2size - 1].freq + current - source.notes[splice-1].freq;
-		/*new =*/ new ++ (source.notes.copyRange(splice, source.notes.size - 1) + current);
+		new ++ (source.notes.copyRange(splice, source.notes.size - 1) + current);
 	});
 } => Func(\intSplice);
 
@@ -113,13 +108,9 @@ AbstractChuckArray.defaultSubType = \melAdapt;
 	s1 = source.notes;
 	s2 = cross.notes;
 	splice = ((s1.size-2).rand + 1).max(1);
-		// BUG HERE if cross seg has fewer than 4 notes
 	spl2size = rrand((s2.size * 0.2).round.asInteger, (s2.size * 0.7).round.asInteger);
 	spl2 = (s2.size - spl2size).rand.max(0);
 	dur2 = s2[spl2 .. spl2 + spl2size].collect(_.dur).sum;
-//"\ncross segment:".postln;
-//s2[spl2 .. spl2 + spl2size].do(_.postln);
-//dur2.debug("cross length");
 	
 		// calc coordinates in s1 matching that dur
 	dur1 = 0;
@@ -128,26 +119,18 @@ AbstractChuckArray.defaultSubType = \melAdapt;
 		dur1 = dur1 + s1[i].dur;
 		i = i + 1;
 	});
-//dur1.debug("source length first pass");
 		// if durs are equal, no problem
 		// if dur1 is shorter, remove notes from spl2 until dur1 is longer or only one note is left
 	(dur1 < dur2).if({
-//"dur1 is shorter".debug;
 		{ spl2size > 0 and: { dur2 > dur1 } }.while({
 			dur2 = dur2 - s2[spl2 + spl2size].dur;
 			spl2size = spl2size - 1;
 		});
-//"after correction".debug;
-//s2[spl2 .. spl2 + spl2size].do(_.postln);
-//dur2.debug("cross length");
 	});
 
 		// if dur1 is longer, adjust length of last splice note
 	(dur1 != dur2).if({
-//"fixing last splice note".debug;
 		s2 = s2.copy.put(spl2 + spl2size, (notetemp = s2[spl2 + spl2size].copy).dur_(notetemp.dur + dur1 - dur2));
-//s2[spl2 .. spl2 + spl2size].do(_.postln);
-//dur2.debug("cross length");
 	});
 	
 	newSeg = s1.copyRange(0, splice-1);
@@ -155,15 +138,11 @@ AbstractChuckArray.defaultSubType = \melAdapt;
 	(i < s1.size).if({
 		newSeg = newSeg ++ s1.copyRange(i, s1.size - 1);
 	}, { newSeg });
-//newSeg.collect(_.dur).sum.debug("fixedSplice output length");
-newSeg
 } => Func(\fixedSplice);
 
 // a few simple ones
 { |source| var size = source.notes.size, i, notes;
 	notes = source.notes.copy.swap(i = size.rand, (i + (size-1).rand).wrap(0, size-1));
-//notes.collect(_.dur).sum.debug("noteSwap output length");
-//notes
 } => Func(\noteSwap);
 
 // delete 1 note
@@ -171,7 +150,6 @@ newSeg
 	(source.notes.size > 4).if({
 		(out = source.notes.copy).put(i, out[i].copy.dur_(out[i].dur + out[i+1].dur));
 		out.removeAt(i+1);
-//out.collect(_.dur).sum.debug("dropNote output length");
 		out
 	}, { nil })
 } => Func(\dropNote);
@@ -214,7 +192,6 @@ AbstractChuckArray.defaultSubType = \chordFit;
 		Func(\getValuesFromEvent).doAction(source, inEvent);
 	inEvent[\top].notNil.if({
 		sourceTop = source[\notes].maxItem;
-//[top.asFloat, sourceTop.asFloat, top.asFloat - sourceTop.asFloat].debug("transposition");
 		source[\notes] + (top.asFloat - sourceTop.asFloat)
 	}, {
 		source[\notes]	// no topnote given, return input notes
@@ -285,11 +262,6 @@ AbstractChuckArray.defaultSubType = \chordFit;
 	(Func(\convertMode).doAction(note, mode1, mode2) /*+ 0.1.rand2*/).round
 } => Func(\convertNearestInMode).subType_(\chFitAnalysis);
 
-//// not implemented
-//#{ |note, mode1, mode2|
-//	
-//} => Func(\convertModePreserveRoot).subType_(\chFitAnalysis);
-
 // returns an array with important values for chord fitting
 #{ |source, inEvent|
 	var	mode, topEvent, top, topMode, root, notes, chordMode;
@@ -299,7 +271,6 @@ AbstractChuckArray.defaultSubType = \chordFit;
 		// mode might be a mode pool (array of Mode IDs) -- if so, revert to the mode stored in the chord
 	(mode.asMode.value.size > 0).if({
 		mode = source[\mode];
-//		inEvent[\mode] = mode;
 	});
 
 		// midi input will be in the event - use it if present
@@ -311,22 +282,14 @@ AbstractChuckArray.defaultSubType = \chordFit;
 		top = notes.asFloat.maxItem;
 		topMode = mode;
 	});
-//top.debug("top before mode conversion");
-//[mode, topMode].debug("mode, topMode");
 	(mode != topMode).if({
 		top = Func(inEvent[\convertTopFunc] ? \convertMode).doAction(top, topMode, mode);
 	});
 		
-//inEvent[\bassID].debug("bassID");
 		// .value(inEvent) means that the Library item can generate a new root when called
 	root = (Library.at(inEvent[\bassID] ? \currentBassNote).value(inEvent) ? 0).asFloat;
-//root.debug("process got bass");
 
-//mode.debug("mode");
-//notes.asFloat.debug("chord source notes");
-//top.debug("top");
-
-	[mode, topEvent, top, topMode, root, notes]  // .debug("values from event")	// return val
+	[mode, topEvent, top, topMode, root, notes]	// return val
 } => Func(\getValuesFromEvent).subType_(\chFitAnalysis);
 
 		// should return notes array
@@ -336,33 +299,17 @@ AbstractChuckArray.defaultSubType = \chordFit;
 #{ |source, inEvent, fitFactors|
 	var	transposeStats,  // [[xpose1, fitness1], [xpose2, fitness2]...]
 		xposeBy, mode, topEvent, top, topMode, root, notes;
-//var temp;
 
 	#mode, topEvent, top, topMode, root, notes =
 		Func(\getValuesFromEvent).doAction(source, inEvent);
 
-//"\ntop: %, notes: %, midi: %, name: %\n".postf(top.asFloat, notes.asFloat, notes.asFloat.unmapMode(mode), notes.asFloat.unmapMode(mode).asInteger.collect(_.asMIDINote));
-
-
-//"\n".postln;
-//[\fitToBassAndTop, root, top].postln;
-//~notes.postcs;
-//inEvent[\chNotes].postcs;
-
 		// transpose and evaluate for each note
 	transposeStats = notes.collect({ |n|
-/*temp=*/		[xposeBy = (top - n).asFloat,
+		[xposeBy = (top - n).asFloat,
 		 Func(\chPitchFit).doAction(notes + xposeBy, top, root, mode, fitFactors)];
-//"checking xpos %, notes %, fit: %\n".postf(xposeBy, (notes + xposeBy).asFloat.unmapMode(mode).asInteger.collect(_.asMIDINote), temp[1]);
-//temp
 	}).sort({ |a, b| a[1] > b[1] });  // sort fitnesses descending
 		// transpose the whole chord
-		// revise the choose algorithm
-//		temp = ~transposeNotes.value(currentEnvironment.notes, transposeStats.oneOfTop(3)[0]);
-		// output
-/*temp=*/	Func(\fixNotesAboveTop).doAction(notes + transposeStats[0][0], top, mode);
-//"OUTPUT notes: %, midi: %, name: %\n".postf(temp.asFloat, temp.asFloat.unmapMode(mode), temp.asFloat.unmapMode(mode).asInteger.collect(_.asMIDINote));
-//temp
+	Func(\fixNotesAboveTop).doAction(notes + transposeStats[0][0], top, mode);
 } => Func(\chordFitNotes);
 
 // interval strategy -- produce final chord forms by traversing the intervals in a tree structure
@@ -374,27 +321,14 @@ AbstractChuckArray.defaultSubType = \chordFit;
 	#mode, topEvent, top, topMode, root, notes =
 		Func(\getValuesFromEvent).doAction(source, inEvent);
 
-//"\ntop: %, topEvent: %, notes: %, midi: %, name: %\n".postf(top.asFloat, topEvent, notes.asFloat, notes.asFloat.unmapMode(mode), notes.asFloat.unmapMode(mode).asInteger.collect(_.asMIDINote));
-
-
 	fitness = resultList.collect({ |ch, i|
 		[i, Func(\chPitchFit).doAction(ch, top, root, mode, fitFactors)]
 	}).sort({ |a, b| a[1] > b[1] });
 	
 		// output -- fitness[0] is best fit, second [0] gets index into resultList
 		// dur and length should be replaced by microrhythm
-//"chFitInt-result: ".post;
-//resultList[fitness[0][0]].postln.reverseDo({ |freq| Post << (freq.unmapMode(mode) - mode.tuning).asInteger.asMIDINote << ", " });
-//"\n".post;
-//resultList[fitness[0][0]].debug("chFitInt result");
 	resultList[fitness[0][0]].collect({ |freq| SequenceNote(freq, 1, 1) })
 } => Func(\chordFitInt);
-
-//// choose the chord randomly from the interval tree
-//#{ |source, inEvent, fitFactors|
-//	var resultList = Func(\collectChordsByInt).doAction(source, inEvent, fitFactors);
-//	resultList.choose.collect({ |freq| SequenceNote(freq, 1, 1) })
-//} => Func(\chordRandInt);
 
 // more code, but faster...
 #{ |source, inEvent, fitFactors|
@@ -423,11 +357,6 @@ AbstractChuckArray.defaultSubType = \chordFit;
 	#mode, topEvent, top, topMode, root, notes =
 		Func(\getValuesFromEvent).doAction(source, inEvent);
 
-//notes.asFloat.debug("\nchFitInt-notes");
-//top.debug('chFitInt-top');
-//root.debug('chFitInt-root');
-//inEvent[\bassID].debug('bassID');
-
 		// define traverse function
 	resultList = List.new;
 	sortedNotes = notes.copy.sort({ |a, b| a > b });	// descending order by pitch
@@ -449,7 +378,6 @@ AbstractChuckArray.defaultSubType = \chordFit;
 				tempIntervals, resultList);
 		});
 	}, {
-//current.asFloat.postln;
 		resultList.add(current)
 	});
 } => Func(\traverseIntervalTree);
@@ -524,31 +452,23 @@ AbstractChuckArray.defaultSubType = \chordFit;
 // phrase splitter
 { |notes|
 	var subsegs, phraseScores, avgScore, splitIndices;
-//"phrase splitter".debug;
 			// partition the melody into phrases
 			// metric is (delta - avgDelta) * (rest / delta)
-//"calculating phrase scores".debug;
 		phraseScores = notes.collect({ |n|
 			(n.dur < ~avgDelta or: { n.length > n.dur }).if({ -inf },
 				{ (n.dur - ~avgDelta) * ((n.dur - n.length) / n.dur) });
 		});
-//phraseScores.debug("scores");
 		avgScore = phraseScores.reject(_ < 0).mean;
-//avgScore.debug("avgScore");
 		splitIndices = Array.new(notes.size).add(0);
 		phraseScores.do({ |score, i|
 			(score > avgScore).if({ splitIndices.add(i) });
 		});
 		splitIndices.add(notes.size-1);
-//splitIndices.debug("splitIndices");
 			// do you want to join with the preceding or following phrase? dunno, assuming earlier
 		splitIndices.doAdjacentPairs({ |a, b, i|
 			(b-a < 3).if({ phraseScores[a] = -inf });
 		});
-//phraseScores.debug("scores");
-//"splitting note array".debug;
 		notes = notes.separate({ |a, b, i| phraseScores[i] > avgScore });
-//notes.do(_.postcs);
 } => Func(\defaultMelSplit).subType_(\melPartition);
 
 // split notes into equal-length phrases
@@ -566,7 +486,6 @@ AbstractChuckArray.defaultSubType = \chordFit;
 			elapsed = elapsed - barlength;
 		});
 	});
-//result.do({ |phr, i| "\nPhrase %:\n".postf(i); phr.do(_.postln); });
 	result.doAdjacentPairs({ |a, b|
 		((overflow = a.collect(_.dur).sum - barlength) > 0).if({
 			a[a.size-1] = a.last.copy.dur_(a.last.dur - overflow);
@@ -575,7 +494,6 @@ AbstractChuckArray.defaultSubType = \chordFit;
 			b.insert(0, SequenceNote(\rest, overflow, 0.1, 0.5));
 		});
 	});
-//result.do({ |phr, i| "\nPhrase %:\n".postf(i); phr.do(_.postln); });
 		// more efficient to call asArray first on the outer list, saves an object
 	result.asArray.collect(_.asArray);
 } => Func(\barMelSplit).subType_(\melPartition);

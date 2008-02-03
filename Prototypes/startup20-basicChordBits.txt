@@ -53,11 +53,6 @@ ModalSpec(#[0, 2, 3, 5, 7, 8, 10], 12, 0) => Mode(\cmin);
 #{ |notes, event|
 	var topNote, gateIndex, gate;
 	topNote = event[\top];
-//	(gateIndex = topNote.args.tryPerform(\indexOf, \gate)).isNil.if({
-//		gate = gate.tryPerform(\at, 0);		// ???
-//	}, {
-//		gate = topNote.args[gateIndex+1];
-//	});
 	Pn([event.delta, event[\length], topNote.gate ? 0.5], 1)
 } => MicRh(\blockFollow);
 

@@ -5,7 +5,6 @@ AbstractChuckArray.defaultSubType = \melodyPlayer;
 // simple, raw-midi melody player, no adaptive functionality
 PR(\abstractProcess).v.clone({
 	~event = (midi: true, eventKey: \voicerNote);
-//	~eventKey = \voicerNote;
 	~requiredKeys = #[\sequence];
 	~index = 0;
 
@@ -25,11 +24,9 @@ PR(\abstractProcess).v.clone({
 		~index = 0;
 			// Pfunc is roughly 6.7 times SLOWER than Proutine
 		Proutine({ |inval|
-//			currentEnvironment.use({
-				{	inval = ~sequence[~index].embedInStream(inval);  // output
-					((~index = ~index+1) >= ~sequence.size).if({ ~index = 0 });
-				}.loop;
-//			});
+			{	inval = ~sequence[~index].embedInStream(inval);  // output
+				((~index = ~index+1) >= ~sequence.size).if({ ~index = 0 });
+			}.loop;
 		});
 	};
 	
@@ -66,9 +63,6 @@ PR(\abstractProcess).v.clone({
 					// should not overwrite parms for values already populated in parms
 					// if properties includes a mode, this allows you to override the mode
 					// at chuck time
-//				temp.keysValuesDo({ |key, value|
-//					parms[key].isNil.if({ parms[key] = value });
-//				});
 				parms = temp.copy.putAll(parms);	// is this functionally equivalent?
 			});
 		});
@@ -79,8 +73,6 @@ PR(\abstractProcess).v.clone({
 		
 			// get the proper action, either from supplied adverb or buf type
 		adverb = adverb ?? { parms[\type] ? \mel };
-//		~mode = parms[\mode];
-//		~splitFunc = parms[\splitFunc];
 
 		(adverb != \rhythm).if({
 			result = (adverb ++ "PrepareSequence").asSymbol.envirGet
@@ -91,8 +83,6 @@ PR(\abstractProcess).v.clone({
 				adverb.envirPut(result);
 			});
 		}, {
-// also refactor
-// barlength is never initialized
 			~rhythm = ~rhythmPrepareSequence.value(buf, parms);
 		});			
 
@@ -110,14 +100,11 @@ PR(\abstractProcess).v.clone({
 		var	saveMel = ~mel;
 		(~mel = PR(~storageProto).v.copy)
 			.prepareSequence(\mel, buf, currentEnvironment, parms);
-//			.prepareSequence(\mel, buf, minSegSize, ~mode.value, ~splitFunc);
 		saveMel.tryPerform(\adapt).notNil.if({
 			~mel[\adapt] = saveMel[\adapt];
 		});
 		~passInValue !? { ~mel[\passInValue] = ~passInValue };
 		~newMelFlag = true;
-			// switch eventstreamplayer
-		// later
 		~mel
 	};
 	
@@ -131,12 +118,9 @@ PR(\abstractProcess).v.clone({
 	
 	~rhythmPrepareSequence = #{ |buf, parms|
 			// create a new rhythm profiler only if needed
-//"rhythmPrepareSequence".debug;
 		(~rhythm ?? { PR(~rhythmProfileProto).v.copy })
-//.debug
 			.prepare(buf, ~getPassInValue.(PR(~rhythmProfileProto).v.keysFromParent, false),
 				parms, currentEnvironment)
-//.debug;
 	};
 	
 	~dumpSegments = { 
@@ -158,36 +142,16 @@ PR(\abstractProcess).v.clone({
 		});
 	};				
 	
-//	~copyKeyToMel = #{ |key, value|
-//		(key.envirGet.notNil and: { ~mel.notNil }).if({
-//			~mel.put(key, value ?? { key.envirGet })
-//		});
-//		currentEnvironment
-//	};
-//	
-//		// check all keysFromParent in mel and copy values if we have them
-//	~copyKeys = #{ |thing|
-//		thing = thing ?? { currentEnvironment };
-//		(thing.notNil and: ~mel.notNil).if({
-//			~mel[\keysFromParent].do({ |key|
-//				~copyKeyToMel.value(key, thing[key])
-//			});
-//		});
-//		currentEnvironment
-//	};
-	
 // potential problem: do some numeric parms belong to melodyStorage?
 // yes: repeats, adaptProb, eugenicizeProb, variantThreshold, rhythmQuant
 	~bindSimpleNumber = #{ |num, adverb|
 		adverb.envirPut(num);
-//		~copyKeyToMel.value(adverb);
 	};
 	
 	~clearAdapt = #{
 		~mel.clearAdapt;
 	};
 
-//	~mode = #{  ~mode ? Mode(\default).v };
 	~getMode = #{  ~mode ? \default };
 	~mode_ = #{ |mode|
 		mode = mode.tryPerform(\collIndex) ? mode ? \default;  // pass a symbol in as the mode
@@ -197,13 +161,12 @@ PR(\abstractProcess).v.clone({
 		currentEnvironment
 	};
 	
-// function test this breaks the possibility of passing a function as such
+// function test breaks the possibility of passing a function as such
 	~getPassInValue = #{ |keys, save = false|
 		var	out;
 		out = ();
 		keys.do({ |key|
-			out.put(key, currentEnvironment[key].isFunction.if({ currentEnvironment[key].value }, { currentEnvironment[key] }));
-//			out.put(key, currentEnvironment[key]);
+			out.put(key, ~key.isFunction.if({ ~key.value }, { ~key }));
 		});
 		(save ? false).if({ ~passInValue = out; });
 		out
@@ -225,17 +188,14 @@ PR(\abstractProcess).v.clone({
 					~mel.asSegStream(\asPattern,
 						~getPassInValue.(~mel.keysFromParent, true));
 					~newMelFlag = false;
-					phrase = ~mel[\segStream].next/*.debug("refreshed segStream, new result")*/;
+					phrase = ~mel[\segStream].next;
 				});
 				phrase.notNil  // if that fails, nothing to do
 			}.while({
-//"calling asPattern on phrase".debug;
 				phraseStream = phrase  //.asStream(~getPassInValue.value);
-////					.perform(\asPattern, ~useRh.if({ ~rhythmStream }))
 					.perform(\asPattern,
 						~getPassInValue.(~mel[\keysFromParent])).asStream;
 				{ (seg = phraseStream.next).notNil }.while({
-// not entirely sure about inval = , but in theory it's correct
 					inval = seg.embedInStream(inval)
 				});
 					// stick in rest if available
@@ -249,8 +209,6 @@ PR(\abstractProcess).v.clone({
 		})
 		.collect(e { |ev|	// apply extra synth args, if available
 			~argsStream.notNil.if({
-//				ev	.put(\argKeys, ~argKeys)
-//					.putAll(~argsStream.next(ev))
 				~argsStream.next(ev).put(\argKeys, ~argKeys)
 			}, { ev })
 		})
@@ -261,8 +219,6 @@ PR(\abstractProcess).v.clone({
 	~asNotePattern = #{ 
 		~mel.asSegStream(\asNotePattern);
 		~newMelFlag = false;
-//		~asSegStream.value(\asNotePattern);
-			// for finite number of repeats, ~segStream will eventually return nil
 		Prt({ |inval|
 			var phrase, phraseStream, seg;
 			{ ((phrase = ~mel[\segStream].next).isNil and: { ~newMelFlag }).if({
@@ -274,7 +230,6 @@ PR(\abstractProcess).v.clone({
 				phrase.notNil  // if that fails, nothing to do
 			}.while({
 				phraseStream = phrase
-//					.perform(\asNotePattern, ~useRh.if({ ~rhythmStream }))
 					.perform(\asNotePattern, ~getPassInValue.value)
 					.asStream;
 				{ (seg = phraseStream.next).notNil }.while({

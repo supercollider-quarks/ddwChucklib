@@ -7,16 +7,13 @@ AbstractChuckArray.defaultSubType = \melodyStorage;
 // first, handler for a single segment -- this will be analyzed modally
 Proto({
 		// canPauseAfter is deprecated for a more OO solution
-//	~canPauseAfter = false;		// parent can set this for pausable melodies
 	~prepare = #{ |notes, nextNote, storage, parms, rawMIDI = true|
 			// notes should be in the format [note, note, note]
-//mode.debug('melody segment-prepare incoming mode');
 		var	mode = parms.atBackup(\mode, storage) ? \default;
 		~notes = notes.asArray;
 		~nextNote = nextNote;	// final interval should be calculated relative to the next note
 		{ (rawMIDI ? true).if({ ~mapToMode.value(mode) }, {
 			~mode = (mode.size > 0).if({ mode[0] }, { mode });
-//~mode.debug('mode assigned');
 			});
 		}.try({ |error|
 			Error("Error translating MIDI to modal. Check to see if default mode is defined.")
@@ -29,15 +26,12 @@ Proto({
 	
 	~mapToMode = #{ |mode|
 		var	bestMode, bestFit = -1e10, bestMap, modeFit, notesTemp, modeObj;
-//~notes.asFloat.debug('new seg-mapToMode');
-//mode.debug('melody segment-mapToMode incoming mode');
 		mode = mode ? \default; 	// keep symbol for storage
 		modeObj = mode.asMode;
 			// is it a single mode, or a mode pool?
 		if(modeObj.size > 0) {
 			modeObj.do({ |mode, i|
 				notesTemp = ~notes.mapMode(mode);
-//notesTemp.asFloat.debug('new seg-mapToMode - trial mapping');
 				((modeFit = Func(\chModeFit).doAction(notesTemp)) > bestFit).if({
 					bestMode = mode;
 					bestFit = modeFit;
@@ -49,7 +43,6 @@ Proto({
 			~nextNote = ~nextNote.mapMode(bestMode)
 		}{
 			~notes = ~notes.mapMode(mode);
-//~notes.asFloat.debug('new seg-mapToMode - after map');
 			~nextNote = ~nextNote.mapMode(mode);
 			~mode = mode;
 		};
@@ -61,11 +54,6 @@ Proto({
 		~nextNote = ~nextNote.unmapMode(mode ?? { ~mode ? \default });
 		currentEnvironment
 	};
-	
-//		// why the ref to currentEnvironment? This avoids necessity to push the environment
-//		// in some lazy evaluations (see lazyMapToMIDI below)
-//		// if I push the env every time, it's almost 7 times slower
-//	~mode = #{  ~mode ? Mode(\default).v };
 	
 // subclasses must implement:
 //	~analyzeNotes (if needed)
@@ -90,10 +78,6 @@ PR(\abstractModeSeg).v.clone({
 				note.copy.dur_(dur).length_(length);
 			})
 		}, { Pseq(~notes, 1) });
-//			// transpose == modal degrees to transpose by -- best here?
-//		(passInValue[\transpose].notNil and: { passInValue[\transpose] != 0 }).if({
-//			out = out + passInValue[\transpose];
-//		});
 	};
 
 		// all modal patterns must return modally-mapped notes
@@ -180,7 +164,6 @@ PR(\abstractProcess).v.clone({
 	~main = #{  ~segs[0] };
 	
 	~addAdapt = #{ |notes, parms, rawMIDI = false|
-//[parms[\mode], ~mode].debug('addAdapt mode');
 			// if there is no mode in parms, use the one given at creation
 		parms[\mode].isNil.if({ parms[\mode] = ~mode });
 		~segs.add(PR(~segProto).v.copy
@@ -189,13 +172,10 @@ PR(\abstractProcess).v.clone({
 	};
 	
 	~removeAt = #{ |index| ~segs.removeAt(index) 
-//.tryPerform(\notes).tryPerform(\asFloat).postln;	
 	};
 	
 	~asPattern = #{ |rhythmProfile|
-//"making seg pattern".debug;
 		~segs.choose.asPattern(rhythmProfile)
-//.postcs
 	};
 
 	~asNotePattern = #{ |rhythmProfile|
@@ -255,15 +235,12 @@ PR(\abstractProcess).v.clone({
 	};
 	
 	~addAdaptCollect = #{ |pattern, passInValue, asPatSelector = \asPattern|
-//		passInValue = passInValue ?? { ~passInValue };
 		pattern.collect(e { |seg|
 			passInValue[\adaptProb].coin.if({
-//				currentEnvironment.use({
-					~doAdapt.value(seg, passInValue);
-					(seg.segs.size > passInValue[\variantThreshold]).if({
-						~eugenicize.value(seg, passInValue);
-					});
-//				});
+				~doAdapt.value(seg, passInValue);
+				(seg.segs.size > passInValue[\variantThreshold]).if({
+					~eugenicize.value(seg, passInValue);
+				});
 			});
 			seg.perform(asPatSelector, passInValue);
 		})
@@ -272,23 +249,16 @@ PR(\abstractProcess).v.clone({
 		// source and cross are Lists ([0] is original, [1..x] are variants)
 	~doAdapt = #{ |source, passInValue|
 		var srcSeg, crsSeg, fitness, fitnessmean, qtemp, result, adaptTemp;
-//		passInValue = passInValue ?? { ~passInValue };
 			// choose source segment -- if too different from original, don't adapt further
 			// source is melSegWithAdapt
 		srcSeg = source.segs.choose;
 		(~adaptMel.size > 0 and: { source.adaptable ? true }).if({
 			crsSeg = ~adaptMel.choose;
 			fitness = passInValue[\adaptStream].next(srcSeg);
-//fitness.debug("calling Func");
 			Func.exists(fitness).if({
 				(result = Func(fitness).doAction(srcSeg, crsSeg, passInValue)).notNil.if({
-//"adding result to segWithAdapt".debug;
-//result.asFloat.postln;
 					source.addAdapt(
 						result,
-	//					srcSeg.nextNote,	// use nextNote from original seg
-// hard mode reference
-//						srcSeg.mode,  // newly created seg should use source's mode
 						~parms,	// uses parms from creation time (no subsequent updates)
 						false  // rawmidi should now be false
 					);
@@ -297,10 +267,7 @@ PR(\abstractProcess).v.clone({
 						.doAction(source.segs[0], source.segs.last, passInValue).notNil.if({
 							source.removeAt(source.segs.size-1)
 					});
-				}/*, {
-					format("Func(%) returned nil. No adaptation.",
-						fitness.asCompileString).warn;
-				}*/);
+				});
 			}, {
 				fitness.notNil.if({
 					format("Func(%) does not exist. No adaptation.",
@@ -312,7 +279,6 @@ PR(\abstractProcess).v.clone({
 	
 	~tryEugenicize = #{ |variantThreshold|
 		var	seg;
-//"tryEugenicize".debug;
 		(seg = ~mel.select({ |seg| seg.mel.size > variantThreshold }).choose)
 			!? { ~eugenicize.value(seg); };
 	};
@@ -320,31 +286,23 @@ PR(\abstractProcess).v.clone({
 		// choose worst fit (or oldest) out of source and kill it
 		// ok to have this in phrase b/c it doesn't involve adapt material
 	~eugenicize = #{ |source, passInValue|
-		var	fits, orig/*, origQual*/;
-//source.debug("eugenicize");
-//		origQual = source.segs[0].metric;
-//origQual.debug("original seg metric");
-//		passInValue = passInValue ?? { ~passInValue };
+		var	fits, orig;
 
 		orig = source.segs[0];
 		fits = Array.newClear(source.segs.size-1);
 		for(1, source.segs.size-1, { |i|
-//source.segs[i].notes.asFloat.debug("adapted notes");
 			fits.put(i-1, [Func(passInValue[\eugTest])
 				.doAction(orig, source.segs[i], passInValue), i]);
-//fits[i-1][0].debug("fitness absdif");
 		});
 		fits = fits.reject({ |fit| fit[0].isNil });	// nil values are OK by test func
 			// if any segment is left, kill the worst of them
 		(fits.size > 0).if({
 				// sort descending order of fit
-//"dropping by fitness".debug;
 			fits = fits.sort({ |a, b| a[0] > b[0] });
 			source.removeAt(fits[0][1])
 		}, {		// otherwise use age to determine which to drop
 				// nature of list is that earliest items should be older
 				// keep the original [0] and drop the oldest
-//"dropping by age".debug;
 			source.removeAt(1)
 		});
 	};
@@ -398,8 +356,6 @@ Proto({
 		// generate metrics for adaptation segments
 	~melPrepareSequence = #{ |buf, storage, parms|
 		var	notes, temp, intervals;
-//		var	lastTrueIndex, largeInterval;
-//"mel-adaptPrepareSequence".postln;
 		notes = buf.notes;
 			// calc this for splitting the phrases into subsegments
 		intervals = Array.new(notes.size - 1);
@@ -439,13 +395,8 @@ Proto({
 			}).flat;
 	};
 	
-//	~mode = #{ |newMode|
-//		currentEnvironment		// implement change of mode later
-//	};
-	
 	~clearAdapt = #{
 		~adapt = nil;
-//		~mel = ~mel.collect({ |seg| List.with(seg[0]) });
 		~mel.do(_.clearAdapt);
 	};
 
@@ -453,29 +404,15 @@ Proto({
 	~makePhrPattern = #{ |passInValue|
 		passInValue = passInValue ?? { ~passInValue };
 		~phrPattern = Pseq(~mel, passInValue[\repeats] ? inf)
-//.collect({ |val| "\nmelstore-phrase pattern".postln; val.postcs })
 	};
 	
 		// run each melody segment successively
 	~asSegPattern = #{ |asPatSelector, passInValue|
-var temp;
 		passInValue = passInValue ?? { ~passInValue };
 		~makePhrPattern.value(passInValue).collect(e { |phr|
-//phr.debug("phrpattern result");
 			phr.notNil.if({
-//"\ngot phrase".debug;
-//phr.listVars;
-//				currentEnvironment.use({
-//asPatSelector.debug('getting seg');
 						// populate adaptation values in phrase, to simplify API
-temp = 				(adaptMel: ~adapt);
-//temp.debug('adaptation values into phrase');
-					phr.putAll(temp);
-						// moving this to melody process level
-//					phr = phr.perform(asPatSelector, ~useRh.if({ rhythmStream }));
-//phr.postln;
-//				});
-				phr  // output
+				phr.putAll((adaptMel: ~adapt));
 			}, {
 				nil
 			});

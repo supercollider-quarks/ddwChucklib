@@ -10,31 +10,13 @@ PR(\abstractProcess).v.clone({
 	~canWrap = true;
 	~replayTimeSpec = BasicTimeSpec(1);
 	~parseBuf = true;
-// DEPRECATE THIS:
-//	~bufQuant = nil;	// may override if you want to quantize the midi input
 
-// add a user hook here?
 	~postRecFunc = #{ |buf, process|
 		(buf.properties.tryPerform(\at, \parse) ? ~parseBuf).if({ buf = buf.parse; });
-//		(~parseBuf ? false).if({ buf = buf.parse; });
 			// output:
-		buf.hasQuantizeProperties.debug("quantize?").if({ buf.quantize },
+		buf.hasQuantizeProperties.if({ buf.quantize },
 			{ buf });
-//		~bufQuant.notNil.if({ buf.flexQuantize(~bufQuant, process.v[\clock]) },
-//			{ buf });
 	};
-	
-//	~midiParsers = IdentityDictionary[
-//		\mel -> #{ |socket| MelodyParser(nil, currentEnvironment, socket) },
-////		\top -> #{ |socket| MelodyParser(nil, currentEnvironment, socket) },
-//		\ch -> #{ |socket| ChordParser(nil, currentEnvironment, socket, nil,
-//			~deltaThresh ? 0.1, ~lengthThresh ? 0.1) }
-//	];
-	
-//	~getMIDIParser = #{ |socket, type|
-//		~parser = ~midiParsers[type ? ~defaultMIDIType].value(socket)
-//	};
-
 }) => PR(\abstractMIDIInput);
 
 PR(\abstractMIDIInput).v.clone({
@@ -45,7 +27,7 @@ PR(\abstractMIDIInput).v.clone({
 	~getMIDIParser = #{ |socket|
 		~parser = MelodyParser(nil, currentEnvironment, socket, ~child.clock)
 	};
-		// use ~collIndex
+
 	~midiCleanup = #{ 
 		var	bp = BP(~collIndex), buf, quant;
 		bp.unwrap(false);
@@ -65,23 +47,16 @@ PR(\abstractMIDIInput).v.clone({
 	};
 	
 	~melNoteOn = #{ |note|
-//		var	event;
-			// is it playing? if so, interrupt
-["MIDI process-noteOn", note.asString].postln;
-//		~child.eventStreamPlayer.notNil.if({
-"stopping child stream".postln;
-			~child.eventStreamPlayer.stop;
-//		});
+		~child.eventStreamPlayer.stop;
 			// save this note -- when a note is released, this goes into that event
 			// so that event can check for overlapping notes
-"saving last midi note".postln;
 		~midiNotesOn.add(note.asFloat);
 		~lastMIDINoteOn = note.asFloat;
 			// let child process determine how to handle the note
 			// by setting length to nil, we tell child process the note will be terminated later
-"playing event".postln;
 		~preparePlayEvent.value(note);
 	};
+
 	~preparePlayEvent = #{ |note|
 		~child.event.copy.put(\note, note.copy.length_(nil))
 			.put(\midi, true)
@@ -90,13 +65,10 @@ PR(\abstractMIDIInput).v.clone({
 	};
 		// should be able to receive an array of notes
 	~melNoteOff = #{ |note|
-//["MIDI process-noteOff", note.asString].postln;
-//~child.event[\releaseNote].postcs;
 		~midiNotesOn.remove(note.asFloat);
 		~child.event.copy
 			.put(\note, note)
 			.put(\immediateOSC, true)
-//			.put(\lastMIDINoteOn, ~child[\lastMIDINoteOn])
 			.use({ ~releaseNote.value; });
 	};
 }, nil, #[\defaultMIDIType]) => PR(\melMIDI);
@@ -112,11 +84,7 @@ PR(\abstractMIDIInput).v.clone({
 		~parser = ChordParser(nil, currentEnvironment, socket, ~child.clock,
 			~deltaThresh ? 0.1, ~lengthThresh ? 0.1)
 	};
-//	~midiCleanup = PR(\melMIDI).v[\midiCleanup];
 	~chordNoteOn = #{ |note|
-//		var	event;
-			// is it playing? if so, interrupt
-//["MIDI process-noteOn", note.asCompileString].postln;
 		~child.eventStreamPlayer.notNil.if({
 			BP(~collIndex).stopNow;
 		});
@@ -124,7 +92,6 @@ PR(\abstractMIDIInput).v.clone({
 
 			// get additional parameters from child (wrapper) process
 			// this assumes child is already playing
-// how to get midi to initiate play?
 		~preparePlayEvent.value(note);
 	};
 	~preparePlayEvent = #{ |note|
@@ -136,7 +103,6 @@ PR(\abstractMIDIInput).v.clone({
 	};
 		// should be able to receive an array of notes
 	~chordNoteOff = #{ |note|
-//["MIDI process-noteOff", note.asString].postln;
 		~child.event.copy.put(\chNotes, note).use({
 			~releaseNote.value;
 		});
@@ -157,13 +123,9 @@ PR(\melMIDI).v.clone({
 			.play;
 	};
 
-// this is ok if you're arpeggiating but blockfollow doesn't work
-// no way to know here what notes were triggered...
-
 		// this one should only stop the stream if releasing the last played note
 	~melNoteOff = #{ |note|
 		var	currentChord = ~child.child.currentChord, notes;
-note.asFloat.debug("melNoteOff");
 		currentChord.notNil.if({
 			notes = currentChord.lastFitNotes.asFloat
 				.unmapMode(currentChord.modeForEvent(~child.lastEvent));
@@ -181,11 +143,8 @@ note.asFloat.debug("melNoteOff");
 // chord and topnote melody input simultaneously
 PR(\chMIDI).v.clone({
 	~preparePlayEvent = #{ |note|
-"chmelMIDI-preparePlayEvent".postln;
-note.collect(_.freq).postln;
 		~child.eventStream.next(~child.event.copy)
 			.put(\chNotes, note.mapMode(~child.mode))
-// may not work if there's a grace note higher than real chord note
 			.put(\top, note.maxItem.postln.mapMode(~child.mode).postln)
 			.put(\length, inf)		// child should not cut off on its own
 			.put(\midi, false)		// this only works on mapped data

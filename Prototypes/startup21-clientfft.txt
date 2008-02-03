@@ -460,34 +460,31 @@ PR(\abstractProcess).v.clone({
 		path = path.standardizePath;
 		(file = File.new(path, "r")).isOpen.if({
 			AppClock.sched(0, Routine({
-//				currentEnvironment.use({
-					protect {
-						~pts = ~readRowFromCSV.(file);
+				protect {
+					~pts = ~readRowFromCSV.(file);
+					0.01.yield;
+					peaks = ~readRowFromCSV.(file);
+					size = ~pts.size;
+					~matrix = Array.new(size);
+					size.do({ |i|
 						0.01.yield;
-						peaks = ~readRowFromCSV.(file);
-						size = ~pts.size;
-						~matrix = Array.new(size);
-						size.do({ |i|
-							0.01.yield;
-							raw = ~readRowFromCSV.(file);
-							~matrix.add(
-								raw.collect({ |col, j|
-									(refindex: i, index: j, metric: col, peak: peaks[j],
-										time: ~pts[j])
-								})
-							);
-						});
-						action.value(~matrix);
-					} {
-						file.close;
-					};
-//				});
+						raw = ~readRowFromCSV.(file);
+						~matrix.add(
+							raw.collect({ |col, j|
+								(refindex: i, index: j, metric: col, peak: peaks[j],
+									time: ~pts[j])
+							})
+						);
+					});
+					action.value(~matrix);
+				} {
+					file.close;
+				};
 			}))
 		}, {
 			"% could not be opened.".format(path).error
 		});
 	};
-
 }) => PR(\transient_analysis_file);
 
 PR(\transient_analysis_file).v.clone({
@@ -589,38 +586,36 @@ PR(\transient_analysis_buffer).v.clone({
 
 		~resp = OSCresponderNode(s.addr, '/tr', e { |t, r, m|
 			var	buf;
-//			currentEnvironment.use({
-					// ignore if I don't know about the node
-				buf = ~bufs.detect({ |buf| m[1] == buf.node.tryPerform(\nodeID) });
-				buf.notNil.if({
-					switch(m[2])	// switch is based on SendTrig id arg
-						{ -1 } {
-							buf.status = \record;
-							buf.dur = nil;	// set flags so we know when all messages
-							buf.peak = nil;	// have come in
-							buf.ontimes = List.new;
-							~doOnRecord.(buf);
-						}
-						{ 0 } {
-							buf.status = \stopRec;
-							buf.peak = m[3].max(0.01);
-							buf.dur.notNil.if({ ~closeRecording.(buf) });
-						}
-						{ 1 } {
-							buf.status = \stopRec;
-							buf.dur = m[3];
-							buf.recTime = Main.elapsedTime;
-							buf.peak.notNil.if({ ~closeRecording.(buf) });
-						}
-				}, {
-					buf = ~bufs.detect({ |buf| m[1] == buf.detectnode.tryPerform(\nodeID) });
-					(buf.notNil and: { m[2] == 32 and: { buf.status == \record
-							and: { m[3] > 0 } } }).if({
-						buf.ontimes.add(m[3]);
-						~queueOnsetTime.(buf, m[3], buf.ontimes.size-1);
-					});
+				// ignore if I don't know about the node
+			buf = ~bufs.detect({ |buf| m[1] == buf.node.tryPerform(\nodeID) });
+			buf.notNil.if({
+				switch(m[2])	// switch is based on SendTrig id arg
+					{ -1 } {
+						buf.status = \record;
+						buf.dur = nil;	// set flags so we know when all messages
+						buf.peak = nil;	// have come in
+						buf.ontimes = List.new;
+						~doOnRecord.(buf);
+					}
+					{ 0 } {
+						buf.status = \stopRec;
+						buf.peak = m[3].max(0.01);
+						buf.dur.notNil.if({ ~closeRecording.(buf) });
+					}
+					{ 1 } {
+						buf.status = \stopRec;
+						buf.dur = m[3];
+						buf.recTime = Main.elapsedTime;
+						buf.peak.notNil.if({ ~closeRecording.(buf) });
+					}
+			}, {
+				buf = ~bufs.detect({ |buf| m[1] == buf.detectnode.tryPerform(\nodeID) });
+				(buf.notNil and: { m[2] == 32 and: { buf.status == \record
+						and: { m[3] > 0 } } }).if({
+					buf.ontimes.add(m[3]);
+					~queueOnsetTime.(buf, m[3], buf.ontimes.size-1);
 				});
-//			});
+			});
 		}).add;
 
 		~featuredef = ~makeFeatureDetector.value.send(s);
@@ -882,7 +877,8 @@ PR(\transient_analysis_buffer).v.clone({
 						spec.index = spec.buf.ffts.size;
 						audio = ~getAudioData.(spec.time, spec.buf.buf);
 						audio.notNil.if({
-							srcfft = PR(~dataProto).v.copy.prep(audio, spec.index, currentEnvironment);
+							srcfft = PR(~dataProto).v.copy
+								.prep(audio, spec.index, currentEnvironment);
 							srcfft.getfft.notNil.if({
 								~postProgress.if({
 									"BP(%): got valid time %\n".postf(

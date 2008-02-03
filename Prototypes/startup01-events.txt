@@ -22,7 +22,6 @@ Proto({
 		// mainly used for adaptPattern, but other uses are conceivable
 	~bindPattern = #{ |pat, adverb|
 		adverb = adverb ? ~bindPatDefault;
-//		currentEnvironment.put(adverb ++ "Pattern").asSymbol, pat = pat.asPattern);
 		currentEnvironment.put(adverb.asSymbol, pat = pat.asPattern);
 		currentEnvironment.put((adverb ++ "Stream").asSymbol, pat.asStream);
 		currentEnvironment
@@ -63,9 +62,7 @@ Proto({
 		});
 
 		Prt({ |inEvent|
-//			currentEnvironment.use({
-				{ inEvent = streamKey.envirGet.next(inEvent).yield }.loop
-//			});
+			{ inEvent = streamKey.envirGet.next(inEvent).yield }.loop
 		});
 	};
 	
@@ -88,25 +85,23 @@ Proto({
 			// to the original stream; cleanupstream returns nil and stops the parent stream
 		overstream = Routine({ |inval|
 			var	nextval;
-//			currentEnvironment.use({
-				while { (nextval = overkey.envirGet.next(inval)).notNil }
-					{	ref.if({
-							(nextval.isSymbol and: { nextval.envirGet.notNil }).if({
-								inval = nextval.envirGet.next(inval).yield;
-							}, { inval = nextval.yield; });
-						}, {
-							inval = nextval.yield;
-						});
-					};
-						// end of the line; restore the original stream
-						// and return 1 valid value so that the main pattern doesn't die
-						// after substitution, this routine will not get called again
-				streamkey.envirPut(savekey.envirGet);
-				savekey.envirPut(nil);
-				overkey.envirPut(nil);
-				revertAction.value;
-				streamkey.envirGet.next(inval).yield;
-//			});
+			while { (nextval = overkey.envirGet.next(inval)).notNil }
+				{	ref.if({
+						(nextval.isSymbol and: { nextval.envirGet.notNil }).if({
+							inval = nextval.envirGet.next(inval).yield;
+						}, { inval = nextval.yield; });
+					}, {
+						inval = nextval.yield;
+					});
+				};
+					// end of the line; restore the original stream
+					// and return 1 valid value so that the main pattern doesn't die
+					// after substitution, this routine will not get called again
+			streamkey.envirPut(savekey.envirGet);
+			savekey.envirPut(nil);
+			overkey.envirPut(nil);
+			revertAction.value;
+			streamkey.envirGet.next(inval).yield;
 		});
 		
 		streamkey.envirPut(overstream);
@@ -134,7 +129,7 @@ Proto({
 		// run this action when resuming rhythmic patterns
 	~doAction = { |path|
 		Library.global.putAtPath(path ? ~path, thisThread.clock.beats.roundUp(~barLength));
-//		thisThread.clock.setMeterAtBeat(newBeatsPerBar, beats);
+		thisThread.clock.setMeterAtBeat(~barLength, beats);
 	};
 	~freeCleanup = { 
 		Library.global.removeAtPath(~path)
@@ -148,13 +143,6 @@ Proto({
 
 // the default event handles latency differently from BP
 Event.default.copy => ProtoEvent(\default);
-//ProtoEvent(\default).v.parent.putAll((
-//	getLatencyInSeconds: { |server|
-//		~getLagInSeconds.value + ((~latency ? 0) / (thisThread.clock.tryPerform(\tempo) ? 1.0))
-//	},
-//	getLagInSeconds: { (~lag ? 0) / (thisThread.clock.tryPerform(\tempo) ? 1.0) }
-//));
-
 
 // Event uses functions to schedule message sends according to timingOffset
 // copy these functions into Func repository for these events
@@ -164,19 +152,15 @@ Event.default[\schedBundleArray] => Func(\basicSchedBundleArray).subType_(\event
 Event.default[\schedStrummedNote] => Func(\basicSchedStrummedNote).subType_(\eventHelper);
 
 
-//Func(\schedEventBundleArray).v.postcs
-//Func(\schedEventStrummedNote).v.postcs
-
 { |lag, offset, server ...bundle|
-//[lag, offset, server, bundle].debug("in schedEventBundle");
 	(~immediateOSC ? false).if({
 		server.sendBundle(nil, *bundle)
 	}, {
 		Func(\basicSchedBundleArray).value(lag, offset, server, bundle)
 	});
 } => Func(\schedEventBundle).subType_(\eventHelper);
+
 { |lag, offset, server, bundleArray|
-//[lag, offset, server, bundleArray].debug("in schedEventBundleArray");
 	(~immediateOSC ? false).if({
 		server.sendBundle(nil, *bundleArray)
 	}, {
@@ -237,7 +221,7 @@ setArgs: {
 makeNode: {
 	var	args, nodeID, server, sustain,
 		tempo = ~clock.tryPerform(\tempo) ? 1.0,
-		/*latency = ~timingOffset !? { ~timingOffset / tempo },*/ bundle;
+		bundle;
 	~lag ?? { ~lag = 0 };
 	((~instrument != \rest) and: { ~freq != \rest }).if({
 		~setTarget.value;
@@ -254,16 +238,12 @@ makeNode: {
 				bundle = bundle.add(~node.setnMsg(*~polyargs));
 			});
 			Func(\schedEventBundleArray).doAction(~lag, ~timingOffset, ~server, bundle);
-//			~server.listSendBundle(latency, bundle);
 (~trace == true).if({
 	Func(\schedEventBundle).doAction(~lag + 0.05, ~timingOffset, server, [\n_trace, nodeID]);
 });
 			(~grain.not and: { ~hasGate ? false and: { (sustain = ~sustain.value).notNil } }).if({
 				Func(\schedEventBundle).doAction(~lag + sustain, ~timingOffset, ~server,
 					[\n_set, nodeID, \gate, 0]);
-//				thisThread.clock.sched(sustain, {
-//					server.sendBundle(latency, [\n_set, nodeID, \gate, 0])
-//				});
 			});
 		});
 	});
@@ -296,7 +276,6 @@ ProtoEvent(\singleSynthPlayer).v.copy.putAll((play: {
 			msg = msg.add(~node.setnMsg(*~polyargs))
 		});
 		Func(\schedEventBundleArray).doAction(~lag, ~timingOffset, ~node.server, msg);
-//		~node.server.listSendBundle(~timingOffset !? { ~timingOffset / tempo }, msg);
 		(~debug ? false).if({
 			msg.postln 
 		});
@@ -325,10 +304,7 @@ play: { var args, nodeID;
 		~setArgs.value;
 		~args = ~args.collect(_.flop).flop.collect(_.flat);
 		~node.do({ |node, i|
-//[node, ~args.wrapAt(i)].debug("arg set");
 			Func(\schedEventBundle).doAction(~lag, ~timingOffset, node.setMsg(*~args.wrapAt(i)));
-//			node.server.sendBundle(~timingOffset !? { ~timingOffset / ~clock.tempo }, 
-//				node.setMsg(*~args.wrapAt(i)));
 		});
 	})
 })) => ProtoEvent(\polySynthTrigger);
@@ -393,13 +369,6 @@ ProtoEvent(\singleSynthPlayer).v.copy.putAll((
 					\i_out, ~bus.wrapAt(i).index, \outbus, ~bus.wrapAt(i).index],
 					\addToTail)
 			);
-//						~server.wrapAt(i).sendBundle(latency, 
-//							~node[i].newMsg(~target.wrapAt(i), 
-//								~args.wrapAt(i) ++ [\out, ~bus.wrapAt(i).index,
-//								\i_out, ~bus.wrapAt(i).index, \outbus, ~bus.wrapAt(i).index],
-//								\addToTail)
-//						);
-// add gate handling here
 			(~grain.not and: { ~hasGate ? false and: { (sustain = ~sustain.value).notNil } }).if({
 				Func(\schedEventBundle).doAction(latency + sustain, ~timingOffset, ~server,
 					[\n_set, nodeID, \gate, 0]);
@@ -439,9 +408,6 @@ ProtoEvent(\polySynthPlayer).v.copy.putAll((
 		// or, if you are using modally-mapped values, include the cpsFunc or EqualTemperament derivative
 		// in the ModalSpec itself
 	midiNoteToFreq: #{ |notenum|
-//~mode.debug("mode in note player");
-//[~freq, notenum].debug("~freq, notenum");
-//thisFunction.dumpBackTrace;
 		~mode.notNil.if({ ~mode.asMode.cpsFunc.value(notenum) },
 			{ notenum.midicps });
 	},
@@ -451,13 +417,11 @@ ProtoEvent(\polySynthPlayer).v.copy.putAll((
 		~freq = ~freq ?? { ~note.asFloat };
 		~mtranspose.notNil.if({ ~freq = ~freq + ~mtranspose });
 		(~midi ? false).not.if({ ~freq = ~freq.unmapMode(~mode.asMode) });
-//~freq.debug("\tfreq mapped to midi");
 		~ctranspose.notNil.if({ ~freq = ~freq + ~ctranspose });
 
 		~freq = ~midiNoteToFreq.value(~freq).asArray;
 		~delta = ~delta ?? { ~note.dur };
 		~length = (~length ?? { ~note.length }).asArray;
-// handling of args here is VERY badly hacked
 		~args = ~args ?? { [~note.tryPerform(\args)].tryPerform(\flatten, 1) } ?? { [] };
 		i = 0;	// args should be key value pairs, but might be an array of velocities
 				// drop pairs that are not \symbol, value
@@ -493,14 +457,9 @@ ProtoEvent(\polySynthPlayer).v.copy.putAll((
 			"\n".debug;
 			["voicerNote event", ~clock.beats, ~clock.tempo].debug;
 			currentEnvironment.collect({ |value| value.isFunction.not.if(value, nil) }).postcs;
-//			currentEnvironment[\note].postcs;
 		});
 		~prepNote.value;
 		~finish.value;	// user-definable
-//(~debug == true).if({
-//	"\nafter prepnote".debug;
-//	currentEnvironment.debug;
-//});
 		~nodes.do({ |node, i|
 			var	freq = ~freq.wrapAt(i), length = ~length.wrapAt(i);
 			Func(\schedEventBundleArray).doAction(lag, ~timingOffset, node.server,
@@ -519,8 +478,6 @@ ProtoEvent(\polySynthPlayer).v.copy.putAll((
 	},
 		// for live midi input -- assumes midi note has been put into ~note
 	releaseNote: #{
-//"\nvoicerNote-releaseNote".postln;
-//currentEnvironment.postln;
 		(~immediateOSC ? false).if({
 			~voicer.release(~midiNoteToFreq.value(~freq ?? { ~note.freq }));
 		}, {
@@ -552,14 +509,9 @@ ProtoEvent(\voicerNote).v.copy.putAll((
 		};	// end crib
 		~prepNote.value;
 		~finish.value;	// user-definable
-//"".postln;
-//["synthNote event", ~clock.beats].postln;
-//currentEnvironment.postln;
 		~lag ?? { ~lag = 0 };
 		(~freq.isSymbol.not and: { ~desc.notNil }).if({
-//"note is not rest".postln;
 			(~freq.size > 0).if({
-//["freq is array", ~freq].postcs;
 				(~gate.size == 0).if({ ~gate = [~gate] });
 				(~length.size == 0).if({ ~length = [~length] });
 				~freq.do({ |freq, i|
@@ -580,23 +532,13 @@ ProtoEvent(\voicerNote).v.copy.putAll((
 			Func(\schedEventBundle).doAction(~lag, ~timingOffset, server, synth.newMsg(groupbus[0],
 					~args ++ [\outbus, groupbus[1], \out, groupbus[1],
 					\freq, freq, \gate, gate], \addToTail));
-//			server.sendBundle(~timingOffset !? { ~timingOffset / ~clock.tempo }, 
-//				synth.newMsg(groupbus[0], 
-//					~args ++ [\outbus, groupbus[1], \out, groupbus[1],
-//					\freq, freq, \gate, gate], \addToTail));
 		}, {
 			Func(\schedEventBundle).doAction(~lag, ~timingOffset, server, synth.newMsg(~target,
 					~args ++ [\outbus, ~out, \out, ~out, \freq, freq, \gate, gate], \addToTail));
-//			server.sendBundle(~timingOffset !? { ~timingOffset / ~clock.tempo }, synth.newMsg(~target,
-//				~args ++ [\outbus, ~out, \out, ~out, \freq, freq, \gate, gate], \addToTail));
 		});
 		~hasGate.if({
 			Func(\schedEventBundle).doAction(~lag + length, ~timingOffset, synth.server,
 				synth.setMsg(\gate, 0));
-//			~clock.sched(length, {
-//				server.sendBundle(~timingOffset !? { ~timingOffset / ~clock.tempo },
-//					synth.setMsg(\gate, 0));
-//			});
 		});
 	},
 	
@@ -616,21 +558,17 @@ ProtoEvent(\voicerNote).v.copy.putAll((
 			// nil is legit if there is no topnote pattern
 		(~topNoteNum.isNumber or: { ~topNoteNum.isNil }).if({
 			(~midi ? false).if({
-//"midi received".postln;
 				~length = inf;	// should not terminate except by midi note
 			}, {
-//["doing wrapper event", ~delta, ~length].postln;
 					// not needed here but included for subclasses
 					// if previous child stream needs to be stopped, do it in ~finish
 				~finish.value;
 				~length = ~length ? ~delta;
 			});
 				// start it at the current logical time
-//"scheduling new stream on clock:".postln;
 			~clock.sched(0, ~makeChildStream.value);
 			NotificationCenter.notify(~child, \runChild, currentEnvironment);
 		});
-//~delta	// check later whether this is really necessary for correct timing after topnote midi input
 	},
 	getTopNoteNum: {
 		~topNoteNum = ~top.tryPerform(\at, \freq)
@@ -640,16 +578,10 @@ ProtoEvent(\voicerNote).v.copy.putAll((
 		var childStreamTemp, childEvent, child = ~child;
 			// create a new stream and put it in the environment
 			// child stream needs to know the current event, so it's passed to asPattern
-//~collIndex.debug("\ncreating new stream");
 
 			// downward propagation - responsibility of wrapper
-//"downward propagation".debug;
-//~allKeysToPropagate.debug;
 		~propagateDownward.value;
-//"getting child event:".debug;
-//~child[\event].debug;
 		(childEvent = ~child[\event]).parent = ProtoEvent(childEvent[\eventKey]).v;
-//childEvent.debug;
 
 		~child.preparePlay;
 		childStreamTemp = ~wrapPattern.value(~child.asPattern(currentEnvironment));
@@ -661,7 +593,6 @@ ProtoEvent(\voicerNote).v.copy.putAll((
 			{ NotificationCenter.notify(child, \childStop); }
 		));
 
-//"populating stream player".postln;
 		~child.put(\eventStreamPlayer, childStreamTemp = EventStreamPlayer(
 			~child.eventStream,
 			childEvent
@@ -676,11 +607,6 @@ ProtoEvent(\voicerNote).v.copy.putAll((
 	wrapPattern: #{ |pattern|
 		pattern	// simply return pattern, unmodified
 	},
-//////// temporarily removing this so chords play continuously
-//////// will figure out a way to make this configurable at play time
-//	releaseNote: #{
-//		~child.eventStreamPlayer.stop
-//	},
 	keysToPropagate: #[\midi]
 ) => ProtoEvent(\melWrap);
 
@@ -707,14 +633,11 @@ ProtoEvent(\melWrap).v.copy.make({
 ProtoEvent(\melWrap).v.copy.make({
 		// should only be called inside the event
 	~wrapPattern = #{ |pattern|
-//		var	id = UniqueID.next;
-//[~length, id, thisThread.clock.beats, thisThread.clock.beats + ~length].debug("wrapping child pattern");
 		(~length != inf).if({
 			pattern = Pfindur(~length-0.01, pattern);
 		}, {
 			pattern
 		});
-//		Pseq([pattern, Pfuncn({ [id, thisThread.clock.beats].debug("stopping child event"); nil }, 1)], 1);
 	};
 	
 	~getChord = true;	// default; midi input may override -- used??
@@ -763,10 +686,8 @@ PR(\abstractProcess).v.clone({
 		])
 	);
 
-
 		// support code follows
 	~makeSynthDefs = { 
-//		var	sdef;
 		~objects = ~objects.value;
 		~objects.keysValuesDo({ |id, def|
 			def[\synthdef].isNil.if({
@@ -791,7 +712,6 @@ PR(\abstractProcess).v.clone({
 			sdef = ~makeDefForObject.(def[\def], id);
 			def[\synthdef] = sdef;
 			def[\name] = sdef.tryPerform(\name) ? sdef;
-//sdef.insp;
 			sdef.tryPerform(\send, ~chan.server);
 			sdef.tryPerform(\memStore);
 		});

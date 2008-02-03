@@ -143,8 +143,6 @@ chuckKeyCtl = ~chuckKeyCtl;
 	// any other key, if not caught by a view, switches focus back to the chuck key controller
 	// and passes key thru
 ~masterLayout.view.keyDownAction_({ |view, char, mods, unicode, keycode|
-//view.dumpBackTrace;
-//[char, mods, unicode, keycode].debug("bubbled up to masterlayout");
 	(unicode == 30 and: { (mods bitAnd: 0x40000) > 0 }).if({
 		Document.current.front;
 	}, {
@@ -162,9 +160,7 @@ f = { |view|
 	(view.class.name != 'ToggleTextField').if({
 		(view.respondsTo(\keyDownAction) and: { view.keyDownAction.isNil }).if({
 			view.keyDownAction = { |view, char, modifiers, unicode, keycode|
-//				view.keyDownAction.isNil.if({
-					view.defaultKeyDownAction(char, modifiers, unicode, keycode)
-//				});
+				view.defaultKeyDownAction(char, modifiers, unicode, keycode)
 			};
 		});
 			// nil-do is its own nil check
