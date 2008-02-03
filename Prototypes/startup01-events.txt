@@ -128,7 +128,8 @@ Proto({
 	~path = #[baseBeat];	// may override
 		// run this action when resuming rhythmic patterns
 	~doAction = { |path|
-		Library.global.putAtPath(path ? ~path, thisThread.clock.beats.roundUp(~barLength));
+		var	beats = ~barLength.nextTimeOnGrid(thisThread.clock);
+		Library.global.putAtPath(path ? ~path, beats);
 		thisThread.clock.setMeterAtBeat(~barLength, beats);
 	};
 	~freeCleanup = { 
