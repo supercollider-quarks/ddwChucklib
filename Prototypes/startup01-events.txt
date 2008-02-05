@@ -451,7 +451,7 @@ ProtoEvent(\polySynthPlayer).v.copy.putAll((
 	
 	play: #{
 		var	lag = ~lag ? 0,  // ~timingOffset !? { ~timingOffset / ~clock.tempo };
-			timingOffset = ~timingOffset,
+			timingOffset = ~timingOffset ? 0,
 			clock = ~clock,
 			bundle;
 		(~debug == true).if({
@@ -472,14 +472,16 @@ ProtoEvent(\polySynthPlayer).v.copy.putAll((
 					// because you must not release the VoicerNode
 					// until the proper time comes
 				thisThread.clock.sched(length + timingOffset, {
-					node.release(0, lag + node.server.latency, freq);
+					node.release(0,
+						node.server.latency.notNil.if({ lag + node.server.latency }),
+						freq);
 				});
 			});
 		});
 	},
 		// for live midi input -- assumes midi note has been put into ~note
 	releaseNote: #{
-		(~immediateOSC ? false).if({
+		((~immediateOSC ? false) or: { ~voicer.target.server.latency.isNil }).if({
 			~voicer.release(~midiNoteToFreq.value(~freq ?? { ~note.freq }));
 		}, {
 			~voicer.release(~midiNoteToFreq.value(~freq ? ~note.freq),
