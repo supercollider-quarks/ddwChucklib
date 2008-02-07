@@ -6,6 +6,10 @@ var	masterLayout, chuckKeyCtl, composeDocKeyResp,
 
 var	path;
 
+Library.at(\mixer, \smallskin).isNil.if({
+	Library.put(\mixer, \smallskin, MixerSkin.new.maxAcross_(1));
+});
+
 ~toolbarFlow.isNil.if({
 
 AbstractChuckArray.loadFromChuckDirectories("devPreMIDIcfg.txt");
