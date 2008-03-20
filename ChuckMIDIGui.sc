@@ -33,7 +33,7 @@ MTGui : HJHObjectGui {
 	guiBody { |lay|
 		var	size, cols, myRows, width, height, temp;
 		layout = lay;
-		
+
 			// compute bounds
 		minNoteFloor = model.minNote.trunc(rows);
 		((maxNoteCeil = model.maxNote.trunc(rows)) != model.maxNote).if({
@@ -54,8 +54,9 @@ MTGui : HJHObjectGui {
 
 		mainView.isNil.if({	// if this gui is already open, don't recreate
 			{	mainView = GUI.compositeView.new(layout, argBounds ?? { Rect(0, 0, width, height) })
+					.relativeOrigin_(try { layout.relativeOrigin } { false })
 					.onClose_({ this.remove });
-			
+
 			chanText = GUI.staticText.new(mainView,
 				Rect(gap+mainView.bounds.left, gap+mainView.bounds.top, width-gap, dragHeight))
 				.string_("MT(" ++ model.collIndex.asShortString ++ ")")  // midi channel index
