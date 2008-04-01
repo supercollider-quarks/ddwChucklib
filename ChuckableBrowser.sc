@@ -20,6 +20,14 @@ ChuckableBrowser {
 		^super.new.init(masterLayout, bounds)
 	}
 	
+	*newWindow { |name|
+		var	window = MultiPageLayout(name ?? { "Chuck browser" }),
+			browser = this.new(window);
+		ChuckBrowserKeyController(browser);
+		window.recursiveResize.front;
+		^browser
+	}
+	
 	init { |master, bounds|
 		default.isNil.if({ default = this });
 		masterLayout = master ?? {
