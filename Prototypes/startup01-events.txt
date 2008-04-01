@@ -173,6 +173,7 @@ Event.default[\schedStrummedNote] => Func(\schedEventStrummedNote).subType_(\eve
 
 
 (grain: false,
+timingOffset: 0,
 setTarget: {
 	~chan.notNil.if({
 		~target = (~isFx ? false).if({ ~chan.effectgroup },
@@ -222,8 +223,9 @@ setArgs: {
 makeNode: {
 	var	args, nodeID, server, sustain,
 		tempo = ~clock.tryPerform(\tempo) ? 1.0,
-		bundle;
-	~lag ?? { ~lag = 0 };
+		bundle,
+		lag = ~lag ? 0,
+		offset = ~timingOffset ? 0;
 	((~instrument != \rest) and: { ~freq != \rest }).if({
 		~setTarget.value;
 		~busindex.notNil.if({
@@ -238,13 +240,15 @@ makeNode: {
 			(~polyargs.size > 0).if({
 				bundle = bundle.add(~node.setnMsg(*~polyargs));
 			});
-			Func(\schedEventBundleArray).doAction(~lag, ~timingOffset, ~server, bundle);
+			Func(\schedEventBundleArray).doAction(lag, offset, server, bundle);
 (~trace == true).if({
 	Func(\schedEventBundle).doAction(~lag + 0.05, ~timingOffset, server, [\n_trace, nodeID]);
 });
 			(~grain.not and: { ~hasGate ? false and: { (sustain = ~sustain.value).notNil } }).if({
-				Func(\schedEventBundle).doAction(~lag + sustain, ~timingOffset, ~server,
-					[\n_set, nodeID, \gate, 0]);
+				thisThread.clock.sched(sustain, {
+					Func(\schedEventBundle).doAction(lag, offset, server,
+						[\n_set, nodeID, \gate, 0]);
+				});
 			});
 		});
 	});
@@ -258,12 +262,12 @@ play: {
 
 ProtoEvent(\singleSynthPlayer).v.copy.putAll((
 	notifyDependents: {
-		BP(~collIndex).v.recvEventNotify(~node);
+		BP(~collIndex).v.recvEventNotify(~node, currentEnvironment);
 	}
 )) => ProtoEvent(\singleSynthPlayNotify);
 
 	// backward compatibility
-ProtoEvent(\singleSynthPlayNotify).v.copy => ProtoEvent(\bufStatusUpdate);
+ProtoEvent(\singleSynthPlayNotify).v => ProtoEvent(\bufStatusUpdate);
 
 
 ProtoEvent(\singleSynthPlayer).v.copy.putAll((play: {
@@ -271,6 +275,7 @@ ProtoEvent(\singleSynthPlayer).v.copy.putAll((play: {
 		// the full condition is needed for Ppar which uses ~freq == \rest
 	(~node != \rest and: { ~instrument != \rest and: { ~freq != \rest } }).if({
 		~lag ?? { ~lag = 0 };
+		~instrument = ~node.defName;
 		~setArgs.value;
 		msg = [~node.setMsg(*~args)];
 		(~polyargs.size > 0).if({
@@ -359,7 +364,7 @@ ProtoEvent(\singleSynthPlayer).v.copy.putAll((
 		});
 	},
 	makeOneNode: { |i, strum|
-		var	instr, nodeID, latency, sustain;
+		var	instr, nodeID, latency, sustain, server = ~server, offset = ~timingOffset ? 0;
 		((instr = ~instrument.wrapAt(i)) != \rest).if({
 			nodeID = ~grain.if({ -1 }, { ~server.wrapAt(i).nextNodeID });
 			~node[i] = Synth.basicNew(instr, ~server.wrapAt(i), nodeID);
@@ -371,8 +376,10 @@ ProtoEvent(\singleSynthPlayer).v.copy.putAll((
 					\addToTail)
 			);
 			(~grain.not and: { ~hasGate ? false and: { (sustain = ~sustain.value).notNil } }).if({
-				Func(\schedEventBundle).doAction(latency + sustain, ~timingOffset, ~server,
-					[\n_set, nodeID, \gate, 0]);
+				thisThread.clock.sched(sustain, {
+					Func(\schedEventBundle).doAction(latency, offset, server,
+						[\n_set, nodeID, \gate, 0]);
+				});
 			});
 		});
 	},
@@ -398,13 +405,14 @@ ProtoEvent(\singleSynthPlayer).v.copy.putAll((
 
 ProtoEvent(\polySynthPlayer).v.copy.putAll((
 	notifyDependents: {
-		BP(~collIndex).v.recvEventNotify(~node);
+		BP(~collIndex).v.recvEventNotify(~node, currentEnvironment);
 	}
 )) => ProtoEvent(\polySynthPlayNotify);
 
 // voicer events (for ai sequencing):
 
-(	// args: [],
+(	timingOffset: 0,
+	// args: [],
 		// maybe you want to use non-equal-temperament. override this func
 		// or, if you are using modally-mapped values, include the cpsFunc or EqualTemperament derivative
 		// in the ModalSpec itself

@@ -24,10 +24,10 @@ PR(\abstractProcess).v.clone({
 // modal chord segment that adapts itcurrentEnvironment to bass and topnote
 
 // fitnesses of chord notes, assuming root is 0
-// you can set this in a chordsegment instanceto override.
+// you can set this in a chordsegment instance to override.
 // To change the default, put something else in the library.
 
-Library.put(\fitFactors, IdentityDictionary[
+Library.put(\fitFactors, Dictionary[
 	0 -> 10,
 	1.0 -> 6,  // 2nd
 	2.0 -> 10, // 3rd -- note, privileging triadic notes
@@ -103,10 +103,11 @@ PR(\abstractModeSeg).v.clone({
 		});
 	};
 
-	~getFit = #{  ~fitFactors ? Library.at(\fitFactors); };
+	~getFit = #{ ~fitFactors ? Library.at(\fitFactors); };
 
 	~asPattern = #{ |inEvent, fitFunc|
-		var result = Func(fitFunc).doAction(currentEnvironment, inEvent, ~getFit.value);
+		var result = Func(fitFunc).doAction(currentEnvironment, inEvent,
+			inEvent[\fitnessOverride] ?? { ~getFit.value });
 		result.notNil.if({
 			~lastFitNotes = result;
 			ArpegPat(inEvent[\arpegType]).asPattern(result, inEvent)
@@ -194,6 +195,9 @@ PR(\abstractProcess).v.clone({
 
 	~asPattern = #{ |inEvent|
 		var	out, argPairs;
+		if(~fitFactors.notNil) {
+			inEvent = inEvent.copy.put(\fitnessOverride, ~fitFactors);
+		};
 		out = Pbind(
 			\note, inEvent[\chNotes].isNil.if({
 				(~chords.size == 0).if({
@@ -269,6 +273,7 @@ AbstractChuckArray.defaultSubType = \chordPlayer;
 PR(\abstractProcess).v.clone({
 	~canWrap = true;
 	~respondsToBass = false;
+	~updaters = ();		// see ~update below -- for user-extensible notifications
 
 	~acceptMIDIBuf = #{ |buf, adverb, parms|
 		(#[\ch, nil].includes(adverb)).if({
@@ -280,12 +285,28 @@ PR(\abstractProcess).v.clone({
 		currentEnvironment
 	};
 	
-	~update = #{ |obj, changer|
+	~update = #{ |obj, changer ... args|
+		if(~updaters.tryPerform(\at, changer).notNil) {
+			~updaters[changer].value(obj, changer, *args)
+		};
+		currentEnvironment
+	};
+
+	~updateBassID = { |obj, changer|
 		(~isPlaying and: { changer == ~bassID and: { ~lastEvent.notNil } })
 		.if({
 			~child.updateBass(~lastEvent, changer);
 		});
-		currentEnvironment
+	};
+	
+	~bassID_ = { |bassID|
+		if(~updaters.tryPerform(\at, ~bassID).notNil) {
+			~updaters.removeAt(~bassID);
+		};
+		~bassID = bassID;
+		if(bassID.notNil) {
+			~updaters[bassID] = ~updateBassID;
+		};
 	};
 	
 	~bindSimpleNumber = #{ |num, adverb|

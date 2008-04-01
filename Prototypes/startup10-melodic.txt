@@ -259,6 +259,7 @@ PR(\aiMel).v.clone({
 	~bassID = \currentBassNote;
 	~bassIDStream = \currentBassNote;
 
+		// ProtoEvent(\voicerNote) issues the dependency notification
 	~asPattern = #{ 
 		~asBasePattern.value
 			.collect(e { |ev| ev.put(\bassID, ~bassIDStream.next(ev)) });
