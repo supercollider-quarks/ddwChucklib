@@ -1074,7 +1074,7 @@ BP : AbstractChuckNewDict {
 						this.clock.schedAbs(this.eventSchedTime(argQuant), {
 							value.doAction;  // doAction is a pseudomethod in the Proto
 							value.put(\isPlaying, false);
-							notify.if({ this.changed(\stop); });
+							notify.if({ this.changed(\stop, \stopped); });
 						});
 					}
 				{ this.canStream }
@@ -1197,22 +1197,23 @@ BP : AbstractChuckNewDict {
 					// so use current beats if it's greater
 				this.clock.schedAbs(max(time - (1e-3), this.clock.beats), {
 					value[\isPlaying].not.if({
-						this.stopNow(nil, argQuant);
+						this.stopNow(nil, argQuant, notifyTime: time);
 					});
 				});
 			} {
 				this.stopNow(nil, argQuant);
 			};
 			value.put(\isPlaying, false).put(\isWaiting, false);
-			this.changed(\stop);
+			this.changed(\stop, \request);
 		});
 	}
 	
 		// for rewrapping/replacing -- specify an Proto to use
 		// there may be cases where I don't want to notify dependents
-	stopNow { |adhoc, quant, notify = true, doCleanup = true|
+	stopNow { |adhoc, quant, notify = true, doCleanup = true, notifyTime|
 		var	child;	// to iterate down the chain of child processes
 		this.exists.if({
+			notifyTime ?? { notifyTime = this.clock.beats };
 			adhoc = adhoc ? value;
 			adhoc.eventStreamPlayer.stop;
 			doCleanup.if({ adhoc.stopCleanup(false, quant); });
@@ -1224,7 +1225,9 @@ BP : AbstractChuckNewDict {
 				child.put(\isPlaying, false);
 			});
 			value.put(\isPlaying, false).put(\isWaiting, false);
-			notify.if({ this.changed(\stop); });
+				// parent might need to know the quantized stop time
+				// but the notification should be sent slightly ahead of the beat
+			notify.if({ this.changed(\stop, \stopped, notifyTime) });
 		});
 	}
 	
@@ -1275,7 +1278,7 @@ BP : AbstractChuckNewDict {
 				// optional post-stop activity--true means stopped automatically
 			adhoc.stopCleanup(true);
 			adhoc.put(\isPlaying, false);
-			self.changed(\stop);	// if self is nil, this is still OK
+			self.changed(\stop, \stopped);	// if self is nil, this is still OK
 		}
 	}
 		
