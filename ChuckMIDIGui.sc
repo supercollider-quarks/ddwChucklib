@@ -1,7 +1,8 @@
 
 MTGui : HJHObjectGui {
 	classvar	<>dragWidth = 80, <>dragHeight = 15, <>rows = 12,
-			<>gap = 2;
+			<>gap = 2,
+			<>fontSpecs = #["Helvetica", 10];
 	classvar	>font, <backColors, blackKeys;
 
 	var	<mainView,
@@ -11,7 +12,7 @@ MTGui : HJHObjectGui {
 
 	*initClass {
 		StartUp.add({
-			font = GUI.font.new("Helvetica", 10);	// nice and small
+//			font = GUI.font.new("Helvetica", 10);	// nice and small
 			backColors = (
 				ready: [Color.new255(181, 196, 255), Color.new255(136, 147, 191)],  // baby blue
 				playing: [Color.new255(69, 255, 23), Color.new255(52, 191, 17)],  // green
@@ -26,7 +27,7 @@ MTGui : HJHObjectGui {
 		// you might have switched to a different gui scheme since initializing the class library
 	*font {
 		(GUI.font === font.class).if({ ^font }, {
-			^(font = GUI.font.new(font.name, font.size))
+			^(font = GUI.font.new(*fontSpecs))
 		});
 	}
 
