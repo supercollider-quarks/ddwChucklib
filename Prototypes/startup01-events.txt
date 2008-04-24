@@ -743,8 +743,9 @@ PR(\abstractProcess).v.clone({
 		var	sdef; // = patch.asSynthDef;
 		sdef = patch.asSynthDef;
 			// I saw a scenario where InstrSynthDef did not come up with a unique name based on args
-			// dictionary id must be unique
-		sdef.name = id.asString;
+			// dictionary id must be unique to this BP
+			// might have the same ID with different args in different BPs, so add the BP's ID
+		sdef.name = ~collIndex ++ id;
 		sdef
 	};
 	~makeSynthDef = #{ |def| def };
