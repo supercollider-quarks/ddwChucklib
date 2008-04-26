@@ -5,22 +5,22 @@
 <meta http-equiv="Content-Style-Type" content="text/css">
 <title></title>
 <meta name="Generator" content="Cocoa HTML Writer">
-<meta name="CocoaVersion" content="824.44">
+<meta name="CocoaVersion" content="824.47">
 <style type="text/css">
 p.p1 {margin: 0.0px 0.0px 0.0px 0.0px; font: 18.0px Helvetica}
 p.p2 {margin: 0.0px 0.0px 0.0px 0.0px; font: 12.0px Helvetica; min-height: 14.0px}
 p.p3 {margin: 0.0px 0.0px 0.0px 0.0px; font: 12.0px Helvetica}
 p.p4 {margin: 0.0px 0.0px 0.0px 0.0px; font: 14.0px Helvetica}
-p.p5 {margin: 0.0px 0.0px 0.0px 0.0px; font: 9.0px Monaco; color: #a81a1a}
-p.p6 {margin: 0.0px 0.0px 0.0px 0.0px; font: 9.0px Monaco}
-p.p7 {margin: 0.0px 0.0px 0.0px 0.0px; font: 9.0px Monaco; min-height: 12.0px}
+p.p5 {margin: 0.0px 0.0px 0.0px 0.0px; font: 9.0px Monaco; color: #bf0000}
+p.p6 {margin: 0.0px 0.0px 0.0px 0.0px; font: 9.0px Monaco; color: #000000}
+p.p7 {margin: 0.0px 0.0px 0.0px 0.0px; font: 9.0px Monaco; color: #000000; min-height: 12.0px}
 p.p8 {margin: 0.0px 0.0px 0.0px 0.0px; font: 9.0px Monaco; color: #606060}
-p.p9 {margin: 0.0px 0.0px 0.0px 0.0px; font: 9.0px Monaco; color: #366f1f}
-span.s1 {color: #0000ff}
-span.s2 {color: #9b241b}
-span.s3 {color: #0020b7}
-span.s4 {color: #366f1f}
-span.s5 {color: #a81a1a}
+p.p9 {margin: 0.0px 0.0px 0.0px 0.0px; font: 9.0px Monaco; color: #007300}
+span.s1 {color: #0016ff}
+span.s2 {color: #9f2415}
+span.s3 {color: #0000bf}
+span.s4 {color: #007300}
+span.s5 {color: #bf0000}
 span.s6 {color: #000000}
 span.Apple-tab-span {white-space:pre}
 </style>
@@ -79,7 +79,7 @@ span.Apple-tab-span {white-space:pre}
 <p class="p3"><b>~amps:</b> The amplitude at each subdivision of the beat. 0 indicates a rest. This array should have enough values to account for the entire bar: ~beatsPerBar / ~divCycle.asArray.sum * ~divCycle.asArray.size, by default = 4.0 / 0.25 = 16. The ~ampsSize method returns the result of this calculation.</p>
 <p class="p3"><b>~rates:</b> Playback rate scaling for each note.</p>
 <p class="p3"><b>~bufs:</b> A numeric index indicating which buffer to use.</p>
-<p class="p3"><b>~times:</b> How long to sustain the sound. If this array is omitted, the buffer's duration is used.</p>
+<p class="p3"><b>~times:</b> How long (in beats) to sustain the sound. If this array is omitted, the buffer's duration is used.</p>
 <p class="p2"><br></p>
 <p class="p3">Of less importance:</p>
 <p class="p2"><br></p>
