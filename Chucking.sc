@@ -772,10 +772,12 @@ BP : AbstractChuckNewDict {
 	var	<leadTime;	// leadTime is given in beats and corresponds to ~timingOffset in Event
 
 	*initClass {
-		Class.initClassTree(Clock);
-		defaultClock = TempoClock.default;
-		defaultQuant = defaultClock.beatsPerBar;
-		defaultEvent = (eventKey: \default);
+		StartUp.add({
+			defaultClock = TempoClock.default;
+				// no matter what the meter is, this will go to the next barline
+			defaultQuant = BasicTimeSpec({ |clock| clock.beatsPerBar });
+			defaultEvent = (eventKey: \default);
+		});
 	}
 	
 	init {

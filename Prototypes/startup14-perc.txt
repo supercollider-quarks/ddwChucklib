@@ -129,7 +129,6 @@ AbstractChuckArray.defaultSubType = \drumSequencer;
 PR(\abstractProcess).v.clone({
 		// grain: true means don't generate a new node id each time (use -1)
 	~event = (grain: true, eventKey: \singleSynthPlayer);
-	~quant = 4;
 	~requiredKeys = #[\amps, \bufPaths];
 	~inChannels = 1;
 	~outChannels = 2;
@@ -144,9 +143,9 @@ PR(\abstractProcess).v.clone({
 	~deltaAdjust = #[0];	// push samples ahead (-) or behind (+) to compensate for transient time
 						// this array's elements correspond to buffers
 						// adjustments given in seconds
-						// and may be NO LESS THAN this BP's .leadTime (also in beats)
+						// adjustment.neg <= thisBP.leadTime - MUST BE TRUE
 	~divCycle = 0.25;	// or #[0.3, 0.2] for swing
-	~beatsPerBar = 4;
+	~beatsPerBar = { (~clock ?? { BP.defaultClock }).beatsPerBar };
 	~def = \bufGrain;
 	~argPairs = nil;	// you may specify other arg keys as an array: [key, value, key, value]
 					// if the key's value is not a pattern, a pattern will be made for it
@@ -217,7 +216,7 @@ PR(\abstractProcess).v.clone({
 	
 	~ampsSize = {
 		var	divCycleArray = ~divCycle.asArray;
-		~beatsPerBar / divCycleArray.sum * divCycleArray.size
+		~beatsPerBar.value / divCycleArray.sum * divCycleArray.size
 	};
 	
 	~makeDeltaPattern = #{ 
@@ -237,8 +236,8 @@ PR(\abstractProcess).v.clone({
 				});
 				thisDelta = thisDelta + dStream.next;
 			});
-			(totalDelta < ~beatsPerBar).if({
-				deltas.add(~beatsPerBar - totalDelta);
+			(totalDelta < ~beatsPerBar.value).if({
+				deltas.add(~beatsPerBar.value - totalDelta);
 			});
 			Pseq(deltas, 1)
 		}, { Pfinval(~amps.size, Pn(~divCycle.asPattern, inf)) });
