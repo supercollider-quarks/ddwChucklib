@@ -156,6 +156,10 @@ PR(\abstractProcess).v.clone({
 	~mono = false;	// true = automatically prevent note overlaps
 	~compensateEnv = false;		// true = subtract attack and decay time from time value
 							// so that the synth plays for exactly "time" seconds
+		// compensate sensitivity: 1.0 = subtract whole attack/decay duration
+		// 0.0 = subtract none (just like ~compensateEnv = false)
+		// 0.5 = subtract *half* of attack + decay
+	~compensateAmount = 1.0;
 
 	~compactPatterns = true;
 
@@ -171,13 +175,14 @@ PR(\abstractProcess).v.clone({
 		});
 			// this func is environment safe
 			// loadbufs is here for defPerc, which may need resources from postMCCreation
-		~chan.doWhenReady({ |chan| 
+		~chan.doWhenReady({ |chan|
 			~postMCCreation.(chan);
 			~loadBufs.value;
 		});
 		currentEnvironment
 	};
-	~postMCCreation = nil;	// exit point to put in your own initialization
+	~postMCCreation = nil;	// pre-buffer exit point to put in your own initialization
+	~postBufferLoad = nil;	// post-buffer exit point
 	~loadBufs = #{ 
 		~buffers.notNil.if({ ~buffers.free });
 		~bufTimes = Array.newClear(~bufPaths.size);
@@ -185,7 +190,8 @@ PR(\abstractProcess).v.clone({
 			Buffer.readAndQuery(~chan.server, path, 
 				~bufCoords.wrapAt(i)[0], ~bufCoords.wrapAt(i)[1],
 				completionFunc: e { |buf|
-					~fixBufTime.(i, buf)
+					~fixBufTime.(i, buf);
+					if(i == (~bufPaths.size - 1)) { ~postBufferLoad.() };
 			});
 		});
 	};
@@ -323,7 +329,7 @@ PR(\abstractProcess).v.clone({
 					time = min(time, ev[\delta] / thisThread.clock.tempo)
 				});
 				~compensateEnv.if({
-					(time - ev[\attack] - ev[\decay]).max(0.001)
+					(time - ((ev[\attack] - ev[\decay]) * ~compensateAmount)).max(0.001)
 				}, { time });
 			})
 		]
@@ -565,7 +571,7 @@ PR(\bufPerc).v.clone({
 					time = min(time, ev[\delta] / thisThread.clock.tempo)
 				});
 				~compensateEnv.if({
-					(time - ev[\attack] - ev[\decay]).max(0.001)
+					(time - ((ev[\attack] - ev[\decay]) * ~compensateAmount)).max(0.001)
 				}, { time });
 			})
 		]

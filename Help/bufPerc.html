@@ -16,8 +16,8 @@ p.p6 {margin: 0.0px 0.0px 0.0px 0.0px; font: 9.0px Monaco; color: #000000}
 p.p7 {margin: 0.0px 0.0px 0.0px 0.0px; font: 9.0px Monaco; color: #000000; min-height: 12.0px}
 p.p8 {margin: 0.0px 0.0px 0.0px 0.0px; font: 9.0px Monaco; color: #606060}
 p.p9 {margin: 0.0px 0.0px 0.0px 0.0px; font: 9.0px Monaco; color: #007300}
-span.s1 {color: #0016ff}
-span.s2 {color: #9f2415}
+span.s1 {color: #0020ff}
+span.s2 {color: #a3240c}
 span.s3 {color: #0000bf}
 span.s4 {color: #007300}
 span.s5 {color: #bf0000}
@@ -62,6 +62,8 @@ span.Apple-tab-span {white-space:pre}
 <p class="p3"><b>master:</b> The target of this process MixerChannel -- may be a global mixer, or it could also be a drum submix.</p>
 <p class="p2"><br></p>
 <p class="p3"><b>postMCCreation:</b> A user specified function that executes after creating the MixerChannel for the process. Here, you may initialize other resources, create effects etc. This takes place before loading the sound files. (If you manually supply a MixerChannel as chan, this function still executes.)</p>
+<p class="p2"><br></p>
+<p class="p3"><b>postBufferLoad:</b> A user specified function that executes after all buffer loads are complete. Useful for calculations that depend on buffer sizes.</p>
 <p class="p2"><br></p>
 <p class="p3"><b>free:</b> If you created any extra resources in postMCCreation, you should supply a function here to release those resources.</p>
 <p class="p2"><br></p>
