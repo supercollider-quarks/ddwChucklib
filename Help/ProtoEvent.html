@@ -5,23 +5,21 @@
 <meta http-equiv="Content-Style-Type" content="text/css">
 <title></title>
 <meta name="Generator" content="Cocoa HTML Writer">
-<meta name="CocoaVersion" content="824.44">
+<meta name="CocoaVersion" content="824.47">
 <style type="text/css">
 p.p1 {margin: 0.0px 0.0px 0.0px 0.0px; font: 14.0px Helvetica}
 p.p2 {margin: 0.0px 0.0px 0.0px 0.0px; font: 12.0px Helvetica; min-height: 14.0px}
 p.p3 {margin: 0.0px 0.0px 0.0px 0.0px; font: 12.0px Helvetica}
 p.p4 {margin: 0.0px 0.0px 0.0px 0.0px; font: 9.0px Monaco; color: #0000bf}
 p.p5 {margin: 0.0px 0.0px 0.0px 0.0px; font: 9.0px Monaco; color: #000000}
-p.p6 {margin: 0.0px 0.0px 0.0px 0.0px; font: 9.0px Monaco; color: #a41919}
+p.p6 {margin: 0.0px 0.0px 0.0px 0.0px; font: 9.0px Monaco; color: #bf0000}
 p.p7 {margin: 0.0px 0.0px 0.0px 0.0px; font: 9.0px Monaco; color: #000000; min-height: 12.0px}
 span.s1 {font: 12.0px Helvetica}
 span.s2 {color: #000000}
 span.s3 {color: #007300}
 span.s4 {color: #0000bf}
-span.s5 {color: #001ab2}
-span.s6 {color: #36701f}
-span.s7 {color: #606060}
-span.s8 {text-decoration: underline}
+span.s5 {color: #606060}
+span.s6 {text-decoration: underline}
 span.Apple-tab-span {white-space:pre}
 </style>
 </head>
@@ -40,7 +38,12 @@ span.Apple-tab-span {white-space:pre}
 <p class="p2"><br></p>
 <p class="p3">An event prototype must have a function assigned to the <i>play</i> key. If you don't want the event to play anything per se, you can provide a dummy like 1 (which does nothing when .value'd).</p>
 <p class="p2"><br></p>
-<p class="p6"><span class="s2">(play: #{<span class="Apple-converted-space">  </span></span>/* do something in here */<span class="s2"> }) =&gt; </span><span class="s5">ProtoEvent</span><span class="s2">(</span><span class="s6">\uselessEvent</span><span class="s2">);</span></p>
+<p class="p6"><span class="s2">(play: #{<span class="Apple-converted-space">  </span></span>/* do something in here */<span class="s2"> }) =&gt; </span><span class="s4">ProtoEvent</span><span class="s2">(</span><span class="s3">\uselessEvent</span><span class="s2">);</span></p>
+<p class="p2"><br></p>
+<p class="p3">To use a ProtoEvent outside the BP framework, get a copy of it:</p>
+<p class="p2"><br></p>
+<p class="p6">// returns a copy of the Event stored at ProtoEvent(\default)</p>
+<p class="p4">ProtoEvent<span class="s2">(</span><span class="s3">\default</span><span class="s2">).copy</span></p>
 <p class="p2"><br></p>
 <p class="p3"><b>Composite ProtoEvents</b></p>
 <p class="p2"><br></p>
@@ -48,8 +51,8 @@ span.Apple-tab-span {white-space:pre}
 <p class="p2"><br></p>
 <p class="p3">The pattern should then place the name of the proto event into the protoEvent key for each event. The correct proto event will be chosen on a per event basis.</p>
 <p class="p2"><br></p>
-<p class="p5">(play: { ~number.debug(<span class="s7">"ProtoEvent(\a)"</span>) }) =&gt; <span class="s4">ProtoEvent</span>(<span class="s3">\a</span>);</p>
-<p class="p5">(play: { ~number.debug(<span class="s7">"\tProtoEvent(\b)"</span>) }) =&gt; <span class="s4">ProtoEvent</span>(<span class="s3">\b</span>);</p>
+<p class="p5">(play: { ~number.debug(<span class="s5">"ProtoEvent(\a)"</span>) }) =&gt; <span class="s4">ProtoEvent</span>(<span class="s3">\a</span>);</p>
+<p class="p5">(play: { ~number.debug(<span class="s5">"\tProtoEvent(\b)"</span>) }) =&gt; <span class="s4">ProtoEvent</span>(<span class="s3">\b</span>);</p>
 <p class="p5"><span class="s4">ProtoEvent</span>.composite([<span class="s3">\a</span>, <span class="s3">\b</span>]) =&gt; <span class="s4">ProtoEvent</span>(<span class="s3">\composite</span>);</p>
 <p class="p7"><br></p>
 <p class="p4">Proto<span class="s2">({</span></p>
@@ -70,7 +73,7 @@ span.Apple-tab-span {white-space:pre}
 <p class="p3">The default event uses a number of parameters to adjust timing:</p>
 <p class="p2"><br></p>
 <p class="p3"><b>~lag:</b> delay this event by this number of beats; may be different for each event</p>
-<p class="p3"><b>~timingOffset:</b> delay by this number of beats; this is intended only to compensate for scheduling a process' thread slightly early to simulate higher priority for the process. See the discussion of leadTime in the <b>[</b><b><span class="s8">BP</span></b><b>]</b> helpfile.</p>
+<p class="p3"><b>~timingOffset:</b> delay by this number of beats; this is intended only to compensate for scheduling a process' thread slightly early to simulate higher priority for the process. See the discussion of leadTime in the <b>[</b><b><span class="s6">BP</span></b><b>]</b> helpfile.</p>
 <p class="p3"><b>~server.latency:</b> apply this many seconds of latency to the outgoing OSC message, solely for the purpose of controlling network timing jitter.</p>
 <p class="p2"><br></p>
 <p class="p3">Functions in the default event handle these parameters correctly. The same functions are available in the Func repository. If you are sending OSC messages in your event prototype, you should use these functions to ensure consistent timing with other event prototypes.</p>

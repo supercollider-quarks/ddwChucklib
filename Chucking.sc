@@ -1582,6 +1582,8 @@ ProtoEvent : AbstractChuckNewDict {
 		});
 		^out
 	}
+	
+	copy { ^value.copy }
 }
 
 ArpegPat : MacRh {
