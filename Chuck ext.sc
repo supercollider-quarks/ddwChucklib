@@ -149,6 +149,8 @@
 //		this.dumpBackTrace;
 		^nil
 	}
+
+	eval {}
 }
 
 //+ EventStreamPlayer {
@@ -160,4 +162,7 @@
 
 + Symbol {
 	asProtoImportable { ^PR(this).v }
+
+		// experimental
+	eval { |... args| ^Func(this).value(*args) }
 }
