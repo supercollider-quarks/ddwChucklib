@@ -255,18 +255,26 @@ PR(\abstractProcess).v.clone({
 			Pseq(~amps, 1)
 		});
 	};
+	~makeDefPattern = #{ |repeats = 1|
+		var	outArray = Array.new(~amps.size), array = ~def.asArray;
+		~amps.do({ |amp, i|
+			(amp > 0).if({
+				outArray.add(array.wrapAt(i));
+			});
+		});
+		if(outArray.size == 0) { outArray.add(\rest) };
+		Pseq(outArray, repeats)
+	};
 	~makePatternFromArray = #{ |array, repeats, sourceKey|
-		var amps, outArray, i;
+		var amps, outArray;
 		(~compactPatterns or: { sourceKey == \def }).if({
 			amps = ~amps;
 			outArray = Array.new(amps.size);
 				// if first is a rest, need a placeholder
 			(sourceKey != \def and: { amps[0] == 0 }).if({ outArray.add(0) });
-			i = 0;
-			amps.do({ |amp|
+			amps.do({ |amp, i|
 				(amp > 0).if({
 					outArray.add(array.wrapAt(i));
-					i = i + 1;
 				});
 			});
 			Pseq(outArray, repeats)
@@ -275,6 +283,7 @@ PR(\abstractProcess).v.clone({
 		});
 	};
 	~makePattern = #{ |sourceKey, repeats|
+//[sourceKey, ~collIndex, currentEnvironment[sourceKey].asArray].debug("making pattern for");
 		~makePatternFromArray.(currentEnvironment[sourceKey].asArray, repeats ? 1, sourceKey);
 	};
 	~addArgPairs = { |out|
@@ -312,7 +321,8 @@ PR(\abstractProcess).v.clone({
 				});
 			}),
 				// rest if 0, else give synthdef name
-			\instrument, Pif(Pkey(\amp) > 0, ~makePattern.(\def, inf), \rest),
+//			\instrument, Pif(Pkey(\amp) > 0, ~makePattern.(\def, inf), \rest),
+			\instrument, Pif(Pkey(\amp) > 0, ~makeDefPattern.(inf), \rest),
 			\chan, Pfunc({ ~chan }),
 			\latencyAdjust, Pfunc({ |ev| ~deltaAdjust.wrapAt(ev[\bufIndex])
 				* thisThread.clock.tempo }),
