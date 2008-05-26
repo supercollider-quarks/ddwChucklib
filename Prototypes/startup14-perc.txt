@@ -473,11 +473,11 @@ PR(\defPerc).v.clone({
 	~alwaysReset = true;
 	~isFx = false;
 	~makePbindArray = { 
-		[\t_trig, ~makeAmpPattern.value,
+		[\trig, ~makeAmpPattern.value,
 				// rest if 0, else give synthdef name
 			\defIndex, ~makePattern.(\defs),
 			\node, Pfunc({ |ev|
-				(ev[\t_trig] > 0).if({
+				(ev[\trig] > 0).if({
 					~nodes.wrapAt(ev[\defIndex])
 				}, { \rest });
 			}),
@@ -511,6 +511,8 @@ PR(\defPerc).v.clone({
 					out = ~addArgPairs.(out);
 				});
 				out = ~doPostAction.(out) ? out;	// do postprocessing on pbind pairs
+				out = out ++ [\outbus, ~chan.inbus.index, \out, ~chan.inbus.index,
+					\i_out, ~chan.inbus.index];
 				Pbind(*out);
 			}), inf);
 		]);
