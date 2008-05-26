@@ -775,7 +775,7 @@ BP : AbstractChuckNewDict {
 		StartUp.add({
 			defaultClock = TempoClock.default;
 				// no matter what the meter is, this will go to the next barline
-			defaultQuant = BasicTimeSpec({ |clock| clock.beatsPerBar });
+			defaultQuant = BasicTimeSpec(-1);
 			defaultEvent = (eventKey: \default);
 		});
 	}
@@ -1193,6 +1193,7 @@ BP : AbstractChuckNewDict {
 		this.exists.if({
 			try {
 				time = this.eventSchedTime(argQuant);
+//time.debug(">> BP(%):stop".format(collIndex));
 				value[\eventSchedTime] = time;
 					// 1e-3 is to force this func to wake up before the thread it's stopping
 					// but if this is using NilTimeSpec, that time could be in the past
@@ -1208,12 +1209,15 @@ BP : AbstractChuckNewDict {
 			value.put(\isPlaying, false).put(\isWaiting, false);
 			this.changed(\stop, \request);
 		});
+//"<< BP(%):stop".format(collIndex).debug;
 	}
 	
 		// for rewrapping/replacing -- specify an Proto to use
 		// there may be cases where I don't want to notify dependents
 	stopNow { |adhoc, quant, notify = true, doCleanup = true, notifyTime|
 		var	child;	// to iterate down the chain of child processes
+//debug("\n\n>> BP(%):stopNow".format(collIndex));
+//this.dumpBackTrace;
 		this.exists.if({
 			notifyTime ?? { notifyTime = this.clock.beats };
 			adhoc = adhoc ? value;
@@ -1231,6 +1235,7 @@ BP : AbstractChuckNewDict {
 				// but the notification should be sent slightly ahead of the beat
 			notify.if({ this.changed(\stop, \stopped, notifyTime) });
 		});
+//"<< BP(%):stopNow".format(collIndex).debug;
 	}
 	
 	asStream {
