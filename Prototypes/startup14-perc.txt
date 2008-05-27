@@ -287,20 +287,25 @@ PR(\abstractProcess).v.clone({
 		~makePatternFromArray.(currentEnvironment[sourceKey].asArray, repeats ? 1, sourceKey);
 	};
 	~addArgPairs = { |out|
-		out = out.grow(~argPairs.size);
-		~argPairs.pairsDo({ |key, value|
-			out.add(key);
-				// if you say nil, look for the key in the envir
-			value.isNil.if({ value = key.envirGet });
-			value.isSymbol.if({ value = value.envirGet });
-				// this is the only way to get values from the environment
-				// while the pattern is running
-			value.isFunction.if({ value = value.(out) });
-			(value.size > 0).if({	// assume it's an array, use makePattern
-				value = ~makePatternFromArray.(value, 1)
+		var	argPairs = ~argPairs.value(out);
+		if(argPairs.size > 0) {
+			out = out.grow(argPairs.size);
+			argPairs.pairsDo({ |key, value|
+				out.add(key);
+					// if you say nil, look for the key in the envir
+				value.isNil.if({ value = key.envirGet });
+					// temporarily removing this
+					// it prevents use of asMap
+//				value.isSymbol.if({ value = value.envirGet });
+					// this is the only way to get values from the environment
+					// while the pattern is running
+				value.isFunction.if({ value = value.(out) });
+				(value.size > 0).if({	// assume it's an array, use makePattern
+					value = ~makePatternFromArray.(value, 1)
+				});
+				out.add(value);
 			});
-			out.add(value);
-		});
+		};
 		out
 	};
 	
@@ -367,13 +372,10 @@ PR(\abstractProcess).v.clone({
 	~asPattern = { 
 		var	out;
 		~prepareForPlay.value;	// one use is streams that must persist past 1 bar
-		~argPairs = ~argPairs.(out);
 		PnNilSafe(Plazy(e {
 			~doPreAction.value;
 			out = ~makePbindArray.value;
-			(~argPairs.size > 0).if({
-				out = ~addArgPairs.(out);
-			});
+			out = ~addArgPairs.(out);
 			out = ~doPostAction.(out) ? out;	// do postprocessing on pbind pairs
 			Pbind(*out);
 		}), inf);
@@ -472,6 +474,14 @@ PR(\defPerc).v.clone({
 	~event = (eventKey: \singleSynthTrigger);
 	~alwaysReset = true;
 	~isFx = false;
+	~superprep = ~prep;
+	~prep = {
+		~superprep.();
+			// synthdefs are inited after MixerChannel is ready, so...
+		~chan.doWhenReady({
+			~eventInitArgs = { () } ! (~buffers.size);
+		});
+	};
 	~makePbindArray = { 
 		[\trig, ~makeAmpPattern.value,
 				// rest if 0, else give synthdef name
@@ -485,7 +495,24 @@ PR(\defPerc).v.clone({
 			\delta, ~makeDeltaPattern.value
 		]
 	};
-	~asPattern = { 
+		// SynthDesc msgFunc expects args to exist in the event
+		// for simplicity they'll go in the event's proto
+		// but you might have different inits for different synths
+		// so the protos are kept in an array -- see the .collect
+		// in asPattern for their use in playing events
+	~setInitArgsInEvent = { |node, i|
+		var	proto = ~eventInitArgs[i] ?? { () },
+			return;
+		(return = ~initArgs.value(node, i)).pairsDo({ |key, val|
+			proto.put(key, val.value);
+		});
+		proto.put(\outbus, ~chan.inbus.index)
+			.put(\out, ~chan.inbus.index)
+			.put(\i_out, ~chan.inbus.index);
+		~eventInitArgs[i] = proto;
+		return
+	};
+	~asPattern = {
 		Pseq([
 			Pfuncn({	// first, make nodes
 				var latency;
@@ -497,7 +524,7 @@ PR(\defPerc).v.clone({
 						~chan.server.sendBundle(latency, 
 							node.newMsg(~isFx.if({ ~chan.effectgroup }, { ~chan.synthgroup }), 
 								[\outbus, ~chan.inbus.index, \out, ~chan.inbus.index,
-								\i_out, ~chan.inbus.index] ++ ~initArgs.(node, i),
+								\i_out, ~chan.inbus.index] ++ ~setInitArgsInEvent.(node, i),
 								\addToTail));
 					})
 				});
@@ -507,14 +534,12 @@ PR(\defPerc).v.clone({
 				var	out;
 				~doPreAction.value;
 				out = ~makePbindArray.value;
-				(~argPairs.size > 0).if({
-					out = ~addArgPairs.(out);
-				});
+				out = ~addArgPairs.(out);
 				out = ~doPostAction.(out) ? out;	// do postprocessing on pbind pairs
-				out = out ++ [\outbus, ~chan.inbus.index, \out, ~chan.inbus.index,
-					\i_out, ~chan.inbus.index];
 				Pbind(*out);
-			}), inf);
+			}), inf).collect({ |ev|
+				ev.proto = ~eventInitArgs[ev[\defIndex]];
+			});
 		]);
 	};
 	
