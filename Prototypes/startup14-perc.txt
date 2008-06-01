@@ -266,15 +266,16 @@ PR(\abstractProcess).v.clone({
 		Pseq(outArray, repeats)
 	};
 	~makePatternFromArray = #{ |array, repeats, sourceKey|
-		var amps, outArray;
+		var amps, outArray, i = 0;
 		(~compactPatterns or: { sourceKey == \def }).if({
 			amps = ~amps;
 			outArray = Array.new(amps.size);
 				// if first is a rest, need a placeholder
 			(sourceKey != \def and: { amps[0] == 0 }).if({ outArray.add(0) });
-			amps.do({ |amp, i|
+			amps.do({ |amp|
 				(amp > 0).if({
 					outArray.add(array.wrapAt(i));
+					i = i + 1;
 				});
 			});
 			Pseq(outArray, repeats)
@@ -568,7 +569,7 @@ PR(\bufPerc).v.clone({
 	~compensateEnv = true;
 	
 	~makeStartTimes = { 
-		~makePatternFromArray.(~start, 1).collect(e { |st, event|
+		~makePatternFromArray.(~start, 1).trace(prefix: "start ").collect(e { |st, event|
 			~segStart.wrapAt(~bufs.wrapAt(event[\bufIndex])).wrapAt(st)
 		});
 	};
