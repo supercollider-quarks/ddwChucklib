@@ -333,7 +333,7 @@ VC : AbstractChuckNewDict {
 		// does the work, but does not check Factory type
 	prBindFact { |fact, adverb, parms|
 		value.notNil.if({ this.free });  // free system resources before replacing
-		env = fact.make(parms).know_(true);
+		env = fact.make(parms, collIndex).know_(true);
 			// make func must return voicer and place support objects (mixer, buffers, etc)
 			// in the environment
 		value = env[\value];
