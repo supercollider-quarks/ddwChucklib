@@ -247,7 +247,8 @@ PR(\abstractProcess).v.clone({
 		notes.collect({ |ch|
 				// true = unmap notes to mode
 			PR(~chordProto).v.copy.prepare(ch.asNoteArray,
-				parms.atBackup(\mode, buf.properties, currentEnvironment), true, parms)
+				parms.atBackup(\mode, buf.properties, currentEnvironment),
+				parms.tryPerform(\at, \rawMIDI) ? true, parms)
 		})
 	};
 }, nil, #[\chordProto]) => PR(\arpeg1);
