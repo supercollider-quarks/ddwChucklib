@@ -1174,6 +1174,7 @@ BP : AbstractChuckNewDict {
 	
 		// useful for wrapper processes--set up a midi trigger to fire ONE child process
 	triggerOneEvent { |argQuant, argClock, doReset|
+		var	event;
 		(this.exists and: { this.canStream }).if({
 			value.eventStreamPlayer.isNil.if({
 				this.prepareForPlay(argQuant, argClock, doReset);
@@ -1182,7 +1183,12 @@ BP : AbstractChuckNewDict {
 				this.stop(argQuant);
 			});
 			this.clock.schedAbs(this.eventSchedTime(this.quant(argQuant)), {
-				value.eventStream.next(value.event.copy).play;
+				if((event = value.eventStream.next(value.event.copy)).notNil) {
+					event.play;
+					this.changed(\oneEventPlayed);
+				} {
+					this.changed(\oneEventEmpty)
+				};
 				nil	// otherwise it will play again after ~delta beats
 			});
 		});

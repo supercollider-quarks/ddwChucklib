@@ -492,7 +492,7 @@ ProtoEvent(\polySynthPlayer).v.copy.putAll((
 		((~immediateOSC ? false) or: { ~voicer.target.server.latency.isNil }).if({
 			~voicer.release(~midiNoteToFreq.value(~freq ?? { ~note.freq }));
 		}, {
-			~voicer.release(~midiNoteToFreq.value(~freq ? ~note.freq),
+			~voicer.release(~midiNoteToFreq.value(~freq ?? { ~note.freq }),
 				((~lag + ~timingOffset) / ~clock.tempo) + ~voicer.target.server.latency);
 		});
 	},
