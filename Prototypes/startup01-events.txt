@@ -490,9 +490,9 @@ ProtoEvent(\polySynthPlayer).v.copy.putAll((
 		// for live midi input -- assumes midi note has been put into ~note
 	releaseNote: #{
 		((~immediateOSC ? false) or: { ~voicer.target.server.latency.isNil }).if({
-			~voicer.release(~midiNoteToFreq.value(~freq ?? { ~note.freq }));
+			~voicer.release(~freq);
 		}, {
-			~voicer.release(~midiNoteToFreq.value(~freq ?? { ~note.freq }),
+			~voicer.release(~freq,
 				((~lag + ~timingOffset) / ~clock.tempo) + ~voicer.target.server.latency);
 		});
 	},
