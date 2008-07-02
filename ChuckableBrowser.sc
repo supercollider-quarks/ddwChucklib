@@ -21,7 +21,7 @@ ChuckableBrowser {
 	}
 	
 	*newWindow { |name|
-		var	window = MultiPageLayout(name ?? { "Chuck browser" }),
+		var	window = ResizeFlowWindow(name ?? { "Chuck browser" }),
 			browser = this.new(window);
 		ChuckBrowserKeyController(browser);
 		window.recursiveResize.front;
