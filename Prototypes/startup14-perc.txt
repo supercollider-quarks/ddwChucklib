@@ -6,41 +6,46 @@
 
 var saveSubType = AbstractChuckArray.defaultSubType;
 
-SynthDef.writeOnce(\bufGrain, { |start, time, bufnum, rate = 1, amp = 1,
+// formerly stock synthdefs were written into the synthdefs/ folder
+// but it's better to send synthdefs on demand
+// so now they are stored in SynthDescLib.global
+// and recalled by name when needed
+
+SynthDef(\bufGrain, { |start, time, bufnum, rate = 1, amp = 1,
 		attack = 0.001, decay = 0.02, outbus|
 	var sig;
 	sig = PlayBuf.ar(1, bufnum, rate * BufRateScale.kr(bufnum), 1, start, 0)
 		* EnvGen.kr(Env.linen(attack, time, decay), doneAction:2);
 	Out.ar(outbus, sig * amp);
-});
+}).memStore;
 
-SynthDef.writeOnce(\bufGrainPan, { |start, time, bufnum, pan, rate = 1, amp = 1,
+SynthDef(\bufGrainPan, { |start, time, bufnum, pan, rate = 1, amp = 1,
 		attack = 0.001, decay = 0.02, outbus|
 	var sig;
 	sig = PlayBuf.ar(1, bufnum, rate * BufRateScale.kr(bufnum), 1, start, 0)
 		* EnvGen.kr(Env.linen(attack, time, decay), doneAction:2);
 	Out.ar(outbus, Pan2.ar(sig, pan, amp));
-});
+}).memStore;
 
-SynthDef.writeOnce(\bufGrain2, { |start, time, bufnum, rate = 1, amp = 1,
+SynthDef(\bufGrain2, { |start, time, bufnum, rate = 1, amp = 1,
 		attack = 0.001, decay = 0.02, outbus|
 	var sig;
 	sig = PlayBuf.ar(2, bufnum, rate * BufRateScale.kr(bufnum), 1, start, 0)
 		* EnvGen.kr(Env.linen(attack, time, decay), doneAction:2);
 	Out.ar(outbus, sig * amp);
-});
+}).memStore;
 
-SynthDef.writeOnce(\bufGrainPan2, { |start, time, bufnum, rate = 1, pan, amp = 1,
+SynthDef(\bufGrainPan2, { |start, time, bufnum, rate = 1, pan, amp = 1,
 		attack = 0.001, decay = 0.02, outbus|
 	var l, r;
 	#l, r = PlayBuf.ar(2, bufnum, rate * BufRateScale.kr(bufnum), 1, start, 0)
 		* EnvGen.kr(Env.linen(attack, time, decay), doneAction:2);
 	Out.ar(outbus, Balance2.ar(l, r, pan, amp));
-});
+}).memStore;
 
 // use a pair of enveloped PlayBufs to avoid clicks when looping back on the sample
 
-SynthDef.writeOnce(\bufRoll, { |start, time = 1, bufnum, rate = 1, amp = 1, strokesPerSec = 18,
+SynthDef(\bufRoll, { |start, time = 1, bufnum, rate = 1, amp = 1, strokesPerSec = 18,
 		outbus|
 	var	sig, envDefault, env,
 		trig = Impulse.ar(strokesPerSec),
@@ -53,9 +58,9 @@ SynthDef.writeOnce(\bufRoll, { |start, time = 1, bufnum, rate = 1, amp = 1, stro
 	sig = (PlayBuf.ar(1, bufnum, rate * BufRateScale.kr(bufnum), trigs, start, 1) * strokeEnv).sum
 		* EnvGen.ar(env, timeScale: time, doneAction:2);
 	Out.ar(outbus, sig * amp);
-});
+}).memStore;
 
-SynthDef.writeOnce(\bufRollPan, { |start, time = 1, bufnum, rate = 1, amp = 1, strokesPerSec = 18, pan = 0,
+SynthDef(\bufRollPan, { |start, time = 1, bufnum, rate = 1, amp = 1, strokesPerSec = 18, pan = 0,
 		outbus|
 	var	sig, envDefault, env,
 		trig = Impulse.ar(strokesPerSec),
@@ -68,9 +73,9 @@ SynthDef.writeOnce(\bufRollPan, { |start, time = 1, bufnum, rate = 1, amp = 1, s
 	sig = (PlayBuf.ar(1, bufnum, rate * BufRateScale.kr(bufnum), trigs, start, 1) * strokeEnv).sum
 		* EnvGen.ar(env, timeScale: time, doneAction:2);
 	Out.ar(outbus, Pan2.ar(sig, pan, amp));
-});
+}).memStore;
 
-SynthDef.writeOnce(\bufRollPanMove, { |start, time = 1, bufnum, rate = 1, amp = 1, strokesPerSec = 18,
+SynthDef(\bufRollPanMove, { |start, time = 1, bufnum, rate = 1, amp = 1, strokesPerSec = 18,
 		panStart = 0, panEnd = 0,	outbus|
 	var	sig, envDefault, env,
 		trig = Impulse.ar(strokesPerSec),
@@ -83,35 +88,35 @@ SynthDef.writeOnce(\bufRollPanMove, { |start, time = 1, bufnum, rate = 1, amp = 
 	sig = (PlayBuf.ar(1, bufnum, rate * BufRateScale.kr(bufnum), trigs, start, 1) * strokeEnv).sum
 		* EnvGen.ar(env, timeScale: time, doneAction:2);
 	Out.ar(outbus, Pan2.ar(sig, Line.kr(panStart, panEnd, time), amp));
-});
+}).memStore;
 
 
-SynthDef.writeOnce(\bufGrainRLPF, { |start, time, bufnum, rate = 1, amp = 1,
+SynthDef(\bufGrainRLPF, { |start, time, bufnum, rate = 1, amp = 1,
 		attack = 0.001, decay = 0.02, ffreq = 2000, rq = 1, outbus|
 	var sig;
 	sig = PlayBuf.ar(1, bufnum, rate * BufRateScale.kr(bufnum), 1, start, 0)
 		* EnvGen.kr(Env.linen(attack, time, decay), doneAction:2);
 	sig = RLPF.ar(sig, ffreq, rq);
 	Out.ar(outbus, sig * amp);
-});
+}).memStore;
 
-SynthDef.writeOnce(\bufGrainRLPF2, { |start, time, bufnum, rate = 1, amp = 1,
+SynthDef(\bufGrainRLPF2, { |start, time, bufnum, rate = 1, amp = 1,
 		attack = 0.001, decay = 0.02, ffreq = 2000, rq = 1, outbus|
 	var sig;
 	sig = PlayBuf.ar(2, bufnum, rate * BufRateScale.kr(bufnum), 1, start, 0)
 		* EnvGen.kr(Env.linen(attack, time, decay), doneAction:2);
 	sig = RLPF.ar(sig, ffreq, rq);
 	Out.ar(outbus, sig * amp);
-});
+}).memStore;
 
-SynthDef.writeOnce(\bufGrainRLPFPan, { |start, time, bufnum, rate = 1, amp = 1,
+SynthDef(\bufGrainRLPFPan, { |start, time, bufnum, rate = 1, amp = 1,
 		attack = 0.001, decay = 0.02, pan = 0, ffreq = 2000, rq = 1, outbus|
 	var sig;
 	sig = PlayBuf.ar(1, bufnum, rate * BufRateScale.kr(bufnum), 1, start, 0)
 		* EnvGen.kr(Env.linen(attack, time, decay), doneAction:2);
 	sig = RLPF.ar(sig, ffreq, rq);
 	Out.ar(outbus, Pan2.ar(sig, pan, amp));
-});
+}).memStore;
 
 
 // figure out rollPan and 2-channel versions later
@@ -369,10 +374,18 @@ PR(\abstractProcess).v.clone({
 			~pbindPostAction.(out)
 		});
 	};
+	
+	~sendSynthDef = {
+		var	synthdesc;
+		if((synthdesc = SynthDescLib.global[~def]).notNil) {
+			synthdesc.send(s);
+		};
+	};
 
 	~asPattern = { 
 		var	out;
 		~prepareForPlay.value;	// one use is streams that must persist past 1 bar
+		~sendSynthDef.value;
 		PnNilSafe(Plazy(e {
 			~doPreAction.value;
 			out = ~makePbindArray.value;
@@ -637,6 +650,7 @@ PR(\abstractProcess).v.clone({
 		// required: put in a pattern factory here
 	~asPattern = {
 			// assume that if we're calling asPattern, we want to reset all streams
+		~sendSynthDef.value;
 		~argPairsStream = Pbind(*~argPairs).asStream;
 		Pbind(\instrument, BPStream(\def),
 			\bufIndex, BPStream(\bufIndex),
@@ -655,5 +669,5 @@ PR(\abstractProcess).v.clone({
 			ev
 		});
 	};
-}).import((bufPerc: #[prep, loadBufs, fixBufTime, replaceBuf, addBuf, freeCleanup]))
+}).import((bufPerc: #[prep, loadBufs, fixBufTime, replaceBuf, addBuf, sendSynthDef, freeCleanup]))
 	=> PR(\basicBufferPlayer).subType_(\bufPlayer);
