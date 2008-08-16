@@ -377,9 +377,11 @@ PR(\abstractProcess).v.clone({
 	
 	~sendSynthDef = {
 		var	synthdesc;
-		if((synthdesc = SynthDescLib.global[~def]).notNil) {
-			synthdesc.send(s);
-		};
+		~def.do({ |def|
+			if((synthdesc = SynthDescLib.global[def]).notNil) {
+				synthdesc.send(s);
+			};
+		});
 	};
 
 	~asPattern = { 
