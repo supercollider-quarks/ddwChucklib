@@ -317,7 +317,8 @@ play: { var args, nodeID;
 
 
 // Seems to work but might need some more testing
-// currently does not support multiple output buses
+// currently does not support multiple output buses - maybe it does now?
+// but there should be just 1 instrument
 
 ProtoEvent(\singleSynthPlayer).v.copy.putAll((
 	setTarget: {
@@ -337,6 +338,8 @@ ProtoEvent(\singleSynthPlayer).v.copy.putAll((
 			~server = ~target.collect(_.server);
 			~bus.notNil.if({
 				~bus = ~bus.asArray.collect(_.asBus);
+			}, {
+				~bus = ~server.collect({ |server| Bus(\audio, 0, 2, server) });
 			});
 		});
 	},
@@ -353,6 +356,7 @@ ProtoEvent(\singleSynthPlayer).v.copy.putAll((
 		((lib = SynthDescLib.all[~lib ? \global]).notNil
 				and: { (desc = lib[~instrument.asSymbol]).notNil }).if({
 			~args = desc.msgFunc.valueEnvir.clump(2);
+			~hasGate = desc.hasGate;
 		}, {
 			args = Array.new(currentEnvironment.size);
 				// note that this is a clumped array --
@@ -364,18 +368,18 @@ ProtoEvent(\singleSynthPlayer).v.copy.putAll((
 		});
 	},
 	makeOneNode: { |i, strum|
-		var	instr, nodeID, latency, sustain, server = ~server, offset = ~timingOffset ? 0;
-		((instr = ~instrument.wrapAt(i)) != \rest).if({
-			nodeID = ~grain.if({ -1 }, { ~server.wrapAt(i).nextNodeID });
-			~node[i] = Synth.basicNew(instr, ~server.wrapAt(i), nodeID);
+		var	instr, nodeID, latency, sustain, server = ~server.wrapAt(i), offset = ~timingOffset ? 0;
+		((instr = ~instrument/*.wrapAt(i)*/) != \rest).if({
+			nodeID = ~grain.if({ -1 }, { server.nextNodeID });
+			~node[i] = Synth.basicNew(instr, server, nodeID);
 			latency = (strum*i) + ~lag;
-			Func(\schedEventBundle).doAction(latency, ~timingOffset, ~server.wrapAt(i),
+			Func(\schedEventBundle).doAction(latency, offset, server,
 				~node[i].newMsg(~target.wrapAt(i), 
 					~args.wrapAt(i) ++ [\out, ~bus.wrapAt(i).index,
 					\i_out, ~bus.wrapAt(i).index, \outbus, ~bus.wrapAt(i).index],
 					\addToTail)
 			);
-			(~grain.not and: { ~hasGate ? false and: { (sustain = ~sustain.value).notNil } }).if({
+			(~grain.not and: { (~hasGate ? false) and: { (sustain = ~sustain.value).notNil } }).if({
 				thisThread.clock.sched(sustain, {
 					Func(\schedEventBundle).doAction(latency, offset, server,
 						[\n_set, nodeID, \gate, 0]);
@@ -389,12 +393,12 @@ ProtoEvent(\singleSynthPlayer).v.copy.putAll((
 			~lag ?? { ~lag = 0 };
 			~setTarget.value;
 			~checkbuses.value.if({
-				~instrument = ~instrument.asArray;
+//				~instrument = ~instrument.asArray;
 				~setArgs.value;
 				~args = ~args.collect(_.flop).flop.collect(_.flat);
 				strum = ~strum ? 0;
 				~grain = ~grain ? false;
-				~node = Array.newClear([~instrument.size, ~args.size, ~bus.size,
+				~node = Array.newClear([/*~instrument.size,*/ ~args.size, ~bus.size,
 					~target.size].maxItem);
 					// ~makeOneNode populates the right slot in ~node array
 				~node.size.do({ |i| ~makeOneNode.(i, strum) });
