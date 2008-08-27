@@ -374,6 +374,7 @@ VC : AbstractChuckNewDict {
 			});
 	}
 	
+	gui { ^value.gui }
 	asVC { ^this }
 }
 
@@ -588,6 +589,8 @@ VP : AbstractChuckArray {
 			break.(nil)
 		}
 	}
+	
+	gui { ^value.gui }
 	
 	asVC {
 		^VC.collection.values.detect({ |vc|
