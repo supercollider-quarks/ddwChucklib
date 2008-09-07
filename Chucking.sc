@@ -375,6 +375,15 @@ VC : AbstractChuckNewDict {
 	}
 	
 	gui { ^value.gui }
+	asMixerChannelGUI { |board|
+		var	mixer;
+		if((mixer = env[\target]).notNil) {
+			^mixer.mcgui ?? { MixerChannelGUI(mixer, board) }
+		} {
+			^nil
+		};
+	}
+	
 	asVC { ^this }
 }
 
@@ -1506,6 +1515,15 @@ BP : AbstractChuckNewDict {
 		}, {
 			"No mixerchannel defined in this process. Cannot assign to MCGui.".warn;
 		});
+	}
+
+	asMixerChannelGUI { |board|
+		var	mixer;
+		if((mixer = value[\chan]).notNil) {
+			^mixer.mcgui ?? { MixerChannelGUI(mixer, board) }
+		} {
+			^nil
+		};
 	}
 
 		// for BP, using a pseudomethod not defined in the Proto
