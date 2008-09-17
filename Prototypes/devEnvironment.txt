@@ -200,37 +200,43 @@ f = nil;
 	~voicerScroll.bounds = ~voicerScroll.bounds.width_(305)
 });
 ~board.w.bounds = ~mixerBounds;
-~codedoc = Document.new("type code").bounds_(~codedocBounds);
-Document.listener.bounds = ~postwindowBounds;
 
 Library.put(\codeBounds, ~codedocBounds);
 
-composeDocKeyResp = { |doc|
-	var	oldKeyResp;
-	oldKeyResp = doc.keyDownAction;
-	doc.keyDownAction = { |doc, char, modifiers, keycode|
-		(char.ascii == 30 and: { modifiers.bitAnd(0x40000) > 0 }).if({
-			masterLayout.front;
-		}, {
-			oldKeyResp.value(doc, char, modifiers, keycode);
-		});
-	};
-};
+// if Document.current is nil, then you can't do anything programmatic with documents
+// so this whole bit should be skipped
 
-// enable ctrl-` for all open documents
-Document.allDocuments.do({ |doc|
-	doc.isListener.not.if({
+if(Document.current.notNil) {
+	~codedoc = Document.new("type code").bounds_(~codedocBounds);
+	Document.listener.bounds = ~postwindowBounds;
+	
+	composeDocKeyResp = { |doc|
+		var	oldKeyResp;
+		oldKeyResp = doc.keyDownAction;
+		doc.keyDownAction = { |doc, char, modifiers, keycode|
+			(char.ascii == 30 and: { modifiers.bitAnd(0x40000) > 0 }).if({
+				masterLayout.front;
+			}, {
+				oldKeyResp.value(doc, char, modifiers, keycode);
+			});
+		};
+	};
+	
+	// enable ctrl-` for all open documents
+	Document.allDocuments.do({ |doc|
+		doc.isListener.not.if({
+			composeDocKeyResp.(doc);
+		});
+	});
+	
+	// enable ctrl-` for new documents
+	originalDocInit = Document.initAction;
+	Document.initAction_({ |doc|
+		originalDocInit.value(doc);
+	//	doc.autoComplete;
 		composeDocKeyResp.(doc);
 	});
-});
-
-// enable ctrl-` for new documents
-originalDocInit = Document.initAction;
-Document.initAction_({ |doc|
-	originalDocInit.value(doc);
-//	doc.autoComplete;
-	composeDocKeyResp.(doc);
-});
+};
 
 ~statusW.close;
 ~statusW = ~statusSl = ~numUpdates = ~currentUpdate = ~advanceStatus = nil;
