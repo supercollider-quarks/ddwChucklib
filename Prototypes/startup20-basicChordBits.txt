@@ -81,12 +81,14 @@ PR(\abstractProcess).v.clone({
 	~mode = \default;
 	~delta = 1;	// need defaults (will be ignored for macrorhythm chord processes)
 	~length = 1;
+	~gate = 0.5;
 	~asPattern = { 
 		Pbind(
 			\freq, BPStream(\deg),
 			\delta, BPStream(\delta),
 			\length, BPStream(\length),
-			\mode, Pfunc({ ~mode })
+			\mode, Pfunc({ ~mode }),
+			\gate, BPStream(\gate)
 		);
 	};
 }) => PR(\patternTop);

@@ -308,6 +308,7 @@ PR(\abstractProcess).v.clone({
 		if(bassID.notNil) {
 			~updaters[bassID] = ~updateBassID;
 		};
+		currentEnvironment
 	};
 	
 	~bindSimpleNumber = #{ |num, adverb|

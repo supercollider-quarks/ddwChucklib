@@ -427,12 +427,12 @@ ProtoEvent(\polySynthPlayer).v.copy.putAll((
 	
 	prepNote: #{
 		var i, args, argval, thisEvent = currentEnvironment;
-		~freq = ~freq ?? { ~note.asFloat };
-		~mtranspose.notNil.if({ ~freq = ~freq + ~mtranspose });
-		(~midi ? false).not.if({ ~freq = ~freq.unmapMode(~mode.asMode) });
-		~ctranspose.notNil.if({ ~freq = ~freq + ~ctranspose });
+		~newFreq = ~freq ?? { ~note.asFloat };
+		~mtranspose.notNil.if({ ~newFreq = ~newFreq + ~mtranspose });
+		(~midi ? false).not.if({ ~newFreq = ~newFreq.unmapMode(~mode.asMode) });
+		~ctranspose.notNil.if({ ~newFreq = ~newFreq + ~ctranspose });
 
-		~freq = ~midiNoteToFreq.value(~freq).asArray;
+		~newFreq = ~midiNoteToFreq.value(~newFreq).asArray;
 		~delta = ~delta ?? { ~note.dur };
 		~length = (~length ?? { ~note.length }).asArray;
 		~args = ~args ?? { [~note.tryPerform(\args)].tryPerform(\flatten, 1) } ?? { [] };
@@ -451,10 +451,11 @@ ProtoEvent(\polySynthPlayer).v.copy.putAll((
 			// for args array to be valid (argName, value pairs), must have at least 2 items
 		(~args.size < 2).if({ ~args = nil });
 		~voicer !? {
-			~nodes = ~voicer.prGetNodes(max(~freq.size, max(~length.size, ~gate.size)));
+			~nodes = ~voicer.prGetNodes(max(~newFreq.size, max(~length.size, ~gate.size)));
 			~voicer.setArgsInEvent(currentEnvironment);
 		};
 		~bassID.notNil.if({
+			~note ?? { ~note = SequenceNote(~freq, ~delta, ~length[0], ~gate[0]) };
 			Library.put(~bassID, ~note);
 				// allow this thread to finish before alerting dependents
 			thisThread.clock.sched(0, { BP.changed(thisEvent[\bassID], thisEvent); });
@@ -474,7 +475,7 @@ ProtoEvent(\polySynthPlayer).v.copy.putAll((
 		~prepNote.value;
 		~finish.value;	// user-definable
 		~nodes.do({ |node, i|
-			var	freq = ~freq.wrapAt(i), length = ~length.wrapAt(i);
+			var	freq = ~newFreq.wrapAt(i), length = ~length.wrapAt(i);
 			Func(\schedEventBundleArray).doAction(lag, ~timingOffset, node.server,
 				node.server.makeBundle(false, {
 					node.trigger(freq, ~gate.wrapAt(i), ~args.wrapAt(i));
@@ -494,9 +495,9 @@ ProtoEvent(\polySynthPlayer).v.copy.putAll((
 		// for live midi input -- assumes midi note has been put into ~note
 	releaseNote: #{
 		((~immediateOSC ? false) or: { ~voicer.target.server.latency.isNil }).if({
-			~voicer.release(~freq);
+			~voicer.release(~newFreq);
 		}, {
-			~voicer.release(~freq,
+			~voicer.release(~newFreq,
 				((~lag + ~timingOffset) / ~clock.tempo) + ~voicer.target.server.latency);
 		});
 	},
