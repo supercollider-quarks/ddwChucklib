@@ -6,120 +6,6 @@
 
 var saveSubType = AbstractChuckArray.defaultSubType;
 
-// formerly stock synthdefs were written into the synthdefs/ folder
-// but it's better to send synthdefs on demand
-// so now they are stored in SynthDescLib.global
-// and recalled by name when needed
-
-SynthDef(\bufGrain, { |start, time, bufnum, rate = 1, amp = 1,
-		attack = 0.001, decay = 0.02, outbus|
-	var sig;
-	sig = PlayBuf.ar(1, bufnum, rate * BufRateScale.kr(bufnum), 1, start, 0)
-		* EnvGen.kr(Env.linen(attack, time, decay), doneAction:2);
-	Out.ar(outbus, sig * amp);
-}).memStore;
-
-SynthDef(\bufGrainPan, { |start, time, bufnum, pan, rate = 1, amp = 1,
-		attack = 0.001, decay = 0.02, outbus|
-	var sig;
-	sig = PlayBuf.ar(1, bufnum, rate * BufRateScale.kr(bufnum), 1, start, 0)
-		* EnvGen.kr(Env.linen(attack, time, decay), doneAction:2);
-	Out.ar(outbus, Pan2.ar(sig, pan, amp));
-}).memStore;
-
-SynthDef(\bufGrain2, { |start, time, bufnum, rate = 1, amp = 1,
-		attack = 0.001, decay = 0.02, outbus|
-	var sig;
-	sig = PlayBuf.ar(2, bufnum, rate * BufRateScale.kr(bufnum), 1, start, 0)
-		* EnvGen.kr(Env.linen(attack, time, decay), doneAction:2);
-	Out.ar(outbus, sig * amp);
-}).memStore;
-
-SynthDef(\bufGrainPan2, { |start, time, bufnum, rate = 1, pan, amp = 1,
-		attack = 0.001, decay = 0.02, outbus|
-	var l, r;
-	#l, r = PlayBuf.ar(2, bufnum, rate * BufRateScale.kr(bufnum), 1, start, 0)
-		* EnvGen.kr(Env.linen(attack, time, decay), doneAction:2);
-	Out.ar(outbus, Balance2.ar(l, r, pan, amp));
-}).memStore;
-
-// use a pair of enveloped PlayBufs to avoid clicks when looping back on the sample
-
-SynthDef(\bufRoll, { |start, time = 1, bufnum, rate = 1, amp = 1, strokesPerSec = 18,
-		outbus|
-	var	sig, envDefault, env,
-		trig = Impulse.ar(strokesPerSec),
-		trigs = PulseDivider.ar(trig, 2, (0..1)),
-		strokeEnv = EnvGen.ar(Env.linen(0.002, strokesPerSec.reciprocal, 0.01), trigs);
-		// time of this env must add up to 1.0 sec
-	envDefault = Env(#[0, 1, 0], #[0.001, 0.999], -4);
-		// 40 == 10 possible envelope segments (which is a lot, really)
-	env = Control.names(\env).kr((0 ! 40).overWrite(envDefault.asArray, 0));
-	sig = (PlayBuf.ar(1, bufnum, rate * BufRateScale.kr(bufnum), trigs, start, 1) * strokeEnv).sum
-		* EnvGen.ar(env, timeScale: time, doneAction:2);
-	Out.ar(outbus, sig * amp);
-}).memStore;
-
-SynthDef(\bufRollPan, { |start, time = 1, bufnum, rate = 1, amp = 1, strokesPerSec = 18, pan = 0,
-		outbus|
-	var	sig, envDefault, env,
-		trig = Impulse.ar(strokesPerSec),
-		trigs = PulseDivider.ar(trig, 2, (0..1)),
-		strokeEnv = EnvGen.ar(Env.linen(0.002, strokesPerSec.reciprocal, 0.01), trigs);
-		// time of this env must add up to 1.0 sec
-	envDefault = Env(#[0, 1, 0], #[0.001, 0.999], -4);
-		// 40 == 10 possible envelope segments (which is a lot, really)
-	env = Control.names(\env).kr((0 ! 40).overWrite(envDefault.asArray, 0));
-	sig = (PlayBuf.ar(1, bufnum, rate * BufRateScale.kr(bufnum), trigs, start, 1) * strokeEnv).sum
-		* EnvGen.ar(env, timeScale: time, doneAction:2);
-	Out.ar(outbus, Pan2.ar(sig, pan, amp));
-}).memStore;
-
-SynthDef(\bufRollPanMove, { |start, time = 1, bufnum, rate = 1, amp = 1, strokesPerSec = 18,
-		panStart = 0, panEnd = 0,	outbus|
-	var	sig, envDefault, env,
-		trig = Impulse.ar(strokesPerSec),
-		trigs = PulseDivider.ar(trig, 2, (0..1)),
-		strokeEnv = EnvGen.ar(Env.linen(0.002, strokesPerSec.reciprocal, 0.01), trigs);
-		// time of this env must add up to 1.0 sec
-	envDefault = Env(#[0, 1, 0], #[0.001, 0.999], -4);
-		// 40 == 10 possible envelope segments (which is a lot, really)
-	env = Control.names(\env).kr((0 ! 40).overWrite(envDefault.asArray, 0));
-	sig = (PlayBuf.ar(1, bufnum, rate * BufRateScale.kr(bufnum), trigs, start, 1) * strokeEnv).sum
-		* EnvGen.ar(env, timeScale: time, doneAction:2);
-	Out.ar(outbus, Pan2.ar(sig, Line.kr(panStart, panEnd, time), amp));
-}).memStore;
-
-
-SynthDef(\bufGrainRLPF, { |start, time, bufnum, rate = 1, amp = 1,
-		attack = 0.001, decay = 0.02, ffreq = 2000, rq = 1, outbus|
-	var sig;
-	sig = PlayBuf.ar(1, bufnum, rate * BufRateScale.kr(bufnum), 1, start, 0)
-		* EnvGen.kr(Env.linen(attack, time, decay), doneAction:2);
-	sig = RLPF.ar(sig, ffreq, rq);
-	Out.ar(outbus, sig * amp);
-}).memStore;
-
-SynthDef(\bufGrainRLPF2, { |start, time, bufnum, rate = 1, amp = 1,
-		attack = 0.001, decay = 0.02, ffreq = 2000, rq = 1, outbus|
-	var sig;
-	sig = PlayBuf.ar(2, bufnum, rate * BufRateScale.kr(bufnum), 1, start, 0)
-		* EnvGen.kr(Env.linen(attack, time, decay), doneAction:2);
-	sig = RLPF.ar(sig, ffreq, rq);
-	Out.ar(outbus, sig * amp);
-}).memStore;
-
-SynthDef(\bufGrainRLPFPan, { |start, time, bufnum, rate = 1, amp = 1,
-		attack = 0.001, decay = 0.02, pan = 0, ffreq = 2000, rq = 1, outbus|
-	var sig;
-	sig = PlayBuf.ar(1, bufnum, rate * BufRateScale.kr(bufnum), 1, start, 0)
-		* EnvGen.kr(Env.linen(attack, time, decay), doneAction:2);
-	sig = RLPF.ar(sig, ffreq, rq);
-	Out.ar(outbus, Pan2.ar(sig, pan, amp));
-}).memStore;
-
-
-// figure out rollPan and 2-channel versions later
 
 
 // abstract process based on buffers
@@ -643,6 +529,7 @@ PR(\abstractProcess).v.clone({
 	~bufCoords = #[[0, -1]];
 	~attack = 0.005;
 	~decay = 0.02;
+	~argPairs = [];	// there must be a default or ~argPairsStream fails
 	~postMCCreation = nil;		// put in your own user preparation func here
 	~timeConversion = { |time, ev| time };
 	~argPairs_ = { |args|
@@ -671,5 +558,5 @@ PR(\abstractProcess).v.clone({
 			ev
 		});
 	};
-}).import((bufPerc: #[prep, loadBufs, fixBufTime, replaceBuf, addBuf, sendSynthDef, freeCleanup]))
+}).import((bufPerc: #[prep, loadBufs, fixBufTime, replaceBuf, addBuf, freeCleanup]))
 	=> PR(\basicBufferPlayer).subType_(\bufPlayer);
