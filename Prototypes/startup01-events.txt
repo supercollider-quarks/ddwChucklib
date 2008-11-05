@@ -242,7 +242,7 @@ makeNode: {
 			});
 			Func(\schedEventBundleArray).doAction(lag, offset, server, bundle);
 (~trace == true).if({
-	Func(\schedEventBundle).doAction(~lag + 0.05, ~timingOffset, server, [\n_trace, nodeID]);
+	Func(\schedEventBundle).doAction(lag + 0.05, ~timingOffset, server, [\n_trace, nodeID]);
 });
 			(~grain.not and: { ~hasGate ? false and: { (sustain = ~sustain.value).notNil } }).if({
 				thisThread.clock.sched(sustain, {
@@ -826,7 +826,9 @@ PR(\abstractProcess).v.clone({
 		~chan.free;
 			// should free patches
 		~objects.do({ |def|
-			def[\def].isKindOf(AbstractPlayer).if({ def[\def].free });
+			try {
+				def[\def].isKindOf(AbstractPlayer).if({ def[\def].free });
+			};
 		});
 		~userfree.value;
 		~userfrees.do(_.value);

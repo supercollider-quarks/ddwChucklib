@@ -372,8 +372,10 @@ PR(\bufPerc).v.clone({
 
 }) => PR(\defPerc);
 
+ProtoEvent.composite(#[singleSynthTrigger, singleSynthPlayNotify]) => ProtoEvent(\defTrigEvent);
+
 PR(\defPerc).v.clone({
-	~event = (eventKey: \singleSynthTrigger);
+	~event = (eventKey: \defTrigEvent);
 	~alwaysReset = true;
 	~isFx = false;
 	~superprep = ~prep;
@@ -388,9 +390,10 @@ PR(\defPerc).v.clone({
 		[\trig, ~makeAmpPattern.value,
 				// rest if 0, else give synthdef name
 			\defIndex, ~makePattern.(\defs),
+			\instrument, Pfunc({ |ev| ~buffers[ev[\defIndex]] }),
 			\node, Pfunc({ |ev|
 				(ev[\trig] > 0).if({
-					~nodes.wrapAt(ev[\defIndex])
+					~nodes.wrapAt(ev[\defIndex]) ?? { \dummy }
 				}, { \rest });
 			}),
 			\chan, Pfunc({ ~chan }),
@@ -414,21 +417,21 @@ PR(\defPerc).v.clone({
 		~eventInitArgs[i] = proto;
 		return
 	};
+
+	~recvEventNotify = { |node, event|
+		~nodes[event[\defIndex]] = node;
+		~nodeEventKeys[event[\defIndex]] = \singleSynthTrigger;
+	};
+
 	~asPattern = {
 		Pseq([
-			Pfuncn({	// first, make nodes
+			Pfuncn({	// first, initialize node arrays
 				var latency;
 				(~nodes.size == 0).if({
-					~nodes = ~buffers.collect({ |def| Synth.basicNew(def, ~chan.server) });
-					latency = (~leadTime !? { ~leadTime / ~clock.tempo })
-						+ ~chan.server.latency;
-					~nodes.do({ |node, i|
-						~chan.server.sendBundle(latency, 
-							node.newMsg(~isFx.if({ ~chan.effectgroup }, { ~chan.synthgroup }), 
-								[\outbus, ~chan.inbus.index, \out, ~chan.inbus.index,
-								\i_out, ~chan.inbus.index] ++ ~setInitArgsInEvent.(node, i),
-								\addToTail));
-					})
+						// first event for each index must be to play the node,
+						// then notify me
+					~nodeEventKeys = \singleSynthPlayNotify ! ~buffers.size;
+					~nodes = Array.newClear(~buffers.size);
 				});
 				(play: 0, delta: 0)
 			}, 1),
@@ -441,6 +444,9 @@ PR(\defPerc).v.clone({
 				Pbind(*out);
 			}), inf).collect({ |ev|
 				ev.proto = ~eventInitArgs[ev[\defIndex]];
+					// which one of the composite events to use?
+				ev.protoEvent = ~nodeEventKeys[ev[\defIndex]];
+				ev
 			});
 		]);
 	};
@@ -451,9 +457,11 @@ PR(\defPerc).v.clone({
 			latency = (~leadTime !? { ~leadTime / ~clock.tempo })
 				+ ~chan.server.latency;
 			~nodes.do({ |node, i|
-				hasGate = SynthDescLib.global[~buffers[i]].tryPerform(\hasGate);
-				~chan.server.sendBundle(latency,
-					(~hasGate ? false).if({ node.setMsg(\gate, 0) }, { node.freeMsg }))
+				if(node.notNil) {
+					hasGate = SynthDescLib.global[~buffers[i]].tryPerform(\hasGate);
+					~chan.server.sendBundle(latency,
+						(~hasGate ? false).if({ node.setMsg(\gate, 0) }, { node.freeMsg }))
+				};
 			});
 			~nodes = nil;
 		});
