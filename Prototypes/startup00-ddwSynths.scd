@@ -126,7 +126,7 @@ SynthDef(\bufGrainRLPFPan, { |start, time, bufnum, rate = 1, amp = 1,
 // figure out rollPan and 2-channel versions later
 
 SynthDescLib.all[\ddwSynths].synthDescs.do({ |desc|
-	desc.def.memStore;		// copy into the global lib
+	SynthDescLib.global.add(desc);		// copy into the global lib
 });
 
 

@@ -202,7 +202,7 @@ PR(\abstractProcess).v.clone({
 	};
 	
 	~makePbindArray = { 
-		~def = ~def.asArray;
+//		~def = ~def.asArray;
 		[\amp, ~makeAmpPattern.value,
 			\bufIndex, ~makePattern.(\bufs, inf),
 			\bufnum, Pfunc({ |ev|

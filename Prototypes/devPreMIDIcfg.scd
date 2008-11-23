@@ -7,10 +7,18 @@ var	index;
 MIDIClient.initialized.not.if({
 	MIDIClient.init(MIDIPort.numPorts, MIDIPort.numPorts);
 
-	index = MIDIClient.sources.detectIndex({ |item|
-		item.device.find("ultralite", true).notNil
-			or: { item.device.find("828").notNil }
-	});
+	if(Library.at(\chucklib, \midiSearches).isNil) {
+		Library.put(\chucklib, \midiSearches, #["ultralite", "828"]);
+	};
+
+	block { |break|
+		Library.at(\chucklib, \midiSearches).do({ |string|
+			index = MIDIClient.sources.detectIndex({ |item|
+				item.device.find(string, true).notNil
+			});
+			if(index.notNil) { break.(index) };
+		});
+	};
 	
 	index.notNil.if({
 		~srcInports = [index];

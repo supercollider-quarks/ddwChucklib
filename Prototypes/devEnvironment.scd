@@ -12,7 +12,7 @@ Library.at(\mixer, \smallskin).isNil.if({
 
 ~toolbarFlow.isNil.if({
 
-AbstractChuckArray.loadFromChuckDirectories("devPreMIDIcfg.txt");
+AbstractChuckArray.loadFromChuckDirectories("devPreMIDIcfg.scd");
 
 MIDIPort.init(~srcInports);
 MIDIPort.resetAll;

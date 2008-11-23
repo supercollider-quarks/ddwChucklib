@@ -42,14 +42,14 @@ MixerPresendWidget.defaultMenuBounds = Rect(0, 10, 75, 15);
 
 // parameterize VP creation: multiple columns?
 
-~voicerColumns = 1;
-~voicerRows = 8;
-~voicersWith4Controls = 4;
+//~voicerColumns = 1;
+//~voicerRows = 8;
+//~voicersWith4Controls = 4;
 
 
 // experimental, using scroll view
-//
-//~voicerColumns = 1;
-//~voicerRows = 14;
-//~voicersWith4Controls = 6;
-//~useScroll = true;
+
+~voicerColumns = 1;
+~voicerRows = 14;
+~voicersWith4Controls = 6;
+~useScroll = true;

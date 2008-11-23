@@ -39,7 +39,7 @@ AbstractChuckArray {
 			});
 		}).value(this);
 		
-			// finalize installation by loading startup*.txt files
+			// finalize installation by loading startup*.scd files
 			// from quark directory/Prototypes
 			// there may be support for multiple directories later
 		StartUp.add({
@@ -47,7 +47,7 @@ AbstractChuckArray {
 			directories = [PathName(this.filenameSymbol.asString).pathOnly +/+ "Prototypes/"];
 
 			directories.do({ |dir|
-				path = (dir ++ "startup*.txt").pathMatch;
+				path = (dir ++ "startup*.scd").pathMatch;
 				(path.size > 0).if({
 					path.loadPath(warnIfNotFound: false);
 					"Loaded % chucklib files from %.\n".postf(path.size, dir);
@@ -190,9 +190,9 @@ AbstractChuckArray {
 	*loadWindowBounds { |width|
 		var	path;
 		width = (width ?? { GUI.window.screenBounds.width }).asInteger;
-		this.loadFromChuckDirectories("windowbounds%.txt".format(width)).isNil.if({
+		this.loadFromChuckDirectories("windowbounds%.scd".format(width)).isNil.if({
 			"Screen width % not defined. Reverting to 1024.".format(width).warn;
-			this.loadFromChuckDirectories("windowbounds1024.txt").isNil.if({
+			this.loadFromChuckDirectories("windowbounds1024.scd").isNil.if({
 				"Failed to load screen size variables.".warn;
 				^nil
 			});
@@ -201,8 +201,8 @@ AbstractChuckArray {
 	*loadGui { |width|
 		var	path;
 		this.loadWindowBounds(width);
-		this.loadFromChuckDirectories("devEnvironment.txt").isNil.if({
-			"Could not find devEnvironment.txt".warn;
+		this.loadFromChuckDirectories("devEnvironment.scd").isNil.if({
+			"Could not find devEnvironment.scd".warn;
 			^nil
 		});
 	}
