@@ -275,6 +275,7 @@ ProtoEvent(\singleSynthPlayer).v.copy.putAll((play: {
 		// the full condition is needed for Ppar which uses ~freq == \rest
 	(~node != \rest and: { ~instrument != \rest and: { ~freq != \rest } }).if({
 		~lag ?? { ~lag = 0 };
+		~node = ~node.value;
 		~instrument = ~node.defName;
 		~setArgs.value;
 		msg = [~node.setMsg(*~args)];
@@ -307,10 +308,15 @@ setArgs: {
 play: { var args, nodeID;
 	(~node != \rest and: { ~instrument != \rest and: { ~freq != \rest } }).if({
 		~lag ?? { ~lag = 0 };
+		~node = ~node.value;
+			// assumed to be the same synthdef for each
+			// maybe not a safe assumption but a reasonable limitation for now
+		~instrument ?? { ~instrument = ~node.asArray.first.defName };
 		~setArgs.value;
 		~args = ~args.collect(_.flop).flop.collect(_.flat);
 		~node.do({ |node, i|
-			Func(\schedEventBundle).doAction(~lag, ~timingOffset, node.setMsg(*~args.wrapAt(i)));
+			Func(\schedEventBundle).doAction(~lag, ~timingOffset, node.server,
+				node.setMsg(*~args.wrapAt(i)));
 		});
 	})
 })) => ProtoEvent(\polySynthTrigger);

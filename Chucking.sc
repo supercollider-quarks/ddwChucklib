@@ -1501,7 +1501,8 @@ BP : AbstractChuckNewDict {
 			}, {
 				this.voicer = gui.model.voicer;
 			});
-			Post << "Changed BP(\\" << collIndex << ")'s voicer to " << voicer.asString << "\n";
+			Post << "Changed voicer for BP(" << collIndex.asCompileString << ") to "
+				<< voicer.asString << "\n";
 		}, {
 				// otherwise, if this process has a useGui method, use it
 				// delegate because this is more complex than it sounds
