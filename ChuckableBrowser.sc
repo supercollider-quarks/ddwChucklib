@@ -35,7 +35,7 @@ ChuckableBrowser {
 			FlowView.new
 		};
 			// note, if you give bounds that are too small, you will be unhappy
-		layout = FlowView.new(masterLayout, bounds ?? { Rect(0, 0, 290, 310) });
+		layout = FlowView(masterLayout, bounds ?? { Rect(0, 0, 290, 310) }, margin: 2@2);
 		layout.onClose = { this.free; };  // gc so automatic browser updates don't break
 		this.initStates;
 		this.makeViews;

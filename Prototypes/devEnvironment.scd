@@ -38,14 +38,14 @@ s.boot;
 ~masterLayout = ResizeFlowWindow("control panel");
 masterLayout = ~masterLayout;
 
-~toolbarFlow = FlowView(~masterLayout.view, Rect(0, 0, 290, GUI.window.screenBounds.height-5));
+~toolbarFlow = FlowView(~masterLayout.view, Rect(0, 0, 290, GUI.window.screenBounds.height-5), margin: 2@2);
 (~useScroll ? false).if({
 	~voicerScroll = GUI.scrollView.new(~masterLayout.view, Rect(0, 0, 450 * ~voicerColumns,
 		GUI.window.screenBounds.height-50)).hasHorizontalScroller_(false);
 }, {
 	~voicerScroll = ~masterLayout.view;
 });
-~voicerFlow = FlowView(~voicerScroll, Rect(0, 0, 450 * ~voicerColumns, 20000));
+~voicerFlow = FlowView(~voicerScroll, Rect(0, 0, 450 * ~voicerColumns, 20000), margin: 2@2);
 
 GUI.staticText.new(~toolbarFlow, Rect(0, 0, 280, 20)).string_("Toolbar").align_(\center);
 
@@ -82,7 +82,7 @@ MT(1).gui(~toolbarFlow);
 0.2.wait;
 ~advanceStatus.();
 
-~midiControlFlow = FlowView.new(~toolbarFlow, Rect(0, 0, 80, 250));
+~midiControlFlow = FlowView.new(~toolbarFlow, Rect(0, 0, 80, 250), margin: 2@2);
 VoicerMIDIController.defaultDest = VoicerGCDummy;
 ((\knob ! 8) ++ #[\mw, \pb, \touch, \xtouch, \ytouch]).do({ |type|
 	var mc;
