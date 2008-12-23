@@ -7,15 +7,15 @@
 // if the envir arg to *new is nil, we set the environment at stream time
 
 BPStream : Pattern {
-	var	<>key, <>reset, <>envir;
-	*new { |key, reset = false, envir|
-		^super.newCopyArgs(key, reset, envir)
+	var	<>key, <>resetSource, <>envir;
+	*new { |key, resetSource = false, envir|
+		^super.newCopyArgs(key, resetSource, envir)
 	}
 	
 	asStream {
 		var	streamKey = (key ++ "Stream").asSymbol;
 		envir ?? { envir = currentEnvironment; };
-		(reset or: { envir[streamKey].isNil }).if({
+		(resetSource or: { envir[streamKey].isNil }).if({
 			envir.use({
 				streamKey.envirPut(key.envirGet.asStream);
 				streamKey.envirGet.isNil.if({
@@ -26,8 +26,14 @@ BPStream : Pattern {
 		});
 		^FuncStream({ |inval|
 			streamKey.envirGet.next(inval)
-		}).envir_(envir)   // by default FuncStreamEnvir assigns the current envir
+		}, { this.reset }).envir_(envir)   // make sure FuncStream knows which environment
 	}
+	
+	reset {
+		envir.use { (key ++ "Stream").asSymbol.envirGet.reset }
+	}
+	
+	printOn { |stream| stream << "BPStream(" <<< key << ")" }
 }
 
 // Proutine, but protects against nil being passed in
