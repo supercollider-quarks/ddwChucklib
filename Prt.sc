@@ -34,6 +34,7 @@ BPStream : Pattern {
 	}
 	
 	printOn { |stream| stream << "BPStream(" <<< key << ")" }
+	storeOn { |stream| this.printOn(stream) }
 }
 
 // Proutine, but protects against nil being passed in
