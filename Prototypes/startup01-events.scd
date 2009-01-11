@@ -225,7 +225,8 @@ makeNode: {
 		tempo = ~clock.tryPerform(\tempo) ? 1.0,
 		bundle,
 		lag = ~lag ? 0,
-		offset = ~timingOffset ? 0;
+		offset = ~timingOffset ? 0,
+		releaseGate = ~releaseGate ? 0;
 	((~instrument != \rest) and: { ~freq != \rest }).if({
 		~setTarget.value;
 		~busindex.notNil.if({
@@ -247,7 +248,7 @@ makeNode: {
 			(~grain.not and: { ~hasGate ? false and: { (sustain = ~sustain.value).notNil } }).if({
 				thisThread.clock.sched(sustain, {
 					Func(\schedEventBundle).doAction(lag, offset, server,
-						[\n_set, nodeID, \gate, 0]);
+						[\n_set, nodeID, \gate, releaseGate]);
 				});
 			});
 		});
@@ -374,7 +375,8 @@ ProtoEvent(\singleSynthPlayer).v.copy.putAll((
 		});
 	},
 	makeOneNode: { |i, strum|
-		var	instr, nodeID, latency, sustain, server = ~server.wrapAt(i), offset = ~timingOffset ? 0;
+		var	instr, nodeID, latency, sustain, server = ~server.wrapAt(i), offset = ~timingOffset ? 0,
+			releaseGate = ~releaseGate ? 0;
 		((instr = ~instrument/*.wrapAt(i)*/) != \rest).if({
 			nodeID = ~grain.if({ -1 }, { server.nextNodeID });
 			~node[i] = Synth.basicNew(instr, server, nodeID);
@@ -388,7 +390,7 @@ ProtoEvent(\singleSynthPlayer).v.copy.putAll((
 			(~grain.not and: { (~hasGate ? false) and: { (sustain = ~sustain.value).notNil } }).if({
 				thisThread.clock.sched(sustain, {
 					Func(\schedEventBundle).doAction(latency, offset, server,
-						[\n_set, nodeID, \gate, 0]);
+						[\n_set, nodeID, \gate, ~releaseGate]);
 				});
 			});
 		});
@@ -480,6 +482,7 @@ ProtoEvent(\polySynthPlayer).v.copy.putAll((
 		});
 		~prepNote.value;
 		~finish.value;	// user-definable
+		~releaseGate = (~releaseGate ? 0).asArray;
 		~nodes.do({ |node, i|
 			var	freq = ~newFreq.wrapAt(i), length = ~length.wrapAt(i);
 			Func(\schedEventBundleArray).doAction(lag, ~timingOffset, node.server,
@@ -491,7 +494,7 @@ ProtoEvent(\polySynthPlayer).v.copy.putAll((
 					// because you must not release the VoicerNode
 					// until the proper time comes
 				thisThread.clock.sched(length + timingOffset, {
-					node.release(0,
+					node.release(~releaseGate.wrapAt(i),
 						node.server.latency.notNil.if({ lag + node.server.latency }),
 						freq);
 				});
@@ -560,7 +563,7 @@ ProtoEvent(\voicerNote).v.copy.putAll((
 		});
 		~hasGate.if({
 			Func(\schedEventBundle).doAction(~lag + length, ~timingOffset, synth.server,
-				synth.setMsg(\gate, 0));
+				synth.setMsg(\gate, ~releaseGate ? 0));
 		});
 	},
 	
@@ -679,12 +682,19 @@ PR(\abstractProcess).v.clone({
 		// synthdef preparation might depend on the mixerchannel and user-defined resources
 		// note the order of initialization carefully
 	~prep = { 
-		~chan = MixerChannel(~collIndex, s, ~inChannels, ~outChannels,
-			outbus: ~master, completionFunc: { |chan|
-				~userpreps.do(_.value);
-				~userprep.value;		// preparation specified in chuck parameters
-				~makeSynthDefs.value;
-			});
+		if(~chan.isNil) {
+			~chan = MixerChannel(~collIndex, s, ~inChannels, ~outChannels,
+				outbus: ~master, completionFunc: { |chan|
+					~userpreps.do(_.value);
+					~userprep.value;		// preparation specified in chuck parameters
+					~makeSynthDefs.value;
+				});
+		} {
+			~iMadeChan = false;
+			~userpreps.do(_.value);
+			~userprep.value;		// preparation specified in chuck parameters
+			~makeSynthDefs.value;
+		};
 	};
 
 	~delta = 1.0;
@@ -806,6 +816,9 @@ PR(\abstractProcess).v.clone({
 		block { |break|
 			~objects[key][\argStreams].pairsDo({ |name, stream|
 				(streamout = stream.next(event)).isNil.if({
+					if(~debug ? false) {
+						"% stream was nil, stopping".format(name.asCompileString).warn;
+					};
 					break.(nil);	// early exit with nil result to stop main stream
 				}, {
 					(~debug ? false).if({
@@ -829,7 +842,7 @@ PR(\abstractProcess).v.clone({
 	~userfree = nil;
 	
 	~freeCleanup = { 
-		~chan.free;
+		if(~iMadeChan ? true) { ~chan.free };
 			// should free patches
 		~objects.do({ |def|
 			try {
