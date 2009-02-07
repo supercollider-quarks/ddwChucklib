@@ -142,7 +142,8 @@ ChuckableBrowser {
 				this.setInstanceForClass(this.currentClass,
 					instanceList[list.value])
 			});
-		keyCommandView = GUI.textField.new(layout, 284@20);
+		keyCommandView = (if(GUI.current.id == \cocoa) { SCTextFieldOld } { GUI.textField })
+			.new(layout, 284@20);
 	}
 	
 	focus {	// no flag, this always takes focus
