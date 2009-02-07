@@ -390,7 +390,7 @@ ProtoEvent(\singleSynthPlayer).v.copy.putAll((
 			(~grain.not and: { (~hasGate ? false) and: { (sustain = ~sustain.value).notNil } }).if({
 				thisThread.clock.sched(sustain, {
 					Func(\schedEventBundle).doAction(latency, offset, server,
-						[\n_set, nodeID, \gate, ~releaseGate]);
+						[\n_set, nodeID, \gate, releaseGate]);
 				});
 			});
 		});
@@ -474,7 +474,7 @@ ProtoEvent(\polySynthPlayer).v.copy.putAll((
 		var	lag = ~lag ? 0,  // ~timingOffset !? { ~timingOffset / ~clock.tempo };
 			timingOffset = ~timingOffset ? 0,
 			clock = ~clock,
-			bundle;
+			bundle, releaseGate;
 		(~debug == true).if({
 			"\n".debug;
 			["voicerNote event", ~clock.beats, ~clock.tempo].debug;
@@ -482,7 +482,7 @@ ProtoEvent(\polySynthPlayer).v.copy.putAll((
 		});
 		~prepNote.value;
 		~finish.value;	// user-definable
-		~releaseGate = (~releaseGate ? 0).asArray;
+		releaseGate = (~releaseGate ? 0).asArray;
 		~nodes.do({ |node, i|
 			var	freq = ~newFreq.wrapAt(i), length = ~length.wrapAt(i);
 			Func(\schedEventBundleArray).doAction(lag, ~timingOffset, node.server,
@@ -494,7 +494,7 @@ ProtoEvent(\polySynthPlayer).v.copy.putAll((
 					// because you must not release the VoicerNode
 					// until the proper time comes
 				thisThread.clock.sched(length + timingOffset, {
-					node.release(~releaseGate.wrapAt(i),
+					node.release(releaseGate.wrapAt(i),
 						node.server.latency.notNil.if({ lag + node.server.latency }),
 						freq);
 				});
