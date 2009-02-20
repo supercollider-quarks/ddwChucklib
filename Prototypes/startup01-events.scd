@@ -206,19 +206,7 @@ setArgs: {
 			value.isValidSynthArg.if({ args.add(key).add(value) });
 		});
 	});
-		// support for array arguments with control
-		// split single-number arguments away from arrays
-	soloargs = Array(args.size);
-	polyargs = Array(args.size);
-	args.pairsDo({ |key, value|
-		(value.size > 0).if({
-			polyargs.add(key).add(value)
-		}, {
-			soloargs.add(key).add(value)
-		});
-	});
-	~args = soloargs;
-	~polyargs = polyargs;
+	~args = args.asOSCArgArray;
 },
 makeNode: {
 	var	args, nodeID, server, sustain,
@@ -238,9 +226,6 @@ makeNode: {
 			~node = Synth.basicNew(~instrument, ~server, nodeID);
 			bundle = [~node.newMsg(~target, ~args ++ [\outbus, ~busindex, \out, ~busindex,
 				\i_out, ~busindex], \addToTail)];
-			(~polyargs.size > 0).if({
-				bundle = bundle.add(~node.setnMsg(*~polyargs));
-			});
 			Func(\schedEventBundleArray).doAction(lag, offset, server, bundle);
 (~trace == true).if({
 	Func(\schedEventBundle).doAction(lag + 0.05, ~timingOffset, server, [\n_trace, nodeID]);
@@ -280,9 +265,6 @@ ProtoEvent(\singleSynthPlayer).v.copy.putAll((play: {
 		~instrument = ~node.defName;
 		~setArgs.value;
 		msg = [~node.setMsg(*~args)];
-		(~polyargs.size > 0).if({
-			msg = msg.add(~node.setnMsg(*~polyargs))
-		});
 		Func(\schedEventBundleArray).doAction(~lag, ~timingOffset, ~node.server, msg);
 		(~debug ? false).if({
 			msg.postln 
@@ -314,7 +296,7 @@ play: { var args, nodeID;
 			// maybe not a safe assumption but a reasonable limitation for now
 		~instrument ?? { ~instrument = ~node.asArray.first.defName };
 		~setArgs.value;
-		~args = ~args.collect(_.flop).flop.collect(_.flat);
+		~args = ~args.collect(_.flop).flop.collect({ |subarray| subarray.flatten(1).asOSCArgArray });
 		~node.do({ |node, i|
 			Func(\schedEventBundle).doAction(~lag, ~timingOffset, node.server,
 				node.setMsg(*~args.wrapAt(i)));
@@ -403,7 +385,7 @@ ProtoEvent(\singleSynthPlayer).v.copy.putAll((
 			~checkbuses.value.if({
 //				~instrument = ~instrument.asArray;
 				~setArgs.value;
-				~args = ~args.collect(_.flop).flop.collect(_.flat);
+				~args = ~args.collect(_.flop).flop.collect({ |subarray| subarray.flatten(1).asOSCArgArray });
 				strum = ~strum ? 0;
 				~grain = ~grain ? false;
 				~node = Array.newClear([/*~instrument.size,*/ ~args.size, ~bus.size,
