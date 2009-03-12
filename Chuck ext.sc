@@ -119,6 +119,11 @@
 	free {
 		this.asSymbol.free
 	}
+	
+		// needed because Cocoa GUI no longer interprets strings for you
+	draggedIntoMTGui { |gui, index|
+		^this.interpret.draggedIntoMTGui(gui, index)
+	}
 }
 
 // chuckable browser uses this
