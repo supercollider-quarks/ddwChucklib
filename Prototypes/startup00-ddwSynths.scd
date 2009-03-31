@@ -50,11 +50,12 @@ SynthDef(\bufGrainPan2, { |start, time, bufnum, rate = 1, pan, amp = 1,
 // use a pair of enveloped PlayBufs to avoid clicks when looping back on the sample
 
 SynthDef(\bufRoll, { |start, time = 1, bufnum, rate = 1, amp = 1, strokesPerSec = 18,
+		attack = 0.002, decay = 0.01,	// attack and decay of individual stroke
 		outbus|
 	var	sig, envDefault, env,
 		trig = Impulse.ar(strokesPerSec),
 		trigs = PulseDivider.ar(trig, 2, (0..1)),
-		strokeEnv = EnvGen.ar(Env.linen(0.002, strokesPerSec.reciprocal, 0.01), trigs);
+		strokeEnv = EnvGen.ar(Env.linen(attack, strokesPerSec.reciprocal - attack - decay, decay), trigs);
 		// time of this env must add up to 1.0 sec
 	envDefault = Env(#[0, 1, 0], #[0.001, 0.999], -4);
 		// 40 == 10 possible envelope segments (which is a lot, really)
@@ -65,11 +66,12 @@ SynthDef(\bufRoll, { |start, time = 1, bufnum, rate = 1, amp = 1, strokesPerSec 
 }).memStore(\ddwSynths);
 
 SynthDef(\bufRollPan, { |start, time = 1, bufnum, rate = 1, amp = 1, strokesPerSec = 18, pan = 0,
+		attack = 0.002, decay = 0.01,	// attack and decay of individual stroke
 		outbus|
 	var	sig, envDefault, env,
 		trig = Impulse.ar(strokesPerSec),
 		trigs = PulseDivider.ar(trig, 2, (0..1)),
-		strokeEnv = EnvGen.ar(Env.linen(0.002, strokesPerSec.reciprocal, 0.01), trigs);
+		strokeEnv = EnvGen.ar(Env.linen(attack, strokesPerSec.reciprocal - attack - decay, decay), trigs);
 		// time of this env must add up to 1.0 sec
 	envDefault = Env(#[0, 1, 0], #[0.001, 0.999], -4);
 		// 40 == 10 possible envelope segments (which is a lot, really)
@@ -80,11 +82,30 @@ SynthDef(\bufRollPan, { |start, time = 1, bufnum, rate = 1, amp = 1, strokesPerS
 }).memStore(\ddwSynths);
 
 SynthDef(\bufRollPanMove, { |start, time = 1, bufnum, rate = 1, amp = 1, strokesPerSec = 18,
+		attack = 0.002, decay = 0.01,	// attack and decay of individual stroke
 		panStart = 0, panEnd = 0,	outbus|
 	var	sig, envDefault, env,
 		trig = Impulse.ar(strokesPerSec),
 		trigs = PulseDivider.ar(trig, 2, (0..1)),
-		strokeEnv = EnvGen.ar(Env.linen(0.002, strokesPerSec.reciprocal, 0.01), trigs);
+		strokeEnv = EnvGen.ar(Env.linen(attack, strokesPerSec.reciprocal - attack - decay, decay), trigs);
+		// time of this env must add up to 1.0 sec
+	envDefault = Env(#[0, 1, 0], #[0.001, 0.999], -4);
+		// 40 == 10 possible envelope segments (which is a lot, really)
+	env = Control.names(\env).kr((0 ! 40).overWrite(envDefault.asArray, 0));
+	sig = (PlayBuf.ar(1, bufnum, rate * BufRateScale.kr(bufnum), trigs, start, 1) * strokeEnv).sum
+		* EnvGen.ar(env, timeScale: time, doneAction:2);
+	Out.ar(outbus, Pan2.ar(sig, Line.kr(panStart, panEnd, time), amp));
+}).memStore(\ddwSynths);
+
+SynthDef(\bufRollPanChangeRate, { |start, time = 1, bufnum, rate = 1, amp = 1,
+		strokeRateStart = 18, strokeRateEnd = 18,
+		attack = 0.002, decay = 0.01,	// attack and decay of individual stroke
+		panStart = 0, panEnd = 0,	outbus|
+	var	sig, envDefault, env,
+		strokesPerSec = XLine.kr(strokeRateStart, strokeRateEnd, time),
+		trig = Impulse.ar(strokesPerSec),
+		trigs = PulseDivider.ar(trig, 2, (0..1)),
+		strokeEnv = EnvGen.ar(Env.linen(attack, strokesPerSec.reciprocal - attack - decay, decay), trigs);
 		// time of this env must add up to 1.0 sec
 	envDefault = Env(#[0, 1, 0], #[0.001, 0.999], -4);
 		// 40 == 10 possible envelope segments (which is a lot, really)
