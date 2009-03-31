@@ -220,7 +220,9 @@ makeNode: {
 		~busindex.notNil.if({
 			server = ~server;	// for ~trace == true
 			~setArgs.value;
-(~debug == true).if({ thisThread.clock.beats.debug("\nnow"); ~args.debug("singleSynthPlayer"); });
+(~debug == true).if({
+//thisThread.clock.debug("my clock");
+ thisThread.clock.beats.debug("\nnow"); ~args.debug("singleSynthPlayer"); });
 			~grain = ~grain ? false;
 			nodeID = ~grain.if({ -1 }, { ~server.nextNodeID });
 			~node = Synth.basicNew(~instrument, ~server, nodeID);
@@ -660,12 +662,26 @@ PR(\abstractProcess).v.clone({
 
 	~inChannels = 2;
 	~outChannels = 2;
+		// you may specify a server at chuck time
+		// but DO NOT save a server into a prototype
+		// because, when you do PR => BP, the server gets copied
+		// and that messes up a whole lot of stuff
+		// to avoid that trouble, give the server as a Function
+		// because a Function's return value isn't copied
+		// this is used for initialization only,
+		// and not used if you give a MixerChannel as ~master
+//	~server = { Server.default };
 
 		// synthdef preparation might depend on the mixerchannel and user-defined resources
 		// note the order of initialization carefully
-	~prep = { 
+	~prep = {
+		var	server = ~master.tryPerform(\server) ?? {
+				~server.value ?? { Server.default } };
+		if(SynthDescLib.global.servers.value.asArray.includes(server).not) {
+			SynthDescLib.global.addServer(server);
+		};
 		if(~chan.isNil) {
-			~chan = MixerChannel(~collIndex, s, ~inChannels, ~outChannels,
+			~chan = MixerChannel(~collIndex, server, ~inChannels, ~outChannels,
 				outbus: ~master, completionFunc: { |chan|
 					~userpreps.do(_.value);
 					~userprep.value;		// preparation specified in chuck parameters
@@ -714,7 +730,9 @@ PR(\abstractProcess).v.clone({
 		var	sdef, reference;
 			// allow references to other items in ~objects
 			// that is, you can reuse a patch but supply a different argument array
-		(def[\def].isSymbol and: { (reference = ~objects[def[\def]]).notNil }).if({
+		if(def[\def].isSymbol
+				and: { (reference = ~objects[def[\def]]).notNil
+				and: { reference !== def } }) {
 				// has the reference already been prepared?
 			reference[\synthdef].isNil.if({
 				~makeOneSynthDef.(def[\def], reference);
@@ -722,13 +740,13 @@ PR(\abstractProcess).v.clone({
 			def[\synthdef] = reference[\synthdef];
 			def[\name] = reference[\name];
 				// no need to resend synthdef
-		}, {
+		} {
 			sdef = ~makeDefForObject.(def[\def], id);
 			def[\synthdef] = sdef;
 			def[\name] = sdef.tryPerform(\name) ? sdef;
 			sdef.tryPerform(\send, ~chan.server);
 			sdef.tryPerform(\memStore);
-		});
+		};
 		~prepareArgsForOneDef.(id);
 	};
 
