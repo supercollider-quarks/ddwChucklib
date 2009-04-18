@@ -1230,7 +1230,7 @@ BP : AbstractChuckNewDict {
 //"<< BP(%):stop".format(collIndex).debug;
 	}
 	
-		// for rewrapping/replacing -- specify an Proto to use
+		// for rewrapping/replacing -- specify a Proto to use
 		// there may be cases where I don't want to notify dependents
 	stopNow { |adhoc, quant, notify = true, doCleanup = true, notifyTime|
 		var	child;	// to iterate down the chain of child processes
@@ -1263,18 +1263,29 @@ BP : AbstractChuckNewDict {
 					// by entering the environment for asStream, PR/BP code can be simpler
 				this.asPattern.asStream;
 			});
-			^value.put(\eventStream, HJHCleanupStream(stream,
-				this.streamCleanupFunc(this, value), value.reuseCleanup ? false)).eventStream
+			value.put(\eventStream, stream);
+			^stream
 		}, { ^nil });
 	}
 	asPattern { ^value.asPattern }
 	asEventStreamPlayer {
-		var event;
+			// replay needs to change the cleanup func in the old stream before stopping
+			// so I need to refer to other adhocs than my own in that case
+			// ('value' may change but 'adhoc' will not)
+		var event, adhoc = value, updater;
 		this.exists.if({
 			value.preparePlay;
 			value[\event] = event = this.prepareEvent;
 			value.put(\eventStreamPlayer, 
 				EventStreamPlayer(this.asStream, event).refresh);
+			value[\eventStreamPlayerWatcher] = updater = Updater(value[\eventStreamPlayer], { |obj, what|
+				if(what == \stopped and: { obj === value[\eventStreamPlayer] }) {
+					this.streamCleanupFunc(this, adhoc);
+						// just in case there's still some garbage floating about
+					updater.remove;
+					adhoc[\eventStreamPlayerWatcher] = nil;
+				};
+			});
 			^value[\eventStreamPlayer]
 		}, { ^nil });
 	}
@@ -1295,10 +1306,12 @@ BP : AbstractChuckNewDict {
 		// replay needs to change the cleanup func in the old stream before stopping
 		// so I need to refer to other adhocs than my own in that case
 	streamCleanupFunc { |self, adhoc|
-		^{
+		if(adhoc[\isPlaying] == true) {
 			"% stream stopped, cleaning up".format(this).postln;
 				// if a sequence stops of its own accord, eventStreamPlayer needs to be nil
 				// so that stream will be recreated on next play
+			adhoc[\eventStreamPlayerWatcher].remove;
+			adhoc[\eventStreamPlayerWatcher] = nil;
 			adhoc.put(\eventStreamPlayer, nil);
 				// optional post-stop activity--true means stopped automatically
 			adhoc.stopCleanup(true);
@@ -1407,14 +1420,21 @@ BP : AbstractChuckNewDict {
 // throw everything out and start with this incoming process
 // this method is not fully supported yet
 	overwrite { |process|
-		var	saveAdhoc, esp;
+		var	saveAdhoc, esp, updater;
 		saveAdhoc = value;		// to preserve this Proto through the scheduling
 // this test is bad
 		((esp = value[\eventStreamPlayer]).notNil
 			and: { esp.isPlaying and: { esp.nextBeat.notNil } }).if({
 				// let it play through this event
 			value[\clock].schedAbs(esp.nextBeat - 0.05, {
-				esp.stream.tryPerform(\cleanup_, this.streamCleanupFunc(nil, saveAdhoc));
+				saveAdhoc[\eventStreamPlayerWatcher].remove;
+				saveAdhoc[\eventStreamPlayerWatcher] = nil;
+				updater = Updater(esp, { |obj, what|
+					if(what === \stopped) {
+						this.streamCleanupFunc(nil, saveAdhoc);
+						updater.remove;	// one-shot
+					};
+				});
 				this.stopNow(saveAdhoc)
 			});
 		});
@@ -1422,12 +1442,18 @@ BP : AbstractChuckNewDict {
 	}
 	
 	replay { |oldEventStreamPlayer, oldAdhoc|	// process must be playing
-		var	nextTime;
+		var	nextTime, updater;
 		(oldEventStreamPlayer.isPlaying and: { oldEventStreamPlayer.nextBeat.notNil }).if({
 			nextTime = oldEventStreamPlayer.nextBeat;
 				// to prevent the stream's cleanup from messing up my flags
-			oldEventStreamPlayer.stream.tryPerform(\cleanup_,
-				this.streamCleanupFunc(nil, oldAdhoc));
+			oldAdhoc[\eventStreamPlayerWatcher].remove;
+			oldAdhoc[\eventStreamPlayerWatcher] = nil;
+			updater = Updater(oldEventStreamPlayer, { |obj, what|
+				if(what === \stopped) {
+					this.streamCleanupFunc(nil, oldAdhoc);
+					updater.remove;	// one-shot
+				};
+			});
 			oldEventStreamPlayer.stop;
 			value[\isPlaying] = true;
 				// make a new one and schedule it for the next event time
