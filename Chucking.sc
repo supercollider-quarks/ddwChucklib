@@ -1103,7 +1103,9 @@ BP : AbstractChuckNewDict {
 						value[\eventSchedTime] = goTime;
 						this.prepareForPlay(argQuant, argClock, doReset);
 						(this.clock == AppClock).if({
-							this.clock.sched(0, value.eventStreamPlayer.refresh);
+								// AppClock has no schedAbs method
+							value.eventStreamPlayer.play(this.clock, doReset, 0);
+//							this.clock.sched(0, value.eventStreamPlayer.refresh);
 							value[\isWaiting] = false;
 						}, {
 							this.clock.schedAbs(goTime, {
@@ -1112,7 +1114,9 @@ BP : AbstractChuckNewDict {
 									and: { value[\eventStreamPlayer]
 										.tryPerform(\nextBeat).isNil })
 								.if({
-									this.clock.sched(0, value.eventStreamPlayer.refresh);
+									value.eventStreamPlayer.play(this.clock, doReset,
+										AbsoluteTimeSpec(goTime));
+//									this.clock.sched(0, value.eventStreamPlayer.refresh);
 								});
 								value[\isWaiting] = false;
 								nil
@@ -1138,7 +1142,7 @@ BP : AbstractChuckNewDict {
 							})
 					});
 					this.asEventStreamPlayer;
-					value.eventStreamPlayer.refresh;  // needed for play to succeed
+					value.eventStreamPlayer; // .refresh;  // needed for play to succeed
 				});
 		});
 	}
@@ -1156,7 +1160,7 @@ BP : AbstractChuckNewDict {
 		var	time;
 		this.exists.if({ 
 			time = this.quant(argQuant).bpSchedTime(this);
-			(time >= this.clock.beats).if({ ^time }, { ^nil });
+			^(time >= this.clock.beats).if({ time }, { nil });
 		}, { ^nil });
 	}
 		// dereference allows you to force play to start exactly now on the clock with `nil
@@ -1277,7 +1281,7 @@ BP : AbstractChuckNewDict {
 			value.preparePlay;
 			value[\event] = event = this.prepareEvent;
 			value.put(\eventStreamPlayer, 
-				BlockableEventStreamPlayer(this.asStream, event).refresh);
+				BlockableEventStreamPlayer(this.asStream, event)/*.refresh*/);
 			value[\eventStreamPlayerWatcher] = updater = Updater(value[\eventStreamPlayer], { |obj, what|
 				if(what == \stopped and: { obj === value[\eventStreamPlayer] }) {
 					this.streamCleanupFunc(this, adhoc);
@@ -1326,16 +1330,20 @@ BP : AbstractChuckNewDict {
 		// should I follow the naming convention of stopNow / stop?
 		// would break code
 	reset {
-		var	oldPlayer;
+		var	oldPlayer, oldUpdater;
 		this.exists.if({
 			(oldPlayer = value[\eventStreamPlayer]).notNil.if({
+				oldUpdater = value[\eventStreamPlayerWatcher];
 				value.reset;
 				this.prepareForPlay(doReset:true);
 			});
 			this.isPlaying.if({
-				this.clock.schedAbs(oldPlayer.nextBeat, value[\eventStreamPlayer].refresh);
+				value[\eventStreamPlayer].play(this.clock, false, AbsoluteTimeSpec(oldPlayer.nextBeat));
+//				this.clock.schedAbs(oldPlayer.nextBeat, value[\eventStreamPlayer].refresh);
 					// must kill the old cleanup func
-				oldPlayer.stream.tryPerform(\cleanup_, nil);				oldPlayer.stop;
+				oldUpdater.remove;
+//				oldPlayer.stream.tryPerform(\cleanup_, nil);
+				oldPlayer.stop;
 			});
 			this.changed(\reset);
 		});
@@ -1459,7 +1467,8 @@ BP : AbstractChuckNewDict {
 			oldEventStreamPlayer.stop;
 			value[\isPlaying] = true;
 				// make a new one and schedule it for the next event time
-			value[\clock].schedAbs(nextTime, this.asEventStreamPlayer.refresh);
+			this.asEventStreamPlayer.play(value[\clock], false, AbsoluteTimeSpec(nextTime));
+//			value[\clock].schedAbs(nextTime, this.asEventStreamPlayer.refresh);
 		});
 	}
 	
