@@ -1277,7 +1277,7 @@ BP : AbstractChuckNewDict {
 			value.preparePlay;
 			value[\event] = event = this.prepareEvent;
 			value.put(\eventStreamPlayer, 
-				EventStreamPlayer(this.asStream, event).refresh);
+				BlockableEventStreamPlayer(this.asStream, event).refresh);
 			value[\eventStreamPlayerWatcher] = updater = Updater(value[\eventStreamPlayer], { |obj, what|
 				if(what == \stopped and: { obj === value[\eventStreamPlayer] }) {
 					this.streamCleanupFunc(this, adhoc);
@@ -1307,7 +1307,9 @@ BP : AbstractChuckNewDict {
 		// so I need to refer to other adhocs than my own in that case
 	streamCleanupFunc { |self, adhoc|
 		if(adhoc[\isPlaying] == true) {
-			"% stream stopped, cleaning up".format(this).postln;
+			if(adhoc === value) {
+				"% stream stopped, cleaning up".format(this).postln;
+			};
 				// if a sequence stops of its own accord, eventStreamPlayer needs to be nil
 				// so that stream will be recreated on next play
 			adhoc[\eventStreamPlayerWatcher].remove;

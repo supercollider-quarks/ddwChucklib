@@ -100,6 +100,41 @@ HJHCleanupStream : Stream {
 	}
 }
 
+BlockableEventStreamPlayer : EventStreamPlayer {
+	var	<>status = \stopped;
+	
+	removedFromScheduler { | freeNodes = true |
+		if(status != \blocked) {
+			super.removedFromScheduler(freeNodes)
+		} {
+			nextBeat = nil;
+			isWaiting = false;
+			cleanup.terminate(freeNodes);	
+			this.changed(\blocked);
+		};
+	}
+	
+	prStop {
+		status = \stopped;
+		super.prStop;
+	}
+	
+	play { |argClock, doReset = false, quant|
+		status = \playing;
+		super.play(argClock, doReset, quant);
+	}
+	
+	pause {
+		status = \blocked;
+		cleanup.terminate;
+		stream = nextBeat = nil;
+		isWaiting = false;
+		this.changed(\userBlocked);
+	}
+	
+	block { this.pause }
+}
+
 PausableEventStreamPlayer : PauseStreamHJH {
 	var <>event, <>muteCount = 0, <>cleanup;
 
