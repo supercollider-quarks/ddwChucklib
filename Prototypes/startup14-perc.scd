@@ -479,7 +479,7 @@ PR(\bufPerc).v.clone({
 	
 	~makeStartTimes = { 
 		~makePatternFromArray.(~start, 1).collect(e { |st, event|
-			~segStart.wrapAt(~bufs.wrapAt(event[\bufIndex])).wrapAt(st)
+			~segStart.wrapAt(event[\bufIndex]).wrapAt(st)
 		});
 	};
 		
