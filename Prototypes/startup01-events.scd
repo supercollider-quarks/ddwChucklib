@@ -269,7 +269,7 @@ ProtoEvent(\singleSynthPlayer).v.copy.putAll((play: {
 		msg = [~node.setMsg(*~args)];
 		Func(\schedEventBundleArray).doAction(~lag, ~timingOffset, ~node.server, msg);
 		(~debug ? false).if({
-			msg.postln 
+			msg.debug("singleSynthTrigger")
 		});
 	})
 })) => ProtoEvent(\singleSynthTrigger);
