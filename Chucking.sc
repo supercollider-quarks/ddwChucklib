@@ -1221,9 +1221,10 @@ BP : AbstractChuckNewDict {
 					// but if this is using NilTimeSpec, that time could be in the past
 					// so use current beats if it's greater
 				this.clock.schedAbs(max(time - (1e-3), this.clock.beats), {
-					value[\isPlaying].not.if({
+						// can't assume value still exists
+					if(value.tryPerform(\isPlaying) == false) {
 						this.stopNow(nil, argQuant, notifyTime: time);
-					});
+					};
 				});
 			} {
 				this.stopNow(nil, argQuant);
