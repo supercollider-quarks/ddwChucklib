@@ -458,6 +458,7 @@ ProtoEvent(\polySynthPlayer).v.copy.putAll((
 		var	lag = ~lag ? 0,  // ~timingOffset !? { ~timingOffset / ~clock.tempo };
 			timingOffset = ~timingOffset ? 0,
 			clock = ~clock,
+			voicer = ~voicer,
 			bundle, releaseGate;
 		(~debug == true).if({
 			"\n".debug;
@@ -478,9 +479,8 @@ ProtoEvent(\polySynthPlayer).v.copy.putAll((
 					// because you must not release the VoicerNode
 					// until the proper time comes
 				thisThread.clock.sched(length + timingOffset, {
-					node.release(releaseGate.wrapAt(i),
-						node.server.latency.notNil.if({ lag + node.server.latency }),
-						freq);
+					voicer.releaseNode(node, freq, releaseGate.wrapAt(i),
+						node.server.latency.notNil.if({ lag + node.server.latency }));
 				});
 			});
 		});
