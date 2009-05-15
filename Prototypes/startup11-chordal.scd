@@ -212,7 +212,7 @@ PR(\abstractProcess).v.clone({
 					Func(~fitFunc.value(out)).doAction(out, inEvent, ~getFit.value),
 					inEvent)
 			}),
-			#[\delta, \length, \gate], MicRh(inEvent[\microRhythm])
+			#[\dur, \length, \gate], MicRh(inEvent[\microRhythm])
 				.asPattern(~notePattern, inEvent),
 			\mode, (Pfunc({
 				~currentChord.modeForEvent(inEvent)

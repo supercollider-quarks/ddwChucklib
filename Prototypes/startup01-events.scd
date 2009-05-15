@@ -408,6 +408,7 @@ ProtoEvent(\polySynthPlayer).v.copy.putAll((
 // voicer events (for ai sequencing):
 
 (	timingOffset: 0,
+	stretch: 1.0,
 	// args: [],
 		// maybe you want to use non-equal-temperament. override this func
 		// or, if you are using modally-mapped values, include the cpsFunc or EqualTemperament derivative
@@ -425,8 +426,17 @@ ProtoEvent(\polySynthPlayer).v.copy.putAll((
 		~ctranspose.notNil.if({ ~newFreq = ~newFreq + ~ctranspose });
 
 		~newFreq = ~midiNoteToFreq.value(~newFreq).asArray;
-		~delta = ~delta ?? { ~note.dur };
+		~dur = ~dur ?? { ~delta ?? { ~note.dur } };
 		~length = (~length ?? { ~note.length }).asArray;
+		
+			// some patterns (e.g. Pfindur) might shorten the delta
+			// in which case length could be too long
+			// but this really applies only to MonoPortaVoicers,
+			// hence the adjust... test
+		if(~adjustLengthToRealDelta.value and: { ~dur != currentEnvironment.delta }) {
+			~length = ~length * currentEnvironment.delta / ~dur;
+		};
+		
 		~args = ~args ?? { [~note.tryPerform(\args)].tryPerform(\flatten, 1) } ?? { [] };
 		i = 0;	// args should be key value pairs, but might be an array of velocities
 				// drop pairs that are not \symbol, value
@@ -447,7 +457,7 @@ ProtoEvent(\polySynthPlayer).v.copy.putAll((
 			~voicer.setArgsInEvent(currentEnvironment);
 		};
 		~bassID.notNil.if({
-			~note ?? { ~note = SequenceNote(~freq, ~delta, ~length[0], ~gate[0]) };
+			~note ?? { ~note = SequenceNote(~freq, ~dur, ~length[0], ~gate[0]) };
 			Library.put(~bassID, ~note);
 				// allow this thread to finish before alerting dependents
 			thisThread.clock.sched(0, { BP.changed(thisEvent[\bassID], thisEvent); });
@@ -472,7 +482,7 @@ ProtoEvent(\polySynthPlayer).v.copy.putAll((
 			var	freq = ~newFreq.wrapAt(i), length = ~length.wrapAt(i);
 			Func(\schedEventBundleArray).doAction(lag, ~timingOffset, node.server,
 				node.server.makeBundle(false, {
-					node.trigger(freq, ~gate.wrapAt(i), ~args.wrapAt(i));
+					node.trigger(freq, ~gate.wrapAt(i), ~args.wrapAt(i), node.server.latency);
 				}));
 			(length.notNil and: { length != inf }).if({
 					// can't use schedEventBundle
@@ -480,7 +490,7 @@ ProtoEvent(\polySynthPlayer).v.copy.putAll((
 					// until the proper time comes
 				thisThread.clock.sched(length + timingOffset, {
 					voicer.releaseNode(node, freq, releaseGate.wrapAt(i),
-						node.server.latency.notNil.if({ lag + node.server.latency }));
+						lag + (node.server.latency ? 0));
 				});
 			});
 		});
@@ -494,6 +504,9 @@ ProtoEvent(\polySynthPlayer).v.copy.putAll((
 				((~lag + ~timingOffset) / ~clock.tempo) + ~voicer.target.server.latency);
 		});
 	},
+	
+		// you could override this
+	adjustLengthToRealDelta: { ~voicer.isKindOfByName(\MonoPortaVoicer) },
 	
 	keysToPropagate: #[\voicer, \midi, \mode, \timingOffset, \argKeys, \immediateOSC]
 ) => ProtoEvent(\voicerNote);

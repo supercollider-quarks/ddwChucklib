@@ -1177,7 +1177,7 @@ BP : AbstractChuckNewDict {
 			"Cannot set leadTime while BP(%) is playing.".format(collIndex).warn;
 		}, {
 			leadTime = lat;
-			value.leadTime = lat;
+			this.populateAdhocVariables;
 		});
 	}
 	nextBeat {
