@@ -1284,7 +1284,7 @@ BP : AbstractChuckNewDict {
 			value.put(\eventStreamPlayer, 
 				BlockableEventStreamPlayer(this.asStream, event)/*.refresh*/);
 			value[\eventStreamPlayerWatcher] = updater = Updater(value[\eventStreamPlayer], { |obj, what|
-				if(what == \stopped and: { obj === value[\eventStreamPlayer] }) {
+				if(what == \stopped and: { value.notNil and: { obj === value[\eventStreamPlayer] } }) {
 					this.streamCleanupFunc(this, adhoc);
 						// just in case there's still some garbage floating about
 					updater.remove;
