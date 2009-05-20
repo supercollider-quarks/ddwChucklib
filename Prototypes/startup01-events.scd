@@ -215,7 +215,7 @@ makeNode: {
 		lag = ~lag ? 0,
 		offset = ~timingOffset ? 0,
 		releaseGate = ~releaseGate ? 0;
-	((~instrument != \rest) and: { ~freq != \rest }).if({
+	((~instrument != \rest) and: { ~freq != \rest and: { ~type != \rest } }).if({
 		~setTarget.value;
 		~busindex.notNil.if({
 			server = ~server;	// for ~trace == true
@@ -261,7 +261,7 @@ ProtoEvent(\singleSynthPlayNotify).v => ProtoEvent(\bufStatusUpdate);
 ProtoEvent(\singleSynthPlayer).v.copy.putAll((play: {
 	var args, nodeID, msg, bundle, tempo = ~clock.tryPerform(\tempo) ? 1.0;
 		// the full condition is needed for Ppar which uses ~freq == \rest
-	(~node != \rest and: { ~instrument != \rest and: { ~freq != \rest } }).if({
+	(~node != \rest and: { ~instrument != \rest and: { ~freq != \rest and: { ~type != \rest } } }).if({
 		~lag ?? { ~lag = 0 };
 		~node = ~node.value;
 		~instrument = ~node.defName;
@@ -291,7 +291,7 @@ setArgs: {
 	});
 },
 play: { var args, nodeID;
-	(~node != \rest and: { ~instrument != \rest and: { ~freq != \rest } }).if({
+	(~node != \rest and: { ~instrument != \rest and: { ~freq != \rest and: { ~type != \rest } } }).if({
 		~lag ?? { ~lag = 0 };
 		~node = ~node.value;
 			// assumed to be the same synthdef for each
@@ -381,7 +381,7 @@ ProtoEvent(\singleSynthPlayer).v.copy.putAll((
 	},
 	makeNode: {
 		var args, instr, nodeID, strum, latency;
-		(~instrument != \rest).if({
+		(~instrument != \rest and: { ~type != \rest }).if({
 			~lag ?? { ~lag = 0 };
 			~setTarget.value;
 			~checkbuses.value.if({
