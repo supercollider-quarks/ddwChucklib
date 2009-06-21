@@ -10,6 +10,15 @@ SynthDef(\ctlPoint, { |outbus, value, time, curve|
 	ReplaceOut.kr(outbus, EnvGen.kr(Env([start, value], [time], curve), doneAction: 2));
 }).memStore(\ddwSynths);
 
+// this def plays an arbitrary envelope on the bus
+// to avoid discontinuity, the envelope's init value is replaced
+// with the bus's value
+SynthDef(\ctlEnv, { |outbus, levelScale = 1, levelBias = 0, time = 1|
+	var	env = \env.kr(0 ! 40);	// enough for 10 breakpoints
+	env[0] = In.kr(outbus, 1);
+	ReplaceOut.kr(outbus, EnvGen.kr(env, 1, levelScale, levelBias, time, doneAction: 2));
+}).memStore(\ddwSynths);
+
 // formerly stock synthdefs were written into the synthdefs/ folder
 // but it's better to send synthdefs on demand
 // so now they are stored in SynthDescLib.global
@@ -155,6 +164,10 @@ SynthDescLib.all[\ddwSynths].synthDescs.do({ |desc|
 // to the server when needed. But this broke too many of my tracks,
 // so I'm adding a dependant to servers to send the synthdefs on boot.
 // Feel free to comment this out if you don't like it.
+
+// Note also, sending a synthdef from the SynthDescLib does NOT work
+// if the SynthDesc was read from a .scsyndef file.
+// These are memStore'd so it's OK.
 
 Updater(Server, { |obj, what, newServer|
 	if(what == \serverAdded) {

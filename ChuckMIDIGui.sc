@@ -56,7 +56,7 @@ MTGui : HJHObjectGui {
 		mainView.isNil.if({	// if this gui is already open, don't recreate
 			{	mainView = GUI.compositeView.new(layout, argBounds ?? { Rect(0, 0, width, height) })
 					.onClose_({ this.remove });
-			try { mainView.relativeOrigin_(layout.relativeOrigin) };
+//			try { mainView.relativeOrigin_(layout.relativeOrigin) };
 
 			chanText = GUI.staticText.new(mainView,
 				Rect(gap+mainView.bounds.left, gap+mainView.bounds.top, width-gap, dragHeight))
