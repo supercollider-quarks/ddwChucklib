@@ -603,7 +603,10 @@ ProtoEvent(\voicerNote).v.copy.putAll((
 
 			// downward propagation - responsibility of wrapper
 		~propagateDownward.value;
-		(childEvent = ~child[\event]).parent = ProtoEvent(childEvent[\eventKey]).v;
+		(childEvent = ~child[\event])
+			.parent_(ProtoEvent(childEvent[\eventKey]).v)
+				// must make absolutely sure the child plays on the same clock
+			.clock_(~clock);
 
 		~child.preparePlay;
 		childStreamTemp = ~wrapPattern.value(~child.asPattern(currentEnvironment));
