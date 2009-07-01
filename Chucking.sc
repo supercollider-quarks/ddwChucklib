@@ -801,6 +801,7 @@ BP : AbstractChuckNewDict {
 				// some processes need to do different cleanups if freed while playing
 			value[\wasPlayingWhenFreed] = this.isPlaying;
 			this.stopNow;
+			value[\eventStreamPlayer] !? { value[\eventStreamPlayer].releaseDependants };
 			value.freeCleanup;
 			this.changed(\free);
 			BP.removeDependant(value);
@@ -1107,7 +1108,6 @@ BP : AbstractChuckNewDict {
 						(this.clock == AppClock).if({
 								// AppClock has no schedAbs method
 							value.eventStreamPlayer.play(this.clock, doReset, 0);
-//							this.clock.sched(0, value.eventStreamPlayer.refresh);
 							value[\isWaiting] = false;
 						}, {
 							this.clock.schedAbs(goTime, {
@@ -1118,7 +1118,6 @@ BP : AbstractChuckNewDict {
 								.if({
 									value.eventStreamPlayer.play(this.clock, doReset,
 										AbsoluteTimeSpec(goTime));
-//									this.clock.sched(0, value.eventStreamPlayer.refresh);
 								});
 								value[\isWaiting] = false;
 								nil
@@ -1144,7 +1143,6 @@ BP : AbstractChuckNewDict {
 							})
 					});
 					this.asEventStreamPlayer;
-					value.eventStreamPlayer; // .refresh;  // needed for play to succeed
 				});
 		});
 	}
@@ -1217,7 +1215,6 @@ BP : AbstractChuckNewDict {
 		this.exists.if({
 			try {
 				time = this.eventSchedTime(argQuant);
-//time.debug(">> BP(%):stop".format(collIndex));
 				value[\eventSchedTime] = time;
 					// 1e-3 is to force this func to wake up before the thread it's stopping
 					// but if this is using NilTimeSpec, that time could be in the past
@@ -1234,15 +1231,12 @@ BP : AbstractChuckNewDict {
 			value.put(\isPlaying, false).put(\isWaiting, false);
 			this.changed(\stop, \request);
 		});
-//"<< BP(%):stop".format(collIndex).debug;
 	}
 	
 		// for rewrapping/replacing -- specify a Proto to use
 		// there may be cases where I don't want to notify dependents
 	stopNow { |adhoc, quant, notify = true, doCleanup = true, notifyTime|
 		var	child;	// to iterate down the chain of child processes
-//debug("\n\n>> BP(%):stopNow".format(collIndex));
-//this.dumpBackTrace;
 		this.exists.if({
 			notifyTime ?? { notifyTime = this.clock.beats };
 			adhoc = adhoc ? value;
@@ -1260,7 +1254,6 @@ BP : AbstractChuckNewDict {
 				// but the notification should be sent slightly ahead of the beat
 			notify.if({ this.changed(\stop, \stopped, notifyTime) });
 		});
-//"<< BP(%):stopNow".format(collIndex).debug;
 	}
 	
 	asStream {
@@ -1283,6 +1276,11 @@ BP : AbstractChuckNewDict {
 		this.exists.if({
 			value.preparePlay;
 			value[\event] = event = this.prepareEvent;
+				// if I don't do this, a process with alwaysReset = true
+				// can cause an object leak in the global dependants dictionary
+			if(value[\eventStreamPlayer].notNil) {
+				value[\eventStreamPlayer].releaseDependants;
+			};
 			value.put(\eventStreamPlayer, 
 				BlockableEventStreamPlayer(this.asStream, event)/*.refresh*/);
 			value[\eventStreamPlayerWatcher] = updater = Updater(value[\eventStreamPlayer], { |obj, what|
@@ -1333,19 +1331,15 @@ BP : AbstractChuckNewDict {
 		// should I follow the naming convention of stopNow / stop?
 		// would break code
 	reset {
-		var	oldPlayer, oldUpdater;
+		var	oldPlayer; // , oldUpdater;
 		this.exists.if({
 			(oldPlayer = value[\eventStreamPlayer]).notNil.if({
-				oldUpdater = value[\eventStreamPlayerWatcher];
+				value[\eventStreamPlayerWatcher].remove;
 				value.reset;
 				this.prepareForPlay(doReset:true);
 			});
 			this.isPlaying.if({
 				value[\eventStreamPlayer].play(this.clock, false, AbsoluteTimeSpec(oldPlayer.nextBeat));
-//				this.clock.schedAbs(oldPlayer.nextBeat, value[\eventStreamPlayer].refresh);
-					// must kill the old cleanup func
-				oldUpdater.remove;
-//				oldPlayer.stream.tryPerform(\cleanup_, nil);
 				oldPlayer.stop;
 			});
 			this.changed(\reset);
@@ -1471,7 +1465,6 @@ BP : AbstractChuckNewDict {
 			value[\isPlaying] = true;
 				// make a new one and schedule it for the next event time
 			this.asEventStreamPlayer.play(value[\clock], false, AbsoluteTimeSpec(nextTime));
-//			value[\clock].schedAbs(nextTime, this.asEventStreamPlayer.refresh);
 		});
 	}
 	
