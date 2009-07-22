@@ -12,8 +12,8 @@ Proto({
 		var	mode = parms.atBackup(\mode, storage) ? \default;
 		~notes = notes.asArray;
 		~nextNote = nextNote;	// final interval should be calculated relative to the next note
-		{ (rawMIDI ? true).if({ ~mapToMode.value(mode) }, {
-			~mode = (mode.size > 0).if({ mode[0] }, { mode });
+		{ 	(rawMIDI ? true).if({ ~mapToMode.value(mode) }, {
+				~mode = (mode.size > 0).if({ mode[0] }, { mode });
 			});
 		}.try({ |error|
 			Error("Error translating MIDI to modal. Check to see if default mode is defined.")
@@ -29,8 +29,8 @@ Proto({
 		mode = mode ? \default; 	// keep symbol for storage
 		modeObj = mode.asMode;
 			// is it a single mode, or a mode pool?
-		if(modeObj.size > 0) {
-			modeObj.do({ |mode, i|
+		if(modeObj.value.size > 0) {
+			modeObj.value.do({ |mode, i|
 				notesTemp = ~notes.mapMode(mode);
 				((modeFit = Func(\chModeFit).doAction(notesTemp)) > bestFit).if({
 					bestMode = mode;

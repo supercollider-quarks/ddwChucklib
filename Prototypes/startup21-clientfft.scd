@@ -535,15 +535,13 @@ PR(\transient_analysis_file).v.clone({
 // and get status updates on the bufs
 
 PR(\transient_analysis_buffer).v.clone({
-	~fftID = 0;		// queue elements must have a sequential ID
-	~cmpID = 0;
 	~errorRecovery = true;		// if an error occurs during comparisons, find and fix afterward
 	~iMadeMixer = false;
 	~numBufs = 5;
 	~bufDur = 10;
 	~recording = false;
 	~quant = 1;
-	~onsetRejectLimit = 0.15;
+	~onsetRejectLimit = 0.15;		// minimum time between onsets
 	~minPeak = 0.175;			// reject a recording if its peak <= this
 	~recordActive = true;
 	~audioThru = false;		// allow audio from another bus when not recording
@@ -578,8 +576,10 @@ PR(\transient_analysis_buffer).v.clone({
 			.put(\buf, Buffer.alloc(s, (~bufDur ? 10) * s.sampleRate, 1))
 			.put(\status, \idle) } ! ~numBufs;
 
-		~fftqueue = PriorityQueue.new;
-		~cmpqueue = PriorityQueue.new;
+			// LL tail is last item added to queue
+			// items are processed in the order added by LL.popFirst
+		~fftqueue = LinkedList.new;
+		~cmpqueue = LinkedList.new;
 		
 		~fftbuf = Buffer.alloc(s, 256, 1);
 
@@ -715,7 +715,7 @@ PR(\transient_analysis_buffer).v.clone({
 				// delay the stop trigger in the EnvGen to avoid glitch
 			Out.ar(outbus, sig
 				* EnvGen.kr(Env.asr(0.05, 1, 0.05),
-					DelayN.kr((started + audiothru) * (1 - stop), cmpclamp, cmpclamp),
+					DelayN.kr((started + audiothru) * (stop <= 0), cmpclamp, cmpclamp),
 					doneAction:2)
 			);
 		});
@@ -853,8 +853,7 @@ PR(\transient_analysis_buffer).v.clone({
 	~cmpThreadActive = false;
 
 	~queueOnsetTime = { |buf, time|
-		~fftID = ~fftID + 1;
-		~fftqueue.put(~fftID, (buf: buf, time: time, index: buf.ffts.size));
+		~fftqueue.add((buf: buf, time: time, index: buf.ffts.size));
 		~activateFFTThread.value;
 	};
 	
@@ -871,7 +870,7 @@ PR(\transient_analysis_buffer).v.clone({
 			Routine({
 				var	audio, srcfft, spec;
 				loop {
-					spec = ~fftqueue.pop;
+					spec = ~fftqueue.popFirst;
 					spec.notNil.if({
 							// spec.buf.ffts.size == index of next fft to add
 							// spec has an index but if a previous fft failed, it may be wrong
@@ -882,8 +881,8 @@ PR(\transient_analysis_buffer).v.clone({
 								.prep(audio, spec.index, currentEnvironment);
 							srcfft.getfft.notNil.if({
 								~postProgress.if({
-									"BP(%): got valid time %\n".postf(
-										~collIndex.asCompileString, spec.time);
+									"BP(%): got valid time % at index %\n".postf(
+										~collIndex.asCompileString, spec.time, spec.index);
 								});
 								~ffts.add(srcfft.fftPostProcessing);
 								srcfft.collectGarbage(~garbageCollection);
@@ -921,8 +920,7 @@ PR(\transient_analysis_buffer).v.clone({
 
 		(index > 0).if({
 			index.do({ |i|
-				~cmpID = ~cmpID + 1;
-				~cmpqueue.put(~cmpID, fftspec.copy.put(\cmpindex, i));
+				~cmpqueue.add((fftspec.copy.put(\cmpindex, i)));
 			});
 			~activateCmpThread.value;
 		});
@@ -939,9 +937,9 @@ PR(\transient_analysis_buffer).v.clone({
 	~makeCmpThread = { 
 		~cmpThread = HJHCleanupStream(
 			Routine({
-				var	spec, lastspec, errors = 0, recoveredFrom;
+				var	spec, lastspec, errors = 0, done = 0, recoveredFrom;
 				loop {
-					spec = ~cmpqueue.pop;
+					spec = ~cmpqueue.popFirst;
 					spec.notNil.if({
 						lastspec = spec;
 						try {
@@ -1049,7 +1047,8 @@ PR(\transient_analysis_buffer).v.clone({
 	};
 
 	~doComparison = { |cmpspec|
-		var	metric = cmpspec.buf.ffts[cmpspec.index]
+		var	metric;
+		metric = cmpspec.buf.ffts[cmpspec.index]
 			.compareData(cmpspec.buf.ffts[cmpspec.cmpindex]);
 		~addToMatrix.(metric, cmpspec.index, cmpspec.cmpindex, cmpspec.buf.matrix,
 			cmpspec.buf.ffts, cmpspec.buf.ontimes);
