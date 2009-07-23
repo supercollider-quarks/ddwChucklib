@@ -74,17 +74,23 @@ PR(\abstractProcess).v.clone({
 	};
 	~postMCCreation = nil;	// pre-buffer exit point to put in your own initialization
 	~postBufferLoad = nil;	// post-buffer exit point
-	~loadBufs = #{ 
-		~buffers.notNil.if({ ~buffers.free });
-		~bufTimes = Array.newClear(~bufPaths.size);
-		~buffers = ~bufPaths.collect({ |path, i|
-			Buffer.readAndQuery(~chan.server, path, 
-				~bufCoords.wrapAt(i)[0], ~bufCoords.wrapAt(i)[1],
-				completionFunc: e { |buf|
-					~fixBufTime.(i, buf);
-					if(i == (~bufPaths.size - 1)) { ~postBufferLoad.() };
+	~loadBufs = #{
+		if(~bufPaths.isNil and: { ~buffers.notNil }) {
+			~bufPaths = ~buffers.collect(_.path);
+			~iLoadedBuffers = false;
+		} {
+			~buffers.notNil.if({ ~buffers.free });
+			~bufTimes = Array.newClear(~bufPaths.size);
+			~buffers = ~bufPaths.collect({ |path, i|
+				Buffer.readAndQuery(~chan.server, path, 
+					~bufCoords.wrapAt(i)[0], ~bufCoords.wrapAt(i)[1],
+					completionFunc: e { |buf|
+						~fixBufTime.(i, buf);
+						if(i == (~bufPaths.size - 1)) { ~postBufferLoad.() };
+				});
 			});
-		});
+			~iLoadedBuffers = true;
+		};
 	};
 	
 	~listBufs = { 
@@ -236,7 +242,7 @@ PR(\abstractProcess).v.clone({
 					time = min(time, ev[\delta] / thisThread.clock.tempo)
 				});
 				~compensateEnv.if({
-					(time - ((ev[\attack] - ev[\decay]) * ~compensateAmount)).max(0.001)
+					(time - ((ev[\attack] + ev[\decay]) * ~compensateAmount)).max(0.001)
 				}, { time });
 			})
 		]
@@ -285,7 +291,9 @@ PR(\abstractProcess).v.clone({
 	
 	~freeCleanup = #{ 
 		~iMadeMixer.if({ ~chan.free });
-		~buffers.free;
+			// if ~iLoadedBuffers is nil, something went wrong during init
+			// don't take the chance of freeing somebody else's stuff
+		if(~iLoadedBuffers ? false) { ~buffers.free };
 		~free.value	// did you make any other resources?
 	};	
 }) => PR(\bufPerc);
@@ -518,7 +526,7 @@ PR(\bufPerc).v.clone({
 					time = min(time, ev[\delta] / thisThread.clock.tempo)
 				});
 				~compensateEnv.if({
-					(time - ((ev[\attack] - ev[\decay]) * ~compensateAmount)).max(0.001)
+					(time - ((ev[\attack] + ev[\decay]) * ~compensateAmount)).max(0.001)
 				}, { time });
 			})
 		]
