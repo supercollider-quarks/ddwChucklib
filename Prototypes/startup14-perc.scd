@@ -513,7 +513,7 @@ PR(\bufPerc).v.clone({
 			}),
 			\chan, Pfunc({ ~chan }),
 			\latencyAdjust, Pfunc({ |ev| ~deltaAdjust.wrapAt(ev[\bufIndex]) }),
-			\latency, Pfunc({ |ev| (ev[\latency] ? 0) + (ev[\latencyAdjust] ? 0) }),
+			\timingOffset, Pfunc({ |ev| (ev[\latency] ? 0) + (ev[\latencyAdjust] ? 0) }),
 			\delta, ~makeDeltaPattern.value,
 			\attack, ~makePattern.(\attack), // Pfunc({ ~attack }),
 			\decay, ~makePattern.(\decay), // Pfunc({ ~decay }),
