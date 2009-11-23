@@ -695,11 +695,14 @@ PR(\transient_analysis_buffer).v.clone({
 				stop = BinaryOpUGen.new1(\control, '==', pc, 2),
 				started = (pc > 0),
 				sig = In.ar(inbus, 1),
+				dlysig,
 				peak = Peak.ar(sig * started),
 				dur;
 			
 			sig = sig * (Amplitude.kr(sig, cmpclamp, cmprelax) >= hardgate);
-			sig = CompanderD.ar(sig, cmpthresh, cmpgateratio, cmpratio, cmpclamp, cmprelax,
+				// expand out CompanderD so I can control max delay time
+			dlysig = DelayN.ar(sig, 0.15, cmpclamp);
+			sig = Compander.ar(dlysig, sig, cmpthresh, cmpgateratio, cmpratio, cmpclamp, cmprelax,
 				cmpgain);
 			
 				// trigger should ensure recording waits until trigger rec'd

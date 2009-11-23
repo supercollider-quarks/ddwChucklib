@@ -372,6 +372,9 @@ PR(\abstractProcess).v.clone({
 		}, { out });
 	};
 	
+	~freeCleanup = {
+		~userfree.();
+	};
 }, nil, #[\rewrapKeys, \requiredKeys]) => PR(\basicMacroRh);
 
 	// macrorhythm with topnote and bass
@@ -462,6 +465,12 @@ PR(\basicMacroRh).v.clone({
 		}, { out })
 	};
 	
+		// normally this process should not create resources that need to be freed
+		// (GC takes care of data structures) but just in case...
+	~freeCleanup = {
+		~topNote.tryPerform(\freeCleanup);
+		~userfree.();
+	};
 }, nil, #[\rewrapKeys, \requiredKeys]) => PR(\macroRh);
 
 PR(\macroRh).v.clone({

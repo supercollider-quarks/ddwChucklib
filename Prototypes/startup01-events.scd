@@ -274,6 +274,9 @@ ProtoEvent(\singleSynthPlayer).v.copy.putAll((play: {
 	})
 })) => ProtoEvent(\singleSynthTrigger);
 
+ProtoEvent.composite(#[polySynthTrigger, polySynthPlayNotify, singleSynthTrigger, singleSynthPlayNotify]) => ProtoEvent(\monoSupport);
+
+
 ProtoEvent(\singleSynthPlayer).v.copy.putAll((
 setArgs: {
 	var	args, lib, desc;
@@ -771,7 +774,7 @@ PR(\abstractProcess).v.clone({
 		(return = ~classActions[obj.class.name]).notNil.if({
 			return = return.envirGet.(obj, id)
 		});
-		return ?? { obj }	// if nothing, return the object itcurrentEnvironment
+		return ?? { obj }	// if nothing, return the object itself
 	};
 	~makeFnDef = #{ |fn|
 		fn.asSynthDef(outClass: (~isFx ? false).if({ \ReplaceOut }, { \Out }));
