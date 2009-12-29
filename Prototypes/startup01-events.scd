@@ -236,6 +236,7 @@ makeNode: {
 				thisThread.clock.sched(sustain, {
 					Func(\schedEventBundle).doAction(lag, offset, server,
 						[\n_set, nodeID, \gate, releaseGate]);
+					nil
 				});
 			});
 		});
@@ -274,7 +275,7 @@ ProtoEvent(\singleSynthPlayer).v.copy.putAll((play: {
 	})
 })) => ProtoEvent(\singleSynthTrigger);
 
-ProtoEvent.composite(#[polySynthTrigger, polySynthPlayNotify, singleSynthTrigger, singleSynthPlayNotify]) => ProtoEvent(\monoSupport);
+ProtoEvent.composite(#[singleSynthTrigger, singleSynthPlayNotify, polySynthTrigger, polySynthPlayNotify]) => ProtoEvent(\monoSupport);
 
 
 ProtoEvent(\singleSynthPlayer).v.copy.putAll((
@@ -378,6 +379,7 @@ ProtoEvent(\singleSynthPlayer).v.copy.putAll((
 				thisThread.clock.sched(sustain, {
 					Func(\schedEventBundle).doAction(latency, offset, server,
 						[\n_set, nodeID, \gate, releaseGate]);
+					nil
 				});
 			});
 		});
@@ -455,7 +457,7 @@ ProtoEvent(\polySynthPlayer).v.copy.putAll((
 		
 			// for args array to be valid (argName, value pairs), must have at least 2 items
 		(~args.size < 2).if({ ~args = nil });
-		~voicer !? {
+		if(~voicer.notNil and: { ~nodes.isNil }) {
 			~nodes = ~voicer.prGetNodes(max(~newFreq.size, max(~length.size, ~gate.size)));
 			~voicer.setArgsInEvent(currentEnvironment);
 		};
