@@ -188,7 +188,7 @@ PR(\abstractProcess).v.clone({
 	~nextNoteStream = #{ |inEvent|
 		~nextNotePattern.value(inEvent);
 		~updateNoteStream.value(inEvent);
-		Prt({ |event|
+		Prout({ |event|
 			{ event = ~noteStream.next(event).yield }.loop
 		});
 	};
@@ -335,11 +335,11 @@ PR(\abstractProcess).v.clone({
 			// that's for topNote (not in this process, but subclasses)
 			// otherwise use the event passed at evaluation time
 		protoEvent.notNil.if({
-			Prt({
+			Prout({
 				{ streamKey.envirGet.next(protoEvent).yield }.loop
 			});
 		}, {
-			Prt({ |inEvent|
+			Prout({ |inEvent|
 				{ inEvent = streamKey.envirGet.next(inEvent).yield }.loop
 			});
 		});

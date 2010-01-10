@@ -559,7 +559,7 @@ AbstractChuckArray.defaultSubType = \drumgenhelpers;
 			~base.notNil.if({
 				key.envirPut(~base.copy)
 			}, {
-				key.envirPut(Array.fill(0, ~ampsSize.value))
+				key.envirPut(Array.fill(~ampsSize.value, 0))
 			});
 		});
 	});

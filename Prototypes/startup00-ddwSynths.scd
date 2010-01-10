@@ -12,10 +12,10 @@ SynthDef(\ctlPoint, { |outbus, value, time, curve|
 
 // this def plays an arbitrary envelope on the bus
 // to avoid discontinuity, the envelope's init value is replaced
-// with the bus's value
-SynthDef(\ctlEnv, { |outbus, levelScale = 1, levelBias = 0, time = 1|
+// with the bus's value if connect>0
+SynthDef(\ctlEnv, { |outbus, levelScale = 1, levelBias = 0, time = 1, connect = 1|
 	var	env = \env.kr(0 ! 40);	// enough for 10 breakpoints
-	env[0] = In.kr(outbus, 1);
+	env[0] = Select.kr(connect > 0, [env[0], In.kr(outbus, 1)]);
 	ReplaceOut.kr(outbus, EnvGen.kr(env, 1, levelScale, levelBias, time, doneAction: 2));
 }).memStore(\ddwSynths);
 

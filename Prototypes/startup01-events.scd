@@ -61,7 +61,7 @@ Proto({
 			~makeStreamForKey.value(key, streamKey);
 		});
 
-		Prt({ |inEvent|
+		Prout({ |inEvent|
 			{ inEvent = streamKey.envirGet.next(inEvent).yield }.loop
 		});
 	};

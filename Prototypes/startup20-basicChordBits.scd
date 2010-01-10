@@ -57,7 +57,7 @@ ModalSpec(#[0, 2, 3, 5, 7, 8, 10], 12, 0) => Mode(\cmin);
 } => MicRh(\blockFollow);
 
 #{ |notepat| Pn(#[0.25, 0.2, 0.5], notepat.estimateLength) } => MicRh('16th');
-#{ |notepat| Proutine({
+#{ |notepat| Prout({
 	var delta;
 	notepat.estimateLength.do({ |i|
 		[delta = 0.2 - ((i * 2pi/25).sin * 0.125), delta, 0.75-delta].yield;

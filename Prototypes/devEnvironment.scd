@@ -72,7 +72,7 @@ Routine({
 
 // MIDI bufs
 
-MIDIBufManager(nil, 0) => MBM.prNew(0);
+if(MBM.exists(0).not) { MIDIBufManager(nil, 0) => MBM.prNew(0) };
 MBM(0).v.gui(~toolbarFlow, Rect(0, 0, 290, 300));
 
 // midi trigger

@@ -22,8 +22,8 @@ PR(\abstractProcess).v.clone({
 	
 	~asNotePattern = #{ 
 		~index = 0;
-			// Pfunc is roughly 6.7 times SLOWER than Proutine
-		Proutine({ |inval|
+			// Pfunc is roughly 6.7 times SLOWER than Prout
+		Prout({ |inval|
 			{	inval = ~sequence[~index].embedInStream(inval);  // output
 				((~index = ~index+1) >= ~sequence.size).if({ ~index = 0 });
 			}.loop;
@@ -180,7 +180,7 @@ PR(\abstractProcess).v.clone({
 			// true = save the passinvalue in the main BP environment
 		~mel.asSegStream(\asPattern, ~getPassInValue.(~mel.keysFromParent, true));
 		~newMelFlag = false;
-		Prt({ |inval|
+		Prout({ |inval|
 			var phrase, phraseStream, seg, rhy;
 				// try to get phrase; if nil, is this a new melody object?
 			{ ((phrase = ~mel[\segStream].next).isNil and: { ~newMelFlag }).if({
@@ -219,7 +219,7 @@ PR(\abstractProcess).v.clone({
 	~asNotePattern = #{ 
 		~mel.asSegStream(\asNotePattern);
 		~newMelFlag = false;
-		Prt({ |inval|
+		Prout({ |inval|
 			var phrase, phraseStream, seg;
 			{ ((phrase = ~mel[\segStream].next).isNil and: { ~newMelFlag }).if({
 						// new melody object -- make the phrase stream

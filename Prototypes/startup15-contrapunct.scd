@@ -8,7 +8,7 @@ AbstractChuckArray.defaultSubType = \contrapunct;
 
 // converts event stream into event pattern so that other wrappers like Pfindur can be used
 { |holder, driverEvent|
-	Prt({ |inEvent|
+	Prout({ |inEvent|
 		var	event;
 		loop {
 			event = holder.getEvent(inEvent, driverEvent);
@@ -495,7 +495,7 @@ PR(\abstractProcess).v.clone({
 				~prepareQueue.(~eventSchedTime/*.debug("eventSchedTime")*/);
 			});
 		});
-		Prt({
+		Prout({
 			var	queueList, event;
 //			~driverWasPlaying = true;
 			loop {

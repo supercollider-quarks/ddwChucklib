@@ -40,20 +40,23 @@ BPStream : Pattern {
 // Proutine, but protects against nil being passed in
 // intended for routines that yield events
 // this is a workaround for EventStreamPlayer-stop
-Prt : Prout {
+// no longer needed b/c of EventStreamCleanup - deprecating
+Prt : Proutine {
 	var	<>envir;
 	*new { arg routineFunc;
-		^super.new(routineFunc).envir_(currentEnvironment)
+		"Prt is deprecated. Use Proutine instead.".postln
+		^Proutine(routineFunc)
+//		^super.new(routineFunc).envir_(currentEnvironment)
 	}
 
-	asStream {
-		var	stream;
-		
-		envir.notNil.if({ envir.use({ stream = super.asStream; }) },
-			{ stream = super.asStream; });
-		
-		^FuncStream({ |inval|
-			inval.notNil.if({ stream.next(inval) });
-		}, { stream.reset })
-	}
+//	asStream {
+//		var	stream;
+//		
+//		envir.notNil.if({ envir.use({ stream = super.asStream; }) },
+//			{ stream = super.asStream; });
+//		
+//		^FuncStream({ |inval|
+//			inval.notNil.if({ stream.next(inval) });
+//		}, { stream.reset })
+//	}
 }
