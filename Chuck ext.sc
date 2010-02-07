@@ -155,7 +155,7 @@
 		^nil
 	}
 
-	eval {}
+	eval { |... args| ^this.value(*args) }
 }
 
 //+ EventStreamPlayer {
