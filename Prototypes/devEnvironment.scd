@@ -68,7 +68,7 @@ Routine({
 	});
 
 ~voicerFlow.recursiveResize;
-
+0.5.wait;
 
 // MIDI bufs
 
@@ -135,11 +135,13 @@ BP.useVoicerProxy = false;
 ~advanceStatus.();
 
 ~toolbarFlow.startRow;
-s.gui(~toolbarFlow);
+if(~useShortBrowser != true) { s.gui(~toolbarFlow) };
 
 ~toolbarFlow.startRow;
 
-~chuckBrowser = ChuckableBrowser(~toolbarFlow);
+~chuckBrowser = ChuckableBrowser(~toolbarFlow,
+	if(~useShortBrowser == true) { Rect(0, 0, 290, 210) });
+
 ~chuckKeyCtl = ChuckBrowserKeyController(~chuckBrowser);
 chuckKeyCtl = ~chuckKeyCtl;
 
@@ -200,6 +202,15 @@ f = nil;
 	~voicerScroll.bounds = ~voicerScroll.bounds.width_(305)
 });
 ~board.w.bounds = ~mixerBounds;
+{
+	1.0.wait;
+	~voicerScroll.visibleOrigin = Point(0, 10);
+	0.5.wait;
+	~voicerScroll.refresh;
+	0.5.wait;
+	~voicerScroll.visibleOrigin = Point(0, 0);
+}.fork(AppClock);
+//thisThread.clock.sched(1.5, { ~voicerScroll.refresh; });
 
 Library.put(\codeBounds, ~codedocBounds);
 

@@ -1,7 +1,13 @@
 
 // set gui window bounds for old 1024x768 layout
 
-~controlpanelBounds = Rect(428, 11, 762, 713);
+if(Window.screenBounds.height == 600) {
+	~controlpanelBounds = Rect(428, 11, 762, 570);
+	~useShortBrowser = true;
+} {
+	~controlpanelBounds = Rect(428, 11, 762, 713);
+};
+
 ~mixerBounds = Rect(-7, -26, 435, 262);
 ~codedocBounds = Rect(2, 259, 432, 316);
 ~postwindowBounds = Rect(2, 574, 712, 172);
@@ -49,5 +55,6 @@ MixerPresendWidget.defaultMenuBounds = Rect(0, 10, 50, 15);
 // parameterize VP creation: multiple columns?
 
 ~voicerColumns = 1;
-~voicerRows = 6;
-~voicersWith4Controls = 1;
+~voicerRows = 14;
+~voicersWith4Controls = 6;
+~useScroll = true;
