@@ -706,7 +706,9 @@ PR : AbstractChuckNewDict {
 					// not ideal to replicate this code from BP-quant
 					// but I may not have a collIndex in my environment
 					// so I can't call BP-quant
-				(~quant.value(this) ?? { BP.defaultQuant.value(this) }).dereference.asTimeSpec
+				(~quant.value(currentEnvironment)
+					?? { BP.defaultQuant.value(currentEnvironment) })
+					.dereference.asTimeSpec
 			};
 				// this is done after putting a new value into the Proto
 				// should not be global for Proto, but yes for PR/BP
