@@ -229,7 +229,7 @@ PR(\abstractProcess).v.clone({
 			\chan, Pfunc({ ~chan }),
 			\latencyAdjust, Pfunc({ |ev| ~deltaAdjust.wrapAt(ev[\bufIndex])
 				* thisThread.clock.tempo }),
-			\timingOffset, Pfunc({ |ev| (ev[\timingOffset] ? 0) + (ev[\latencyAdjust] ? 0) }),
+			\timingOffset, Pfunc({ |ev| /*ev.debug("event processed for timingOffset");*/ (ev[\timingOffset] ? 0) + (ev[\latencyAdjust] ? 0) }),
 			\delta, ~makeDeltaPattern.value,
 			\attack, ~makePattern.(\attack, inf), // Pfunc({ ~attack }),
 			\decay, ~makePattern.(\decay, inf), // Pfunc({ ~decay }),
@@ -336,16 +336,17 @@ PR(\bufPerc).v.clone({
 	~makeFnDef = #{ |fn|
 		var def;
 		def = fn.asSynthDef(outClass: 
-			(~isFx ? false).if({ \ReplaceOut }, { \Out })).memStore;
+			(~isFx ? false).if({ \ReplaceOut }, { \Out }))
+			.perform(Library.at(\ddwGlobal, \storeMethod));
 		def.name
 	};
 	~makePatchDef = #{ |patch|
 		var def;
-		def = patch.asSynthDef.memStore;
+		def = patch.asSynthDef.perform(Library.at(\ddwGlobal, \storeMethod));
 		~patchesToFree.add(patch);
 		def.name
 	};
-	~makeSynthDef = #{ |def| def.memStore.name };
+	~makeSynthDef = #{ |def| def.perform(Library.at(\ddwGlobal, \storeMethod)).name };
 	~replaceDef = { |i, obj|
 		(i >= ~buffers.size).if({
 			~addBuf.(obj);
@@ -513,7 +514,7 @@ PR(\bufPerc).v.clone({
 			}),
 			\chan, Pfunc({ ~chan }),
 			\latencyAdjust, Pfunc({ |ev| ~deltaAdjust.wrapAt(ev[\bufIndex]) }),
-			\timingOffset, Pfunc({ |ev| (ev[\latency] ? 0) + (ev[\latencyAdjust] ? 0) }),
+			\timingOffset, Pfunc({ |ev| /*ev.debug("event processed for timingOffset");*/ (ev[\timingOffset]/*.debug("timingOffset in calc")*/ ? 0) + (ev[\latencyAdjust] ? 0) }),
 			\delta, ~makeDeltaPattern.value,
 			\attack, ~makePattern.(\attack), // Pfunc({ ~attack }),
 			\decay, ~makePattern.(\decay), // Pfunc({ ~decay }),

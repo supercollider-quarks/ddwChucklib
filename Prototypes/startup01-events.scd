@@ -213,7 +213,7 @@ makeNode: {
 		tempo = ~clock.tryPerform(\tempo) ? 1.0,
 		bundle,
 		lag = ~lag ? 0,
-		offset = ~timingOffset ? 0,
+		offset = ~timingOffset/*.debug("~timingOffset")*/ ? 0,
 		releaseGate = ~releaseGate ? 0;
 	((~instrument != \rest) and: { ~freq != \rest and: { ~type != \rest } }).if({
 		~setTarget.value;
@@ -230,7 +230,7 @@ makeNode: {
 				\i_out, ~busindex], \addToTail)];
 			Func(\schedEventBundleArray).doAction(lag, offset, server, bundle);
 (~trace == true).if({
-	Func(\schedEventBundle).doAction(lag + 0.05, ~timingOffset, server, [\n_trace, nodeID]);
+	Func(\schedEventBundle).doAction(lag + 0.05, offset, server, [\n_trace, nodeID]);
 });
 			(~grain.not and: { ~hasGate ? false and: { (sustain = ~sustain.value).notNil } }).if({
 				thisThread.clock.sched(sustain, {
@@ -766,7 +766,7 @@ PR(\abstractProcess).v.clone({
 			def[\synthdef] = sdef;
 			def[\name] = sdef.tryPerform(\name) ? sdef;
 			sdef.tryPerform(\send, ~chan.server);
-			sdef.tryPerform(\memStore);
+			sdef.tryPerform(Library.at(\ddwGlobal, \storeMethod));
 		};
 		~prepareArgsForOneDef.(id);
 	};
