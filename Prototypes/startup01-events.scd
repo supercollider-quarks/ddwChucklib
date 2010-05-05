@@ -161,11 +161,16 @@ Event.default[\schedStrummedNote] => Func(\basicSchedStrummedNote).subType_(\eve
 	});
 } => Func(\schedEventBundle).subType_(\eventHelper);
 
-{ |lag, offset, server, bundleArray|
+{ |lag, offset, server, bundleArray, suppressError = false|
 	(~immediateOSC ? false).if({
-		server.sendBundle(nil, *bundleArray)
+		if(suppressError) {
+			bundleArray = bundleArray.insert(0, #[error, -1])
+				.add(#[error, -2]);
+		};
+		server.sendBundle(nil, *bundleArray);
 	}, {
-		Func(\basicSchedBundleArray).value(lag, offset, server, bundleArray)
+		Func(\basicSchedBundleArray).value(lag, offset, server, bundleArray,
+			nil, suppressError)
 	});
 } => Func(\schedEventBundleArray).subType_(\eventHelper);
 
@@ -234,8 +239,8 @@ makeNode: {
 });
 			(~grain.not and: { ~hasGate ? false and: { (sustain = ~sustain.value).notNil } }).if({
 				thisThread.clock.sched(sustain, {
-					Func(\schedEventBundle).doAction(lag, offset, server,
-						[\n_set, nodeID, \gate, releaseGate]);
+					Func(\schedEventBundleArray).doAction(lag, offset, server,
+						[[\n_set, nodeID, \gate, releaseGate]], true);
 					nil
 				});
 			});
@@ -377,8 +382,8 @@ ProtoEvent(\singleSynthPlayer).v.copy.putAll((
 			);
 			(~grain.not and: { (~hasGate ? false) and: { (sustain = ~sustain.value).notNil } }).if({
 				thisThread.clock.sched(sustain, {
-					Func(\schedEventBundle).doAction(latency, offset, server,
-						[\n_set, nodeID, \gate, releaseGate]);
+					Func(\schedEventBundleArray).doAction(latency, offset, server,
+						[[\n_set, nodeID, \gate, releaseGate]], true);
 					nil
 				});
 			});
@@ -564,8 +569,8 @@ ProtoEvent(\voicerNote).v.copy.putAll((
 					~args ++ [\outbus, ~out, \out, ~out, \freq, freq, \gate, gate], \addToTail));
 		});
 		~hasGate.if({
-			Func(\schedEventBundle).doAction(~lag + length, ~timingOffset, synth.server,
-				synth.setMsg(\gate, ~releaseGate ? 0));
+			Func(\schedEventBundleArray).doAction(~lag + length, ~timingOffset, synth.server,
+				[synth.setMsg(\gate, ~releaseGate ? 0)], true);
 		});
 	},
 	

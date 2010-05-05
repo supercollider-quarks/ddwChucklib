@@ -87,7 +87,7 @@ PR(\abstractProcess).v.clone({
 			\freq, BPStream(\deg),
 			\delta, BPStream(\delta),
 			\length, BPStream(\length),
-			\mode, Pfunc({ ~mode }),
+			\mode, Pfunc({ |ev| ~mode.(ev) }),
 			\gate, BPStream(\gate)
 		);
 	};

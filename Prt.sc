@@ -17,7 +17,7 @@ BPStream : Pattern {
 		envir ?? { envir = currentEnvironment; };
 		(resetSource or: { envir[streamKey].isNil }).if({
 			envir.use({
-				streamKey.envirPut(key.envirGet.asStream);
+				streamKey.envirPut(key.asSymbol.envirGet.asStream);
 				streamKey.envirGet.isNil.if({
 					"Source stream for BPStream(%) is not populated."
 						.format(key.asCompileString).warn;
