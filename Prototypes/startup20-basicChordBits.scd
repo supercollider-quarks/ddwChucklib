@@ -93,3 +93,12 @@ PR(\abstractProcess).v.clone({
 	};
 }) => PR(\patternTop);
 
+{ |pat, n|
+	// I had used Penvir, but reject{} is an open function anyway so... use vars
+	var i = 0, prev = nil ! n;
+	pat.reject { |item|
+		// slightly tricky: if 'includes' is true, we DON'T want to update prev
+		// true or: {} short-circuits the function
+		prev.includes(item) or: { prev[i] = item; i = (i+1) % n; false }
+	}
+} => Func(\patRejectLastN).subType_(\patternHelpers);
