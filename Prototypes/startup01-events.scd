@@ -229,7 +229,7 @@ makeNode: {
 //thisThread.clock.debug("my clock");
  thisThread.clock.beats.debug("\nnow"); ~args.debug("singleSynthPlayer"); });
 			~grain = ~grain ? false;
-			nodeID = ~grain.if({ -1 }, { ~server.nextNodeID });
+			nodeID = ~id ?? { ~grain.if({ -1 }, { ~server.nextNodeID }) };
 			~node = Synth.basicNew(~instrument, ~server, nodeID);
 			bundle = [~node.newMsg(~target, ~args ++ [\outbus, ~busindex, \out, ~busindex,
 				\i_out, ~busindex], \addToTail)];
@@ -371,7 +371,7 @@ ProtoEvent(\singleSynthPlayer).v.copy.putAll((
 		var	instr, nodeID, latency, sustain, server = ~server.wrapAt(i), offset = ~timingOffset ? 0,
 			releaseGate = ~releaseGate ? 0;
 		((instr = ~instrument/*.wrapAt(i)*/) != \rest).if({
-			nodeID = ~grain.if({ -1 }, { server.nextNodeID });
+			nodeID = ~id[i] ?? { ~grain.if({ -1 }, { server.nextNodeID }) };
 			~node[i] = Synth.basicNew(instr, server, nodeID);
 			latency = (strum*i) + ~lag;
 			Func(\schedEventBundle).doAction(latency, offset, server,
@@ -403,6 +403,7 @@ ProtoEvent(\singleSynthPlayer).v.copy.putAll((
 				~node = Array.newClear([/*~instrument.size,*/ ~args.size, ~bus.size,
 					~target.size].maxItem);
 					// ~makeOneNode populates the right slot in ~node array
+				~id = ~id.asArray;
 				~node.size.do({ |i| ~makeOneNode.(i, strum) });
 			});
 		});
