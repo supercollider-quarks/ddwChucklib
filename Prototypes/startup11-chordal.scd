@@ -218,10 +218,12 @@ PR(\abstractProcess).v.clone({
 				~currentChord.modeForEvent(inEvent)
 			}))
 		);
-			// note, argpairs will reset every chord -- is that a good idea?
+			// note, argpairs will reset every chord
+			// if you want a stream not to reset, use BPStream in the argPairs array
 		argPairs = ~argPairs.(inEvent);		// if simple array, this will have no effect
 		(argPairs.size > 0).if({
-			out = Pbindf(out, \argKeys, argPairs[0, 2..], *argPairs)
+// 			out = Pbindf(out, \argKeys, argPairs[0, 2..], *argPairs);
+			out = Pbind(\argKeys, argPairs[0, 2..], *argPairs) <> out;
 		});
 		out
 	};

@@ -1194,7 +1194,7 @@ BP : AbstractChuckNewDict {
 	triggerOneEvent { |argQuant, argClock, doReset|
 		var	event;
 		(this.exists and: { this.canStream }).if({
-			value.eventStreamPlayer.isNil.if({
+			if(value.eventStreamPlayer.isNil or: { doReset == true }, {
 				this.prepareForPlay(argQuant, argClock, doReset);
 			});
 			this.isPlaying.if({
@@ -1314,7 +1314,7 @@ BP : AbstractChuckNewDict {
 		// so I need to refer to other adhocs than my own in that case
 	streamCleanupFunc { |self, adhoc|
 		if(adhoc[\isPlaying] == true) {
-			if(adhoc === value) {
+			if(adhoc === value and: { value[\printStopMsg] ? true }) {
 				"% stream stopped, cleaning up".format(this).postln;
 			};
 				// if a sequence stops of its own accord, eventStreamPlayer needs to be nil
@@ -1986,5 +1986,9 @@ CC : AbstractChuckDict {
 	free { |freeCC = true|
 		freeCC.if({ value.free });
 		this.removeFromCollection;
+	}
+
+	draggedIntoVoicerGCGUI { |gui|
+		if(this.exists) { gui.model.midiControl = this.value }
 	}
 }
