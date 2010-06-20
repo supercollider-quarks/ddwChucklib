@@ -179,6 +179,7 @@ Event.default[\schedStrummedNote] => Func(\schedEventStrummedNote).subType_(\eve
 
 (grain: false,
 timingOffset: 0,
+addAction: \addToTail,
 setTarget: {
 	~chan.notNil.if({
 		~target = (~isFx ? false).if({ ~chan.effectgroup },
@@ -232,7 +233,7 @@ makeNode: {
 			nodeID = ~id ?? { ~grain.if({ -1 }, { ~server.nextNodeID }) };
 			~node = Synth.basicNew(~instrument, ~server, nodeID);
 			bundle = [~node.newMsg(~target, ~args ++ [\outbus, ~busindex, \out, ~busindex,
-				\i_out, ~busindex], \addToTail)];
+				\i_out, ~busindex], ~addAction)];
 			Func(\schedEventBundleArray).doAction(lag, offset, server, bundle);
 (~trace == true).if({
 	Func(\schedEventBundle).doAction(lag + 0.05, offset, server, [\n_trace, nodeID]);
@@ -378,7 +379,7 @@ ProtoEvent(\singleSynthPlayer).v.copy.putAll((
 				~node[i].newMsg(~target.wrapAt(i), 
 					~args.wrapAt(i) ++ [\out, ~bus.wrapAt(i).index,
 					\i_out, ~bus.wrapAt(i).index, \outbus, ~bus.wrapAt(i).index],
-					\addToTail)
+					~addAction)
 			);
 			(~grain.not and: { (~hasGate ? false) and: { (sustain = ~sustain.value).notNil } }).if({
 				thisThread.clock.sched(sustain, {
@@ -524,6 +525,7 @@ ProtoEvent(\polySynthPlayer).v.copy.putAll((
 
 // synthNote
 ProtoEvent(\voicerNote).v.copy.putAll((
+	addAction: \addToTail,
 	play: #{
 		var	synthLib;
 			// cribbed from Event.default
@@ -564,10 +566,10 @@ ProtoEvent(\voicerNote).v.copy.putAll((
 		(groupbus = ~target.tryPerform(\groupBusInfo)).notNil.if({
 			Func(\schedEventBundle).doAction(~lag, ~timingOffset, server, synth.newMsg(groupbus[0],
 					~args ++ [\outbus, groupbus[1], \out, groupbus[1],
-					\freq, freq, \gate, gate], \addToTail));
+					\freq, freq, \gate, gate], ~addAction));
 		}, {
 			Func(\schedEventBundle).doAction(~lag, ~timingOffset, server, synth.newMsg(~target,
-					~args ++ [\outbus, ~out, \out, ~out, \freq, freq, \gate, gate], \addToTail));
+					~args ++ [\outbus, ~out, \out, ~out, \freq, freq, \gate, gate], ~addAction));
 		});
 		~hasGate.if({
 			Func(\schedEventBundleArray).doAction(~lag + length, ~timingOffset, synth.server,
@@ -826,6 +828,7 @@ PR(\abstractProcess).v.clone({
 				(ev[\synthKey] == \rest).if({ \rest },
 					{ ~objects[ev[\synthKey]].tryPerform(\at, \name) ? \rest })
 			}),
+			\isFx, Pfunc { ~isFx ? false },
 			\chan, ~chan
 		)
 	};
