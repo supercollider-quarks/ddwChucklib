@@ -238,7 +238,8 @@ makeNode: {
 (~trace == true).if({
 	Func(\schedEventBundle).doAction(lag + 0.05, offset, server, [\n_trace, nodeID]);
 });
-			(~grain.not and: { ~hasGate ? false and: { (sustain = ~sustain.value).notNil } }).if({
+			(~grain.not and: { ~hasGate ? false
+			and: { (sustain = ~sustain.value).notNil and: { sustain != inf } } }).if({
 				thisThread.clock.sched(sustain, {
 					Func(\schedEventBundleArray).doAction(lag, offset, server,
 						[[\n_set, nodeID, \gate, releaseGate]], true);
@@ -381,7 +382,8 @@ ProtoEvent(\singleSynthPlayer).v.copy.putAll((
 					\i_out, ~bus.wrapAt(i).index, \outbus, ~bus.wrapAt(i).index],
 					~addAction)
 			);
-			(~grain.not and: { (~hasGate ? false) and: { (sustain = ~sustain.value).notNil } }).if({
+			(~grain.not and: { ~hasGate ? false
+			and: { (sustain = ~sustain.value).notNil and: { sustain != inf } } }).if({
 				thisThread.clock.sched(sustain, {
 					Func(\schedEventBundleArray).doAction(latency, offset, server,
 						[[\n_set, nodeID, \gate, releaseGate]], true);
@@ -816,6 +818,14 @@ PR(\abstractProcess).v.clone({
 			streamarray.add(name).add(BPStream(fullname).asStream);
 		});
 		~objects[id][\argStreams] = streamarray;
+	};
+
+	~reset = {
+		~objects.keysValuesDo { |id, obj|
+			obj[\args].pairsDo { |name, pattern|
+				(id ++ name).asSymbol.envirPut(pattern.asPattern);
+			}
+		}
 	};
 
 	~basePattern = { 
