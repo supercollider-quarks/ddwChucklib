@@ -141,6 +141,9 @@ ChuckableBrowser {
 			.action_({ |list|
 				this.setInstanceForClass(this.currentClass,
 					instanceList[list.value])
+			})
+			.beginDragAction_({ |drag|
+				this.currentClass.new(instanceList[instanceListView.value])
 			});
 		keyCommandView = (if(GUI.current.id == \cocoa) { SCTextFieldOld } { GUI.textField })
 			.new(layout, 284@20);
