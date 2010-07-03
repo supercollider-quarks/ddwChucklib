@@ -19,6 +19,18 @@
 	});
 } => Func(\makeWavetables);
 
+{ |wt, lowMidi, spectrumFunc|
+		// default is sawtooth
+	spectrumFunc = spectrumFunc ? { |numharm| (1..numharm).reciprocal };
+	lowMidi = (lowMidi ? 48) / 12;
+	
+	wt.do { |buf, i|
+		var	base = (i + lowMidi) * 12,
+			numharm = (20000 / base.midicps).asInteger;
+		buf.sine1(spectrumFunc.(numharm));
+	};
+} => Func(\modWavetables);
+
 
 // basic arpeggiators, macro- and micro-rhythms
 
