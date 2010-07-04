@@ -76,9 +76,13 @@ PR(\abstractProcess).v.clone({
 	~postBufferLoad = nil;	// post-buffer exit point
 	~loadBufs = #{
 		if(~bufPaths.isNil and: { ~buffers.notNil }) {
-			~bufPaths = ~buffers.collect(_.path);
 			~iLoadedBuffers = false;
+			~bufPaths = ~buffers.collect(_.path);
+			~bufTimes = Array.newClear(~bufPaths.size);
+			~buffers.do { |buf, i| ~fixBufTime.(i, buf) };
+			~postBufferLoad.();
 		} {
+			~iLoadedBuffers = true;
 			~buffers.notNil.if({ ~buffers.free });
 			~bufTimes = Array.newClear(~bufPaths.size);
 			~buffers = ~bufPaths.collect({ |path, i|
@@ -89,7 +93,6 @@ PR(\abstractProcess).v.clone({
 						if(i == (~bufPaths.size - 1)) { ~postBufferLoad.() };
 				});
 			});
-			~iLoadedBuffers = true;
 		};
 	};
 	
