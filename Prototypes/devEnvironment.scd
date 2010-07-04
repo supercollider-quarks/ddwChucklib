@@ -199,25 +199,27 @@ f = nil;
 ~masterLayout.window.bounds = ~controlpanelBounds;
 	// test scrollability
 (~voicerScroll.respondsTo(\visibleOrigin)).if({
-	~voicerScroll.bounds = ~voicerScroll.bounds.width_(305)
+	~voicerScroll.bounds = ~voicerScroll.bounds.width_(305);
+	{
+		1.0.wait;
+		~voicerScroll.visibleOrigin = Point(0, 10);
+		0.5.wait;
+		~voicerScroll.refresh;
+		0.5.wait;
+		~voicerScroll.visibleOrigin = Point(0, 0);
+	}.fork(AppClock);
 });
+
 ~board.w.bounds = ~mixerBounds;
-{
-	1.0.wait;
-	~voicerScroll.visibleOrigin = Point(0, 10);
-	0.5.wait;
-	~voicerScroll.refresh;
-	0.5.wait;
-	~voicerScroll.visibleOrigin = Point(0, 0);
-}.fork(AppClock);
+
 //thisThread.clock.sched(1.5, { ~voicerScroll.refresh; });
 
 Library.put(\codeBounds, ~codedocBounds);
 
-// if Document.current is nil, then you can't do anything programmatic with documents
+// document keyresponders etc. are currently relevant for sc.app on osx only
 // so this whole bit should be skipped
 
-if(Document.current.notNil) {
+if(Platform.ideName == "scapp") {
 	~codedoc = Document.new("type code").bounds_(~codedocBounds);
 	Document.listener.bounds = ~postwindowBounds;
 	
