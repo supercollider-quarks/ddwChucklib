@@ -1,7 +1,9 @@
 
 // set gui window bounds for mbp 1440x900 layout
 
-~controlpanelBounds = Rect(534, 4, 916, 852);
+~controlpanelBounds = switch(Platform.ideName.asSymbol)
+	{ \scel } { Rect(668, 4, 650, 852) }
+	{ Rect(534, 4, 916, 852) };
 ~mixerBounds = Rect(-6, -27, 546, 264);	// change
 ~codedocBounds = Rect(1, 260, 534, 397);
 ~postwindowBounds = Rect(1, 658, 675, 220);
@@ -40,8 +42,17 @@ MixerPresendWidget.defaultSliderBounds = Rect(0, 2, 60, 5);
 MixerPresendWidget.defaultMenuBounds = Rect(0, 10, 60, 15);
 
 
-// parameterize VP creation: multiple columns?
+// parameterize VP creation
+switch(Platform.ideName.asSymbol)
+	{ \scel } {
+		~useScroll = true;
+		~voicerColumns = 1;
+		~voicerRows = 14;
+	}
+	{ \scapp } {
+		~useScroll = false;
+		~voicerColumns = 2;
+		~voicerRows = 7;
+	};
 
-~voicerColumns = 2;
-~voicerRows = 7;
 ~voicersWith4Controls = 6;
