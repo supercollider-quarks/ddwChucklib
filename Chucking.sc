@@ -1144,6 +1144,7 @@ BP : AbstractChuckNewDict {
 								oldEventStreamPlayer.stop;
 							})
 					});
+					if(value[\alwaysReset] == true) { value.reset };
 					this.asEventStreamPlayer;
 				});
 		});
