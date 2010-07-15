@@ -54,8 +54,6 @@ PR(\abstractProcess).v.clone({
 
 	~compactPatterns = true;
 
-	~iMadeMixer = false;
-
 	~prep = #{ 
 			// user may supply a mixerchannel
 			// if so, ~iMadeMixer flag means the channel won't be freed
@@ -63,7 +61,7 @@ PR(\abstractProcess).v.clone({
 			~iMadeMixer = true;
 			~chan = MixerChannel(~collIndex, ~master.tryPerform(\server) ?? { Server.default },
 				~inChannels ? 1, ~outChannels ? 2, outbus:~master);
-		});
+		}, { ~iMadeMixer = false });
 			// this func is environment safe
 			// loadbufs is here for defPerc, which may need resources from postMCCreation
 		~chan.doWhenReady({ |chan|
