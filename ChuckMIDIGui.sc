@@ -86,7 +86,7 @@ MTGui : HJHObjectGui {
 					// this should trigger the model
 				index = dragViews.indexOf(sink) + model.minNote;
 				(model.v[index].notNil and: { model.v[index].bp === sink.object }).if({
-					model.v[index].ready = true;
+					model.v[index].ready = 1;
 					model.noteOn(index);  // trigger
 				}, {
 						// else reassign
