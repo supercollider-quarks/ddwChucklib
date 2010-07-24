@@ -1806,6 +1806,7 @@ MT : AbstractChuckNewDict {
 	var	<lastBP, noteAllocator;
 	
 	var	<socket, <>minNote, <>maxNote;	// midi responder, passes messages here
+	var	readyID = 0;
 
 	*persistent { ^true }
 
@@ -1881,7 +1882,7 @@ MT : AbstractChuckNewDict {
 			noteAllocator.reserve(adverb, 1, false);	// false == suppress warning
 		});
 		value[nextAddNote].notNil.if({ value[nextAddNote].free });
-		value.put(nextAddNote, new = MTNoteInfo(bp, false, nextAddNote, this));
+		value.put(nextAddNote, new = MTNoteInfo(bp, 0, nextAddNote, this));
 		updateGUI.if({ this.changed(new) });	// tell the gui
 	}
 	
@@ -1905,26 +1906,30 @@ MT : AbstractChuckNewDict {
 	}
 	
 	noteOn { |num|
-		var	entry, clock;
+		var	entry, clock, localReady;
 			// entry must exist
 		(entry = value[num]).notNil.if({
 				// if ready to fire, do play
-			entry.ready.if({
-				entry.ready = false;
+			if(entry.ready > 0) {
+				entry.ready = 0;
 				entry.bp.isPlaying.if({
 					entry.bp.stop;
 				}, {
 					entry.bp.play;
 				});
 				this.changed(entry);
-			}, {		// else make ready and schedule non-ready
-				entry.ready = true;
+			} {		// else make ready and schedule non-ready
+				localReady = (readyID = readyID + 1);
+				entry.ready = localReady;
 				AppClock.sched(readyThreshold, {
-					entry.ready = false;
-					this.changed(entry);
+					// disregard switch-off if it's been readied again in the interim
+					if(entry.ready == localReady) {
+						entry.ready = 0;
+						this.changed(entry);
+					}
 				});
 				this.changed(entry);
-			});
+			};
 		});
 	}
 	
@@ -1944,7 +1949,7 @@ MTNoteInfo {
 	asString { ^(noteNum.asMIDINote ++ ": " ++ bp.collIndex) }
 	
 	playState {
-		^case { ready == true } { \ready } // ready takes precedence
+		^case { ready > 0 } { \ready } // ready takes precedence
 			{ schedFailed } { \late }
 			{ bp.isDriven } { \driven }
 			{ bp.isPlaying } { \playing }
@@ -1966,10 +1971,10 @@ MTNoteInfo {
 				schedFailed = true;
 				owner.changed(this);
 				AppClock.sched(3.0, {
-					schedFailed.if({
+					if(schedFailed and: { ready <= 0 }) {
 						schedFailed = false;
 						owner.changed(this);
-					});
+					};
 					nil
 				});
 			}
