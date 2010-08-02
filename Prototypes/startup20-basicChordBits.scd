@@ -114,3 +114,14 @@ PR(\abstractProcess).v.clone({
 		prev.includes(item) or: { prev[i] = item; i = (i+1) % n; false }
 	}
 } => Func(\patRejectLastN).subType_(\patternHelpers);
+
+
+{	var	str;
+	~collIndex.debug("reset");
+	currentEnvironment.env.keys.do { |key|
+		if(key != \eventStream and: { (str = key.asString).contains("Stream") }) {
+			~makeStreamForKey.(str[ .. str.size - 7].asSymbol);
+		}
+	}
+} => Func(\resetBPStreams);
+
