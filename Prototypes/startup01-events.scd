@@ -718,8 +718,10 @@ PR(\abstractProcess).v.clone({
 					~userprep.value;		// preparation specified in chuck parameters
 					~makeSynthDefs.value;
 				});
+			~event[\chan] = ~chan;
 		} {
 			~iMadeChan = false;
+			~event[\chan] = ~chan;
 			~userpreps.do(_.value);
 			~userprep.value;		// preparation specified in chuck parameters
 			~makeSynthDefs.value;
@@ -838,8 +840,8 @@ PR(\abstractProcess).v.clone({
 				(ev[\synthKey] == \rest).if({ \rest },
 					{ ~objects[ev[\synthKey]].tryPerform(\at, \name) ? \rest })
 			}),
-			\isFx, Pfunc { ~isFx ? false },
-			\chan, ~chan
+			\isFx, Pfunc { ~isFx ? false } //,
+//			\chan, ~chan
 		)
 	};
 
