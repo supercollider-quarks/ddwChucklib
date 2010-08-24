@@ -35,7 +35,7 @@ s.boot;
 ~statusW.front;
 
 
-~masterLayout = ResizeFlowWindow("control panel", scroll: false);
+~masterLayout = ResizeFlowWindow("control panel", scroll: false).userCanClose_(false);
 masterLayout = ~masterLayout;
 
 ~toolbarFlow = FlowView(~masterLayout.view, Rect(0, 0, 290, GUI.window.screenBounds.height-5), margin: 2@2);
@@ -195,6 +195,7 @@ f = nil;
 ~board.refresh;
 1.0.wait;
 ~advanceStatus.();
+~board.w.userCanClose_(false);
 
 ~masterLayout.window.bounds = ~controlpanelBounds;
 	// test scrollability
