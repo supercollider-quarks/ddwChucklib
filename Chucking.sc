@@ -358,7 +358,7 @@ VC : AbstractChuckNewDict {
 	}
 	
 	bindBP { |bp|
-		bp.voicer_(value)
+		bp.bindVC(this)
 	}
 	
 	draggedIntoVoicerGUI { |dest|
@@ -1050,7 +1050,10 @@ BP : AbstractChuckNewDict {
 		// will try to change voicer while playing
 		// if this is a wrapper, voicer will not change until the next event for outermost wrapper
 	voicer_ { |vc|
-		this.exists.if({ value.event.put(\voicer, vc); });
+		this.exists.if({
+			value.event.put(\voicer, vc);
+			value.bindVoicer(vc);
+		});
 	}
 	
 	bindVoicer { |vc|
@@ -1059,14 +1062,17 @@ BP : AbstractChuckNewDict {
 
 	bindVoicerProxy { |vp|
 		this.voicer = vp;
+		value.bindVoicerProxy(vp);
 	}
 	
 	bindVC { |vc|
 		this.voicer = vc.value;
+		value.bindVC(vc);
 	}
 	
 	bindVP { |vp|
 		this.voicer = vp.value;
+		value.bindVP(vp);
 	}
 
 		// play support
