@@ -135,7 +135,7 @@ BP.useVoicerProxy = false;
 ~advanceStatus.();
 
 ~toolbarFlow.startRow;
-if(~useShortBrowser != true) { s.gui(~toolbarFlow) };
+if(~serverGui != false) { s.gui(~toolbarFlow) };
 
 ~toolbarFlow.startRow;
 

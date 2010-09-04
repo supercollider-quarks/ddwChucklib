@@ -4,6 +4,7 @@
 if(Window.screenBounds.height == 600) {
 	~controlpanelBounds = Rect(428, 11, 762, 570);
 	~useShortBrowser = true;
+	~serverGui = false;
 } {
 	~controlpanelBounds = Rect(428, 11, 762, 713);
 };

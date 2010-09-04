@@ -75,6 +75,9 @@ Proto({
 			overkey = ("override" ++ streamkey).asSymbol,
 			overstream;
 
+		// not safe to assume pattern has been .asStream'ed yet
+		streamkey.envirGet ?? { ~makeStreamForKey.(key) };
+
 		savekey.envirGet.isNil.if({
 			savekey.envirPut(streamkey.envirGet);
 		});
