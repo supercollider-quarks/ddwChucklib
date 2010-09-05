@@ -117,7 +117,7 @@ PR(\abstractProcess).v.clone({
 
 
 {	var	str;
-	~collIndex.debug("reset");
+//	~collIndex.debug("reset");
 	currentEnvironment.env.keys.do { |key|
 		if(key != \eventStream and: { (str = key.asString).contains("Stream") }) {
 			~makeStreamForKey.(str[ .. str.size - 7].asSymbol);
