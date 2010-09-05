@@ -100,16 +100,25 @@ Proto({
 					// end of the line; restore the original stream
 					// and return 1 valid value so that the main pattern doesn't die
 					// after substitution, this routine will not get called again
+			streamkey.envirGet.next(inval).yield;
+		});
+		~unOverride.(key, revertAction, streamkey, savekey, overkey);
+		streamkey.envirPut(overstream);
+
+		currentEnvironment
+	};
+	~unOverride = { |key, revertAction, streamkey, savekey, overkey|
+		if(streamkey.isNil) {
+			streamkey = (key ++ "Stream").asSymbol;
+			savekey = ("save" ++ streamkey).asSymbol;
+			overkey = ("override" ++ streamkey).asSymbol;
+		};
+		if(savekey.envirGet.notNil) {
 			streamkey.envirPut(savekey.envirGet);
 			savekey.envirPut(nil);
 			overkey.envirPut(nil);
 			revertAction.value;
-			streamkey.envirGet.next(inval).yield;
-		});
-		
-		streamkey.envirPut(overstream);
-
-		currentEnvironment
+		};
 	};
 
 	~midiParse = true;		// flag whether to group notes together or use the midi buf as is
@@ -876,6 +885,7 @@ PR(\abstractProcess).v.clone({
 					});
 				});
 			});
+			if(~debug ? false) { event.debug("result event") };
 			event
 		}
 	};
