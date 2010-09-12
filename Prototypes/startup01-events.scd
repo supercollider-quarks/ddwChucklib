@@ -100,9 +100,9 @@ Proto({
 					// end of the line; restore the original stream
 					// and return 1 valid value so that the main pattern doesn't die
 					// after substitution, this routine will not get called again
+			~unOverride.(key, revertAction, streamkey, savekey, overkey);
 			streamkey.envirGet.next(inval).yield;
 		});
-		~unOverride.(key, revertAction, streamkey, savekey, overkey);
 		streamkey.envirPut(overstream);
 
 		currentEnvironment
