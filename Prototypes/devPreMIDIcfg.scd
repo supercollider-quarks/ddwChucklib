@@ -8,7 +8,7 @@ MIDIClient.initialized.not.if({
 	MIDIClient.init(MIDIPort.numPorts, MIDIPort.numPorts);
 
 	if(Library.at(\chucklib, \midiSearches).isNil) {
-		Library.put(\chucklib, \midiSearches, #["ultralite", "828"]);
+		Library.put(\chucklib, \midiSearches, #["ultralite", "828", "remote"]);
 	};
 
 	block { |break|
