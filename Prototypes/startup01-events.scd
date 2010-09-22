@@ -97,9 +97,9 @@ Proto({
 						inval = nextval.yield;
 					});
 				};
-					// end of the line; restore the original stream
-					// and return 1 valid value so that the main pattern doesn't die
-					// after substitution, this routine will not get called again
+				// end of the line; restore the original stream
+				// and return 1 valid value so that the main pattern doesn't die
+				// after substitution, this routine will not get called again
 			~unOverride.(key, revertAction, streamkey, savekey, overkey);
 			streamkey.envirGet.next(inval).yield;
 		});
@@ -119,6 +119,7 @@ Proto({
 			overkey.envirPut(nil);
 			revertAction.value;
 		};
+		currentEnvironment
 	};
 
 	~midiParse = true;		// flag whether to group notes together or use the midi buf as is
