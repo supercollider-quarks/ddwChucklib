@@ -217,14 +217,18 @@ setArgs: {
 	((lib = SynthDescLib.all[~lib ? \global]).notNil
 			and: { (desc = lib[~instrument.asSymbol]).notNil }).if({
 		~hasGate = desc.hasGate;
-		args = desc.msgFunc.valueEnvir;	// not .flopping because this is SINGLE synth player
+		~msgFunc = desc.msgFunc;
 	}, {
-		args = Array.new(currentEnvironment.size*2);
-		currentEnvironment.keysValuesDo({ |key, value|
-			value.isValidSynthArg.if({ args.add(key).add(value) });
-		});
+		~msgFunc = {
+			args = Array.new(currentEnvironment.size*2);
+			currentEnvironment.keysValuesDo({ |key, value|
+				value.isValidSynthArg.if({ args.add(key).add(value) });
+			});
+			args
+		};
 	});
-	~args = args.asOSCArgArray;
+	// not .flopping because this is SINGLE synth player
+	~evArgs = ~msgFunc.valueEnvir;
 },
 makeNode: {
 	var	args, nodeID, server, sustain,
@@ -240,12 +244,12 @@ makeNode: {
 			~setArgs.value;
 (~debug == true).if({
 //thisThread.clock.debug("my clock");
- thisThread.clock.beats.debug("\nnow"); ~args.debug("singleSynthPlayer"); });
+ thisThread.clock.beats.debug("\nnow"); ~evArgs.debug("singleSynthPlayer"); });
 			~grain = ~grain ? false;
 			nodeID = ~id ?? { ~grain.if({ -1 }, { ~server.nextNodeID }) };
 			~node = Synth.basicNew(~instrument, ~server, nodeID);
-			bundle = [~node.newMsg(~target, ~args ++ [\outbus, ~busindex, \out, ~busindex,
-				\i_out, ~busindex], ~addAction)];
+			bundle = [~node.newMsg(~target, ~evArgs.asOSCArgArray ++ [\outbus, ~busindex,
+				\out, ~busindex, \i_out, ~busindex], ~addAction)];
 			Func(\schedEventBundleArray).doAction(lag, offset, server, bundle);
 (~trace == true).if({
 	Func(\schedEventBundle).doAction(lag + 0.05, offset, server, [\n_trace, nodeID]);
@@ -286,7 +290,7 @@ ProtoEvent(\singleSynthPlayer).v.copy.putAll((play: {
 		~node = ~node.value;
 		~instrument = ~node.defName;
 		~setArgs.value;
-		msg = [~node.setMsg(*~args)];
+		msg = [~node.setMsg(*~evArgs)];
 		Func(\schedEventBundleArray).doAction(~lag, ~timingOffset, ~node.server, msg);
 		(~debug ? false).if({
 			msg.debug("singleSynthTrigger")
@@ -298,21 +302,21 @@ ProtoEvent.composite(#[singleSynthTrigger, singleSynthPlayNotify, polySynthTrigg
 
 
 ProtoEvent(\singleSynthPlayer).v.copy.putAll((
-setArgs: {
-	var	args, lib, desc;
-	((lib = SynthDescLib.all[~lib ? \global]).notNil
-			and: { (desc = lib[~instrument.asSymbol]).notNil }).if({
-		~args = desc.msgFunc.valueEnvir.clump(2);
-	}, {
-		args = Array.new(currentEnvironment.size);
-			// note that this is a clumped array --
-			// that's necessary for flopping (multichannel expanding) the args out in makeNode
-		currentEnvironment.keysValuesDo({ |key, value|
-			value.isValidVoicerArg.if({ args.add([key, value]) });
-		});
-		~args = args;
-	});
-},
+// setArgs: {
+// 	var	args, lib, desc;
+// 	((lib = SynthDescLib.all[~lib ? \global]).notNil
+// 			and: { (desc = lib[~instrument.asSymbol]).notNil }).if({
+// 		~evArgs = desc.msgFunc.valueEnvir.clump(2);
+// 	}, {
+// 		args = Array.new(currentEnvironment.size);
+// 			// note that this is a clumped array --
+// 			// that's necessary for flopping (multichannel expanding) the args out in makeNode
+// 		currentEnvironment.keysValuesDo({ |key, value|
+// 			value.isValidVoicerArg.if({ args.add([key, value]) });
+// 		});
+// 		~evArgs = args;
+// 	});
+// },
 play: { var args, nodeID;
 	(~node != \rest and: { ~instrument != \rest and: { ~freq != \rest and: { ~type != \rest } } }).if({
 		~lag ?? { ~lag = 0 };
@@ -321,10 +325,13 @@ play: { var args, nodeID;
 			// maybe not a safe assumption but a reasonable limitation for now
 		~instrument ?? { ~instrument = ~node.asArray.first.defName };
 		~setArgs.value;
-		~args = ~args.collect(_.flop).flop.collect({ |subarray| subarray.flatten(1).asOSCArgArray });
+		~msgArgs = ~evArgs.clump(2)
+			.collect(_.flop)
+			.flop
+			.collect({ |subarray| subarray.flatten(1).asOSCArgArray });
 		~node.do({ |node, i|
 			Func(\schedEventBundle).doAction(~lag, ~timingOffset, node.server,
-				node.setMsg(*~args.wrapAt(i)));
+				node.setMsg(*~msgArgs.wrapAt(i)));
 		});
 	})
 })) => ProtoEvent(\polySynthTrigger);
@@ -365,22 +372,22 @@ ProtoEvent(\singleSynthPlayer).v.copy.putAll((
 			true
 		}
 	},
-	setArgs: {
-		var	args, lib, desc;
-		((lib = SynthDescLib.all[~lib ? \global]).notNil
-				and: { (desc = lib[~instrument.asSymbol]).notNil }).if({
-			~args = desc.msgFunc.valueEnvir.clump(2);
-			~hasGate = desc.hasGate;
-		}, {
-			args = Array.new(currentEnvironment.size);
-				// note that this is a clumped array --
-				// that's necessary for flopping (multichannel expanding) the args out in makeNode
-			currentEnvironment.keysValuesDo({ |key, value|
-				value.isValidVoicerArg.if({ args.add([key, value]) });
-			});
-			~args = args;
-		});
-	},
+	// setArgs: {
+	// 	var	args, lib, desc;
+	// 	((lib = SynthDescLib.all[~lib ? \global]).notNil
+	// 			and: { (desc = lib[~instrument.asSymbol]).notNil }).if({
+	// 		~evArgs = desc.msgFunc.valueEnvir.clump(2);
+	// 		~hasGate = desc.hasGate;
+	// 	}, {
+	// 		args = Array.new(currentEnvironment.size);
+	// 			// note that this is a clumped array --
+	// 			// that's necessary for flopping (multichannel expanding) the args out in makeNode
+	// 		currentEnvironment.keysValuesDo({ |key, value|
+	// 			value.isValidVoicerArg.if({ args.add([key, value]) });
+	// 		});
+	// 		~evArgs = args;
+	// 	});
+	// },
 	makeOneNode: { |i, strum|
 		var	instr, nodeID, latency, sustain, server = ~server.wrapAt(i), offset = ~timingOffset ? 0,
 			releaseGate = ~releaseGate ? 0;
@@ -390,7 +397,7 @@ ProtoEvent(\singleSynthPlayer).v.copy.putAll((
 			latency = (strum*i) + ~lag;
 			Func(\schedEventBundle).doAction(latency, offset, server,
 				~node[i].newMsg(~target.wrapAt(i), 
-					~args.wrapAt(i) ++ [\out, ~bus.wrapAt(i).index,
+					~msgArgs.wrapAt(i) ++ [\out, ~bus.wrapAt(i).index,
 					\i_out, ~bus.wrapAt(i).index, \outbus, ~bus.wrapAt(i).index],
 					~addAction)
 			);
@@ -412,10 +419,13 @@ ProtoEvent(\singleSynthPlayer).v.copy.putAll((
 			~checkbuses.value.if({
 //				~instrument = ~instrument.asArray;
 				~setArgs.value;
-				~args = ~args.collect(_.flop).flop.collect({ |subarray| subarray.flatten(1).asOSCArgArray });
+				~msgArgs = ~evArgs.clump(2)
+					.collect(_.flop)
+					.flop
+					.collect({ |subarray| subarray.flatten(1).asOSCArgArray });
 				strum = ~strum ? 0;
 				~grain = ~grain ? false;
-				~node = Array.newClear([/*~instrument.size,*/ ~args.size, ~bus.size,
+				~node = Array.newClear([/*~instrument.size,*/ ~msgArgs.size, ~bus.size,
 					~target.size].maxItem);
 					// ~makeOneNode populates the right slot in ~node array
 				~id = ~id.asArray;
