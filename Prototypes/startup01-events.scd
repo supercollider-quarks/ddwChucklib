@@ -320,7 +320,8 @@ ProtoEvent(\singleSynthPlayer).v.copy.putAll((
 // },
 play: { var args, nodeID;
 	(~node != \rest and: { ~instrument != \rest and: { ~freq != \rest and: { ~type != \rest } } }).if({
-		~lag ?? { ~lag = 0 };
+		if(~lag.isNil) { ~lag = #[0] } { ~lag = ~lag.asArray };
+		if(~timingOffset.isNil) { ~timingOffset = #[0] } { ~timingOffset = ~timingOffset.asArray };
 		~node = ~node.value;
 			// assumed to be the same synthdef for each
 			// maybe not a safe assumption but a reasonable limitation for now
@@ -331,7 +332,7 @@ play: { var args, nodeID;
 			.flop
 			.collect({ |subarray| subarray.flatten(1).asOSCArgArray });
 		~node.do({ |node, i|
-			Func(\schedEventBundle).doAction(~lag, ~timingOffset, node.server,
+			Func(\schedEventBundle).doAction(~lag.wrapAt(i), ~timingOffset.wrapAt(i), node.server,
 				node.setMsg(*~msgArgs.wrapAt(i)));
 		});
 	})
