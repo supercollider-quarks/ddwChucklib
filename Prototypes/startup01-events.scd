@@ -275,7 +275,9 @@ play: {
 
 ProtoEvent(\singleSynthPlayer).v.copy.putAll((
 	notifyDependents: {
-		BP(~collIndex).v.recvEventNotify(~node, currentEnvironment);
+		~node !? {
+			BP(~collIndex).v.recvEventNotify(~node, currentEnvironment);
+		};
 	}
 )) => ProtoEvent(\singleSynthPlayNotify);
 
@@ -439,7 +441,9 @@ ProtoEvent(\singleSynthPlayer).v.copy.putAll((
 
 ProtoEvent(\polySynthPlayer).v.copy.putAll((
 	notifyDependents: {
-		BP(~collIndex).v.recvEventNotify(~node, currentEnvironment);
+		~node !? {
+			BP(~collIndex).v.recvEventNotify(~node, currentEnvironment);
+		};
 	}
 )) => ProtoEvent(\polySynthPlayNotify);
 
