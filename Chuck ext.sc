@@ -33,6 +33,15 @@
 	bindClassName { ^Pattern }	// same for Patterns
 }
 
++ Proto {
+	isPattern {
+		// can't use env.isPattern
+		// because anIdentityDictionary.isPattern will fall back to Object
+		^if(env[\isPattern].notNil) { env.use { ~isPattern.() } }
+			{ false }
+	}
+}
+
 	// simultaneous control of multiple processes
 	// BP([\mel, \chord, \bass, \drums]).play(4)
 + SequenceableCollection {

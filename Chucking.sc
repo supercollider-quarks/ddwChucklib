@@ -1207,7 +1207,8 @@ BP : AbstractChuckNewDict {
 			this.isPlaying.if({
 				this.stop(argQuant);
 			});
-			this.clock.schedAbs(this.eventSchedTime(this.quant(argQuant)), {
+			value[\eventSchedTime] = this.eventSchedTime(this.quant(argQuant));
+			this.clock.schedAbs(value[\eventSchedTime], {
 				if((event = value.eventStream.next(value.event.copy)).notNil) {
 					event.play;
 					this.changed(\oneEventPlayed);
