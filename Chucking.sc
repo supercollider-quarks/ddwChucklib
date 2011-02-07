@@ -1211,7 +1211,7 @@ BP : AbstractChuckNewDict {
 			this.clock.schedAbs(value[\eventSchedTime], {
 				if((event = value.eventStream.next(value.event.copy)).notNil) {
 					event.play;
-					this.changed(\oneEventPlayed);
+					this.changed(\oneEventPlayed, event);
 				} {
 					this.changed(\oneEventEmpty)
 				};
