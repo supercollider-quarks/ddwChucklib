@@ -1199,7 +1199,7 @@ BP : AbstractChuckNewDict {
 	
 		// useful for wrapper processes--set up a midi trigger to fire ONE child process
 	triggerOneEvent { |argQuant, argClock, doReset|
-		var	event;
+		var	event, saveEvent;
 		(this.exists and: { this.canStream }).if({
 			if(value.eventStreamPlayer.isNil or: { doReset == true }, {
 				this.prepareForPlay(argQuant, argClock, doReset);
@@ -1210,8 +1210,9 @@ BP : AbstractChuckNewDict {
 			value[\eventSchedTime] = this.eventSchedTime(this.quant(argQuant));
 			this.clock.schedAbs(value[\eventSchedTime], {
 				if((event = value.eventStream.next(value.event.copy)).notNil) {
+					saveEvent = event.copy;
 					event.play;
-					this.changed(\oneEventPlayed, event);
+					this.changed(\oneEventPlayed, saveEvent);
 				} {
 					this.changed(\oneEventEmpty)
 				};
