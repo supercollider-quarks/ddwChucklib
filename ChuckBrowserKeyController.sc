@@ -241,7 +241,7 @@ ChuckBrowserKeyController {
 					string[pos+1..]);
 			},
 				// get a register
-			"$" -> { |string, identifier, pos, instance|
+			"\$" -> { |string, identifier, pos, instance|
 				var	obj = instance.registers[string[pos+1]];
 				(string[pos+1] == $$).if({
 					"%$%".format(string[0..pos-1], string[pos+2..]);
@@ -278,11 +278,11 @@ ChuckBrowserKeyController {
 	focus { browser.focus }
 
 	doKey { |view, char, modifiers, unicode, keycode|
-		routine.isNil.if({ this.resetState });
-		char.isPrint.if({ string = string ++ char; });
-		(unicode == 127).if({
+		routine ?? { this.resetState };
+		if(char.tryPerform(\isPrint) ? false) { string = string ++ char };
+		if(#[8, 127].includes(unicode)) {
 			string = string.left(string.size-1);
-		});
+		};
 		this.updateString;
 		routine.next([view, char, modifiers, unicode, keycode, currentEnvironment]);
 	}

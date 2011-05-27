@@ -108,7 +108,17 @@ ChuckableBrowser {
 			.states_([["insert selection", Color.new255(70, 130, 200),
 				Color.new255(255, 218, 237)]])
 			.action_({
-				Document.current.selectedString_(
+/* testing for emacs... didn't work fully
+				{
+					Document.current.debug("calling insertTextRange on")
+					.insertTextRange(
+						this.currentClass.new(instanceList[instanceListView.value])
+						.asCompileString,
+						Document.current.selectedRangeLocation, 0
+					)
+				}.fork(AppClock);
+*/
+				.selectedString_(
 					this.currentClass.new(instanceList[instanceListView.value])
 					.asCompileString
 				)
@@ -116,6 +126,13 @@ ChuckableBrowser {
 		GUI.button.new(layout, 90@20)
 			.states_([["insert name", Color.new255(70, 130, 200), Color.new255(255, 218, 237)]])
 			.action_({
+				// {
+				// 	Document.current
+				// 	.insertTextRange(
+				// 		instanceList[instanceListView.value].asSymbol.asCompileString,
+				// 		Document.current.selectedRangeLocation, 0
+				// 	)
+				// }.fork(AppClock);
 				Document.current
 				.selectedString_(instanceList[instanceListView.value].asSymbol.asCompileString)
 			});
@@ -145,8 +162,7 @@ ChuckableBrowser {
 			.beginDragAction_({ |drag|
 				this.currentClass.new(instanceList[instanceListView.value])
 			});
-		keyCommandView = (if(GUI.current.id == \cocoa) { SCTextFieldOld } { GUI.textField })
-			.new(layout, 284@20);
+		keyCommandView = TextFieldOld(layout, 284@20);
 	}
 	
 	focus {	// no flag, this always takes focus
