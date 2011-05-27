@@ -118,7 +118,7 @@ ChuckableBrowser {
 					)
 				}.fork(AppClock);
 */
-				.selectedString_(
+				Document.current.selectedString_(
 					this.currentClass.new(instanceList[instanceListView.value])
 					.asCompileString
 				)
