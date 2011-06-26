@@ -68,7 +68,7 @@ ChuckBrowserKeyController {
 				// #, insert ## object, #n name, #p proto into current document
 				// 	#, #N insert the same with ', ' after
 			35 -> { |instance, view, char, modifiers, unicode, keycode|
-				var	nextKeySpec = true.yield;
+				var	nextKeySpec = instance.getKeySpec;
 				switch(nextKeySpec[3])
 					{ 35 } {
 						Document.current.selectedString_(
@@ -116,6 +116,7 @@ ChuckBrowserKeyController {
 				// >name> into VC(\name)
 			62 -> { |instance, view, char, modifiers, unicode, keycode|
 				var	target, nextKeySpec;
+				instance.browser.keyCommandView.focus;
 				#target, nextKeySpec = instance.parseIdentifier;
 				(target.size == 0).if({ target = nil }, {
 					target[0].inclusivelyBetween($0, $9).if({
@@ -209,9 +210,9 @@ ChuckBrowserKeyController {
 				// $, get or set a register
 			36 -> { |instance, view, char, modifiers, unicode, keycode|
 					// next key
-				#view, char, modifiers, unicode, keycode = true.yield;
+				#view, char, modifiers, unicode, keycode = instance.getKeySpec;
 				(unicode == 36).if({	// $$a, set register a to current object
-					#view, char, modifiers, unicode, keycode = true.yield;
+					#view, char, modifiers, unicode, keycode = instance.getKeySpec;
 					(char.isPrint and: { char != $$ }).if({
 						instance.registers[char] = instance.browser.currentObject;
 						"Set register $% = %\n".postf(char,
@@ -316,7 +317,7 @@ ChuckBrowserKeyController {
 						// we have to wait for another key
 					newkeyspec.isNil.if({
 						this.resetState;
-						keyspec = true.yield;	// running
+						keyspec = this.getKeySpec;	// running
 					}, {
 						keyspec = newkeyspec;
 					});
@@ -331,10 +332,10 @@ ChuckBrowserKeyController {
 		string = firstChar.notNil.if({ firstChar.asString }, { "" });
 		action.value(string);
 		
-		{	#view, char, modifiers, unicode, keycode, envir = true.yield;
+		{	#view, char, modifiers, unicode, keycode, envir = this.getKeySpec;
 			identifierCodes.matchItem(unicode)
 		}.while({
-			(unicode == 127).if({
+			(#[127, 8].includes(unicode)).if({
 				string = string.left(string.size-1);
 				this.updateString;
 				action.value(string);
@@ -352,13 +353,15 @@ ChuckBrowserKeyController {
 	parseNumber { |firstChar, action|
 		var	string;
 		var	view, char, modifiers, unicode, keycode, envir;
+
+		browser.keyCommandView.focus;
 		string = firstChar.notNil.if({ firstChar.asString }, { "" });
 		action.value(string);
 		
-		{	#view, char, modifiers, unicode, keycode, envir = true.yield;
+		{	#view, char, modifiers, unicode, keycode, envir = this.getKeySpec;
 			unicode.inclusivelyBetween(48, 57) or: { unicode == 127 }
 		}.while({
-			(unicode == 127).if({
+			(#[127, 8].includes(unicode)).if({
 				string = string.left(string.size-1);
 				this.updateString;
 				action.value(string);
@@ -377,12 +380,14 @@ ChuckBrowserKeyController {
 	getCmdString { |firstChar|	// just collecting chars, no action
 		var	string;
 		var	view, char, modifiers, unicode, keycode, envir;
+
+		browser.keyCommandView.focus;
 		string = firstChar.notNil.if({ firstChar.asString }, { "" });
 
-		{	#view, char, modifiers, unicode, keycode, envir = true.yield;
+		{	#view, char, modifiers, unicode, keycode, envir = this.getKeySpec;
 			unicode != 13 and: { unicode != 27 }	// esc to cancel
 		}.while({
-			(unicode == 127).if({
+			(#[127, 8].includes(unicode)).if({
 				string = string.left(string.size-1);
 				this.updateString;
 			}, {
@@ -416,5 +421,17 @@ ChuckBrowserKeyController {
 	
 	updateString {
 		this.browser.keyCommandView.string = string;
+	}
+
+	// this is only needed because QT fires the keyDownAction when a modifier
+	// is pressed -- I need to ignore those events
+	// doesn't trap caps-lock, though...
+	getKeySpec {
+		var next;
+		while {
+			next = true.yield;
+			next[1] == "" and: { next[2] > 0 }  // ignore empty modifier keystrokes
+		};
+		^next
 	}
 }
