@@ -7,6 +7,7 @@ PR(\abstractProcess).v.clone({
 	~event = (midi: true, eventKey: \voicerNote);
 	~requiredKeys = #[\sequence];
 	~index = 0;
+	~repeats = inf;
 
 		// each sequence type is responsible for its own code to receive a sequence
 		// should not mix types: if a chord sequence needs to own a melody sequence,
@@ -20,13 +21,16 @@ PR(\abstractProcess).v.clone({
 		currentEnvironment
 	};
 	
-	~asNotePattern = #{ 
-		~index = 0;
-			// Pfunc is roughly 6.7 times SLOWER than Prout
+	~asNotePattern = { 
+		// Pfunc is roughly 6.7 times SLOWER than Prout
 		Prout({ |inval|
-			{	inval = ~sequence[~index].embedInStream(inval);  // output
-				((~index = ~index+1) >= ~sequence.size).if({ ~index = 0 });
-			}.loop;
+			~repeats.do {
+				~index = 0;
+				while { ~index < ~sequence.size } {
+					inval = ~sequence[~index].embedInStream(inval);  // output
+					~index = ~index + 1;
+				};
+			};
 		});
 	};
 	
