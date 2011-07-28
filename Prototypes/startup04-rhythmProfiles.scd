@@ -1,5 +1,6 @@
 
-var saveSubType = AbstractChuckArray.defaultSubType;
+var saveSubType = AbstractChuckArray.defaultSubType,
+	markovSet = 'MarkovSet'.asClass;
 
 // rhythm profiles
 // each return value from the pattern should be of the form [delta, length]
@@ -29,40 +30,42 @@ PR(\abstractProcess).v.clone({
 	};
 }) => PR(\randRhythm);
 
-PR(\randRhythm).v.clone({
-	~prepare = #{ |buf, passInValue, parms|
-		var 	quant = parms.atBackup(\rhythmQuant, passInValue),
-			beatsPerBar = passInValue[\beatsPerBar] ??
-				{ (parms[\quant] ?? { passInValue[\getQuant] }).quant },
-			needToParse = parms.atBackup(\midiParse, passInValue).not,
-			reset = parms.atBackup(\rhythmProfileReset, passInValue);
-
-		(needToParse ? false).if({ buf = buf.parse });  // assumes buffer has already been parsed
-		buf = buf.quantize(quant, beatsPerBar);  // simple quantize; deal w/ flexQuantize later?
-
-			// may chuck in new material without overwriting previous analyses
-		(~durMarkov.isNil or: { reset ? false }).if({
-			~durMarkov = MarkovSet.new(updateSeeds: true);
-			~lenMarkov = MarkovSet.new(updateSeeds: true);
-		});
-
-		~durMarkov.parse(Pseq(buf.durs, inf), buf.size+1);
-			// associate dur to length
-		buf.notes.do({ |note| 
-			~lenMarkov.read(note.dur, note.length)
-		});
-		~durStream = ~durMarkov.asStream;
-		currentEnvironment
-	};
-
-	~asPattern = #{ 
-		var dur;
-		Pfunc(e {
-			[dur = ~durStream.next, ~lenMarkov.next(dur)]  // .debug("markovRhythm output")
-		})
-	};
+if(markovSet.notNil) {
+	PR(\randRhythm).v.clone({
+		~prepare = { |buf, passInValue, parms|
+			var 	quant = parms.atBackup(\rhythmQuant, passInValue),
+				beatsPerBar = passInValue[\beatsPerBar] ??
+					{ (parms[\quant] ?? { passInValue[\getQuant] }).quant },
+				needToParse = parms.atBackup(\midiParse, passInValue).not,
+				reset = parms.atBackup(\rhythmProfileReset, passInValue);
 	
-}) => PR(\markovRhythm);
+			(needToParse ? false).if({ buf = buf.parse });  // assumes buffer has already been parsed
+			buf = buf.quantize(quant, beatsPerBar);  // simple quantize; deal w/ flexQuantize later?
+	
+				// may chuck in new material without overwriting previous analyses
+			(~durMarkov.isNil or: { reset ? false }).if({
+				~durMarkov = markovSet.new(updateSeeds: true);
+				~lenMarkov = markovSet.new(updateSeeds: true);
+			});
+	
+			~durMarkov.parse(Pseq(buf.durs, inf), buf.size+1);
+				// associate dur to length
+			buf.notes.do({ |note| 
+				~lenMarkov.read(note.dur, note.length)
+			});
+			~durStream = ~durMarkov.asStream;
+			currentEnvironment
+		};
+	
+		~asPattern = #{ 
+			var dur;
+			Pfunc(e {
+				[dur = ~durStream.next, ~lenMarkov.next(dur)]  // .debug("markovRhythm output")
+			})
+		};
+		
+	}) => PR(\markovRhythm);
+};
 
 
 AbstractChuckArray.defaultSubType = saveSubType;
