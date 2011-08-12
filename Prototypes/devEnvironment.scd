@@ -152,6 +152,7 @@ chuckKeyCtl = ~chuckKeyCtl;
 	(unicode == 30 and: { (mods bitAnd: 0x40000) > 0 }).if({
 		Document.current.front;
 	}, {
+		[view, char, mods, unicode, keycode].debug("masterlayout keydown");
 		chuckKeyCtl.focus.doKey(view, char, mods, unicode, keycode);
 	});
 });
@@ -255,6 +256,7 @@ if(Platform.ideName == "scapp") {
 ~statusW.close;
 ~statusW = ~statusSl = ~numUpdates = ~currentUpdate = ~advanceStatus = nil;
 ~masterLayout.front.refresh;
+NotificationCenter.notify(\chucklibGui, \ready);
 
 }).play(AppClock);
 
