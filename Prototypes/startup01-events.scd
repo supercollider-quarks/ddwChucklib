@@ -6,6 +6,12 @@
 // note for doc: asNotePattern is needed because sometimes I want streams that return SequenceNotes,
 // not events
 
+// something useful
+{ |source, class, key, adverb, parms|
+	if(class.exists(key).not) {
+		source.chuck(class.new(key), adverb, parms);
+	};
+} => Func(\chuckIf);
 
 // process prototypes
 
@@ -175,15 +181,14 @@ Event.default[\schedStrummedNote] => Func(\basicSchedStrummedNote).subType_(\eve
 } => Func(\schedEventBundle).subType_(\eventHelper);
 
 { |lag, offset, server, bundleArray, suppressError = false|
+	if(suppressError) {
+		bundleArray = bundleArray.insert(0, #[error, -1])
+			.add(#[error, -2]);
+	};
 	(~immediateOSC ? false).if({
-		if(suppressError) {
-			bundleArray = bundleArray.insert(0, #[error, -1])
-				.add(#[error, -2]);
-		};
 		server.sendBundle(nil, *bundleArray);
 	}, {
-		Func(\basicSchedBundleArray).value(lag, offset, server, bundleArray,
-			nil, suppressError)
+		Func(\basicSchedBundleArray).value(lag, offset, server, bundleArray)
 	});
 } => Func(\schedEventBundleArray).subType_(\eventHelper);
 
@@ -853,7 +858,9 @@ PR(\abstractProcess).v.clone({
 	~reset = {
 		~objects.keysValuesDo { |id, obj|
 			obj[\args].pairsDo { |name, pattern|
-				(id ++ name).asSymbol.envirPut(pattern.asPattern);
+				// this line is one of the dumbest things I ever wrote
+				// (id ++ name).asSymbol.envirPut(pattern.asPattern);
+				~makeStreamForKey.((id ++ name).asSymbol);
 			}
 		}
 	};
