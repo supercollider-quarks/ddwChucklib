@@ -18,7 +18,8 @@ TextFieldOld : SCViewHolder {
 		});
 		// text = StaticText(view, bounds.insetBy(1, 1).moveTo(1, 1)).background_(Color.white);
 		view.keyDownAction = { |view, char, modifiers, unicode|
-			this.doKey(char, modifiers, unicode)
+			this.doKey(char, modifiers, unicode);
+			true  // required for QT
 		};
 		typingColor = Color.red(0.7);
 		this.stringColor = Color.black;

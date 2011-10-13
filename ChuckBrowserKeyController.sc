@@ -264,7 +264,17 @@ ChuckBrowserKeyController {
 	
 	init {
 		var	fn = { |view, char, modifiers, unicode, keycode|
-			this.doKey(view, char, modifiers, unicode, keycode);
+			if(view.isKindOfByName('QView')) {
+				if(keycode.inclusivelyBetween(16777234, 16777237).not) {
+					this.doKey(view, char, modifiers, unicode, keycode);
+					true  // required for QT
+				} {
+					nil  // arrows must bubble up to focused view
+				};
+			} {
+				this.doKey(view, char, modifiers, unicode, keycode);
+				true
+			};
 		};
 		browser.classMenu.keyDownAction = fn;
 		browser.subTypeMenu.keyDownAction = fn;
@@ -302,7 +312,7 @@ ChuckBrowserKeyController {
 							// and kill the interface
 						try {
 							envir.use({
-								newkeyspec = action.value(this, *keyspec)
+								newkeyspec = action.value(this, *keyspec);
 							});
 						} {	|error|
 							error.reportError;
@@ -329,6 +339,7 @@ ChuckBrowserKeyController {
 	parseIdentifier { |firstChar, action|
 		var	string;
 		var	view, char, modifiers, unicode, keycode, envir;
+
 		string = firstChar.notNil.if({ firstChar.asString }, { "" });
 		action.value(string);
 		
@@ -430,7 +441,7 @@ ChuckBrowserKeyController {
 		var next;
 		while {
 			next = true.yield;
-			next[1] == "" and: { next[2] > 0 }  // ignore empty modifier keystrokes
+			next[1].ascii == 0 and: { next[2] > 0 }  // ignore empty modifier keystrokes
 		};
 		^next
 	}
