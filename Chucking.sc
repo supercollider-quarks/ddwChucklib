@@ -690,7 +690,7 @@ PR : AbstractChuckNewDict {
 				~requiredKeys.do({ |key|
 					key.envirGet.isNil.if({
 						"Required variable BP(%).% is empty. Cannot play."
-							.format(~collIndex, key).warn;
+							.format(~collIndex.asCompileString, key).warn;
 						out = false;
 					});
 				});
@@ -1346,9 +1346,9 @@ BP : AbstractChuckNewDict {
 		this.exists.if({
 			(oldPlayer = value[\eventStreamPlayer]).notNil.if({
 				value[\eventStreamPlayerWatcher].remove;
-				value.reset;
-				this.prepareForPlay(doReset:true);
 			});
+			value.reset;
+			this.prepareForPlay(doReset:true);
 			this.isPlaying.if({
 				value[\eventStreamPlayer].play(this.clock, false, AbsoluteTimeSpec(oldPlayer.nextBeat));
 				oldPlayer.stop;
