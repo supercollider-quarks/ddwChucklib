@@ -75,42 +75,47 @@ Proto({
 		// temporary override of a pattern used with BPStream
 		// ref means, if the pattern returns a symbol, look up the target stream
 		// revertAction is run when control returns to the main stream
-	~override = { |key, pat, ref = true, revertAction|
+	~override = { |key, pat, ref(true), revertAction, safe(true)|
 		var	streamkey = (key ++ "Stream").asSymbol,
 			savekey = ("save" ++ streamkey).asSymbol,
 			overkey = ("override" ++ streamkey).asSymbol,
 			overstream;
 
-		// not safe to assume pattern has been .asStream'ed yet
-		streamkey.envirGet ?? { ~makeStreamForKey.(key) };
+		if(safe.not or: { overkey.envirGet.isNil }) {
+			// not safe to assume pattern has been .asStream'ed yet
+			streamkey.envirGet ?? { ~makeStreamForKey.(key) };
 
-		savekey.envirGet.isNil.if({
-			savekey.envirPut(streamkey.envirGet);
-		});
-		
-		overkey.envirPut(pat.asStream);
+			savekey.envirGet.isNil.if({
+				savekey.envirPut(streamkey.envirGet);
+			});
+			
+			overkey.envirPut(pat.asStream);
 
 			// need a variant on cleanupstream that will seamlessly hand control back
 			// to the original stream; cleanupstream returns nil and stops the parent stream
-		overstream = Routine({ |inval|
-			var	nextval;
-			while { (nextval = overkey.envirGet.next(inval)).notNil }
+			overstream = Routine({ |inval|
+				var	nextval;
+				while { (nextval = overkey.envirGet.next(inval)).notNil }
 				{	ref.if({
-						(nextval.isSymbol and: { nextval.envirGet.notNil }).if({
-							inval = nextval.envirGet.next(inval).yield;
-						}, { inval = nextval.yield; });
-					}, {
-						inval = nextval.yield;
-					});
+					(nextval.isSymbol and: { nextval.envirGet.notNil }).if({
+						inval = nextval.envirGet.next(inval).yield;
+					}, { inval = nextval.yield; });
+				}, {
+					inval = nextval.yield;
+				});
 				};
 				// end of the line; restore the original stream
 				// and return 1 valid value so that the main pattern doesn't die
 				// after substitution, this routine will not get called again
-			~unOverride.(key, revertAction, streamkey, savekey, overkey);
-			streamkey.envirGet.next(inval).yield;
-		});
-		streamkey.envirPut(overstream);
-
+				~unOverride.(key, revertAction, streamkey, savekey, overkey);
+				streamkey.envirGet.next(inval).yield;
+			});
+			streamkey.envirPut(overstream);
+		} {
+			"BP(%): Cannot override a parameter that is already overridden."
+			.format(~collIndex.asCompileString)
+			.warn;
+		};
 		currentEnvironment
 	};
 	~unOverride = { |key, revertAction, streamkey, savekey, overkey|
