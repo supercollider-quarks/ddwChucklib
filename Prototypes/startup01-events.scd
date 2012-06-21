@@ -243,7 +243,7 @@ makeNode: {
 		lag = ~lag ? 0,
 		offset = ~timingOffset/*.debug("~timingOffset")*/ ? 0,
 		releaseGate = ~releaseGate ? 0;
-	((~instrument != \rest) and: { ~freq != \rest and: { ~type != \rest } }).if({
+	if((currentEnvironment.tryPerform(\isRest) ? false).not and: { ~instrument != \rest and: { ~freq != \rest and: { ~type != \rest } } }) {
 		~setTarget.value;
 		~busindex.notNil.if({
 			server = ~server;	// for ~trace == true
@@ -269,7 +269,7 @@ makeNode: {
 				});
 			});
 		});
-	});
+	};
 },
 play: {
 	~makeNode.value;
@@ -293,7 +293,7 @@ ProtoEvent(\singleSynthPlayNotify).v => ProtoEvent(\bufStatusUpdate);
 ProtoEvent(\singleSynthPlayer).v.copy.putAll((play: {
 	var args, nodeID, msg, bundle, tempo = ~clock.tryPerform(\tempo) ? 1.0;
 		// the full condition is needed for Ppar which uses ~freq == \rest
-	(~node != \rest and: { ~instrument != \rest and: { ~freq != \rest and: { ~type != \rest } } }).if({
+	if((currentEnvironment.tryPerform(\isRest) ? false).not and: { ~node != \rest and: { ~instrument != \rest and: { ~freq != \rest and: { ~type != \rest } } } }) {
 		~lag ?? { ~lag = 0 };
 		~node = ~node.value;
 		~instrument = ~node.defName;
@@ -303,7 +303,7 @@ ProtoEvent(\singleSynthPlayer).v.copy.putAll((play: {
 		(~debug ? false).if({
 			msg.debug("singleSynthTrigger")
 		});
-	})
+	}
 })) => ProtoEvent(\singleSynthTrigger);
 
 ProtoEvent.composite(#[singleSynthTrigger, singleSynthPlayNotify, polySynthTrigger, polySynthPlayNotify]) => ProtoEvent(\monoSupport);
@@ -326,7 +326,7 @@ ProtoEvent(\singleSynthPlayer).v.copy.putAll((
 // 	});
 // },
 play: { var args, nodeID;
-	(~node != \rest and: { ~instrument != \rest and: { ~freq != \rest and: { ~type != \rest } } }).if({
+	if((currentEnvironment.tryPerform(\isRest) ? false).not and: { ~node != \rest and: { ~instrument != \rest and: { ~freq != \rest and: { ~type != \rest } } } }) {
 		if(~lag.isNil) { ~lag = #[0] } { ~lag = ~lag.asArray };
 		if(~timingOffset.isNil) { ~timingOffset = #[0] } { ~timingOffset = ~timingOffset.asArray };
 		~node = ~node.value;
@@ -342,7 +342,7 @@ play: { var args, nodeID;
 			Func(\schedEventBundle).doAction(~lag.wrapAt(i), ~timingOffset.wrapAt(i), node.server,
 				node.setMsg(*~msgArgs.wrapAt(i)));
 		});
-	})
+	}
 })) => ProtoEvent(\polySynthTrigger);
 
 
@@ -422,7 +422,7 @@ ProtoEvent(\singleSynthPlayer).v.copy.putAll((
 	},
 	makeNode: {
 		var args, instr, nodeID, strum, latency;
-		(~instrument != \rest and: { ~type != \rest }).if({
+		if((currentEnvironment.tryPerform(\isRest) ? false).not and: { ~instrument != \rest and: { ~freq != \rest and: { ~type != \rest } } }) {
 			~lag ?? { ~lag = 0 };
 			~setTarget.value;
 			~checkbuses.value.if({
@@ -440,7 +440,7 @@ ProtoEvent(\singleSynthPlayer).v.copy.putAll((
 				~id = ~id.asArray;
 				~node.size.do({ |i| ~makeOneNode.(i, strum) });
 			});
-		});
+		};
 	}
 )) => ProtoEvent(\polySynthPlayer);
 
