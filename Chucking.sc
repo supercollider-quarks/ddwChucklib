@@ -1113,26 +1113,30 @@ BP : AbstractChuckNewDict {
 						});
 						value[\eventSchedTime] = goTime;
 						this.prepareForPlay(argQuant, argClock, doReset);
-						(this.clock == AppClock).if({
+						if(value[\eventStreamPlayer].notNil) {
+							(this.clock == AppClock).if({
 								// AppClock has no schedAbs method
-							value.eventStreamPlayer.play(this.clock, doReset, 0);
-							value[\isWaiting] = false;
-						}, {
-							this.clock.schedAbs(goTime, {
-									// nextBeat.isNil means that the stream is stopped
-								(value[\isWaiting]
-									and: { value[\eventStreamPlayer]
-										.tryPerform(\nextBeat).isNil })
-								.if({
-									value.eventStreamPlayer.play(this.clock, doReset,
-										AbsoluteTimeSpec(goTime));
-								});
+								value.eventStreamPlayer.play(this.clock, doReset, 0);
 								value[\isWaiting] = false;
-								nil
+							}, {
+								this.clock.schedAbs(goTime, {
+									// nextBeat.isNil means that the stream is stopped
+									(value[\isWaiting]
+										and: { value[\eventStreamPlayer]
+											.tryPerform(\nextBeat).isNil })
+									.if({
+										value.eventStreamPlayer.play(this.clock, doReset,
+											AbsoluteTimeSpec(goTime));
+									});
+									value[\isWaiting] = false;
+									nil
+								});
 							});
-						});
-						value.put(\isPlaying, true).put(\isWaiting, true);
-						notify.if({ this.changed(\play, goTime); });  // update MTGui
+							value.put(\isPlaying, true).put(\isWaiting, true);
+							notify.if({ this.changed(\play, goTime); });  // update MTGui
+						} {
+							if(notify) { this.changed(\couldNotPrepare, goTime) };
+						};
 					};
 			});
 		});
@@ -1283,7 +1287,7 @@ BP : AbstractChuckNewDict {
 			// replay needs to change the cleanup func in the old stream before stopping
 			// so I need to refer to other adhocs than my own in that case
 			// ('value' may change but 'adhoc' will not)
-		var event, adhoc = value, updater;
+		var event, adhoc = value, updater, err;
 		this.exists.if({
 			value.preparePlay;
 			value[\event] = event = this.prepareEvent;
@@ -1292,16 +1296,43 @@ BP : AbstractChuckNewDict {
 			if(value[\eventStreamPlayer].notNil) {
 				value[\eventStreamPlayer].releaseDependants;
 			};
-			value.put(\eventStreamPlayer, 
-				BlockableEventStreamPlayer(this.asStream, event)/*.refresh*/);
-			value[\eventStreamPlayerWatcher] = updater = Updater(value[\eventStreamPlayer], { |obj, what|
-				if(what == \stopped and: { value.notNil and: { obj === value[\eventStreamPlayer] } }) {
-					this.streamCleanupFunc(this, adhoc);
+			// asStream may not be able to make a stream
+			// if so, ~asPattern should return nil (or an error object with explanation)
+			// then, this will make sure eventStreamPlayer is also not populated
+			try { this.asStream } { |e| err = e };
+			if(value[\eventStream].isKindOf(Stream)) {
+				value.put(\eventStreamPlayer, 
+					BlockableEventStreamPlayer(value[\eventStream], event)/*.refresh*/);
+				value[\eventStreamPlayerWatcher] = updater = Updater(value[\eventStreamPlayer], { |obj, what|
+					if(what == \stopped and: { value.notNil and: { obj === value[\eventStreamPlayer] } }) {
+						this.streamCleanupFunc(this, adhoc);
 						// just in case there's still some garbage floating about
-					updater.remove;
-					adhoc[\eventStreamPlayerWatcher] = nil;
+						updater.remove;
+						adhoc[\eventStreamPlayerWatcher] = nil;
+					};
+				});
+			} {
+				value.put(\eventStreamPlayer, nil).put(\eventStream, nil);
+				if(err.isKindOf(Exception)) {
+					// can't reliably use "switch" to match nil
+					// default behavior should be to pass the error up to the caller
+					if(value[\onAsStreamError].isNil) { err.throw };
+					switch(value[\onAsStreamError])
+					{ \throw } { err.throw }
+					{ \report } {
+						"\nvv BP(%): Problem making stream."
+						.format(collIndex.asCompileString).postln;
+						err.reportError;
+						"^^ BP(%): Problem making stream."
+						.format(collIndex.asCompileString).postln;
+					}
+					{ \warn } {
+						"BP(%): Problem making stream.".format(collIndex.asCompileString).warn;
+					}
+					// default case: may be a function, or arbitrary symbol to swallow error
+					{ value.use({ ~onAsStreamError.(err) }) }
 				};
-			});
+			};
 			^value[\eventStreamPlayer]
 		}, { ^nil });
 	}
