@@ -221,10 +221,15 @@ PR(\abstractProcess).v.clone({
 			// note, argpairs will reset every chord
 			// if you want a stream not to reset, use BPStream in the argPairs array
 		argPairs = ~argPairs.(inEvent);		// if simple array, this will have no effect
-		(argPairs.size > 0).if({
+		// argPairs.debug("argPairs");
+		case
+		{ argPairs.isPattern } {
+			out = argPairs <> out
+		}
+		{ argPairs.size > 0 } {
 // 			out = Pbindf(out, \argKeys, argPairs[0, 2..], *argPairs);
 			out = Pbind(\argKeys, argPairs[0, 2..], *argPairs) <> out;
-		});
+		};
 		out
 	};
 	
