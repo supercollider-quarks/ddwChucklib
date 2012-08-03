@@ -1631,6 +1631,13 @@ MicRh : AbstractChuckNewDict {
 	bindFunction { |func|
 		value = func
 	}
+
+	bindProto { |proto|
+		if(proto.canEmbed) { value = proto } {
+			Error("Proto => %: Proto cannot embed into stream, not valid here"
+				.format(this.asCompileString)).throw;
+		}
+	}
 	
 		// will be called at play time
 		// if value is already a Pattern, .value will return the pattern unmodified
@@ -1638,6 +1645,8 @@ MicRh : AbstractChuckNewDict {
 	asPattern { |... args|
 		^value.value(*args)
 	}
+
+	embedInStream { |inval ... args| ^this.asPattern(*args).embedInStream(inval) }
 }
 
 // macrorhythms
