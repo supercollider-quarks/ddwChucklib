@@ -43,7 +43,7 @@ Proto({
 		});
 		currentEnvironment
 	};
-	
+
 		// special case for Synth Args
 	~bindSA = #{ |sa, adverb|
 		~argsStream = sa.asPattern.asStream;
@@ -71,7 +71,7 @@ Proto({
 			{ inEvent = streamKey.envirGet.next(inEvent).yield }.loop
 		});
 	};
-	
+
 		// temporary override of a pattern used with BPStream
 		// ref means, if the pattern returns a symbol, look up the target stream
 		// revertAction is run when control returns to the main stream
@@ -88,7 +88,7 @@ Proto({
 			savekey.envirGet.isNil.if({
 				savekey.envirPut(streamkey.envirGet);
 			});
-			
+
 			overkey.envirPut(pat.asStream);
 
 			// need a variant on cleanupstream that will seamlessly hand control back
@@ -137,7 +137,7 @@ Proto({
 						// parsing is better for adaptive sequencing objects
 
 	~canWrap = false;
-	
+
 	~isPlaying = false;
 	~isWaiting = false;
 	~isDriven = false;
@@ -156,7 +156,7 @@ Proto({
 		Library.global.putAtPath(path ? ~path, beats);
 		thisThread.clock.setMeterAtBeat(~barLength, beats);
 	};
-	~freeCleanup = { 
+	~freeCleanup = {
 		Library.global.removeAtPath(~path)
 	};
 }) => PR(\setBase);
@@ -410,13 +410,14 @@ ProtoEvent(\singleSynthPlayer).v.copy.putAll((
 			~node[i] = Synth.basicNew(instr, server, nodeID);
 			latency = (strum*i) + ~lag;
 			Func(\schedEventBundle).doAction(latency, offset, server,
-				~node[i].newMsg(~target.wrapAt(i), 
+				~node[i].newMsg(~target.wrapAt(i),
 					~msgArgs.wrapAt(i) ++ [\out, ~bus.wrapAt(i).index,
 					\i_out, ~bus.wrapAt(i).index, \outbus, ~bus.wrapAt(i).index],
 					~addAction)
 			);
+			if(~sustain.size > 0) { sustain = ~sustain.value.wrapAt(i) } { ~sustain.value };
 			(~grain.not and: { ~hasGate ? false
-			and: { (sustain = ~sustain.value).notNil and: { sustain != inf } } }).if({
+			and: { sustain.notNil and: { sustain != inf } } }).if({
 				thisThread.clock.sched(sustain, {
 					Func(\schedEventBundleArray).doAction(latency, offset, server,
 						[[\n_set, nodeID, \gate, releaseGate]], true);
@@ -469,7 +470,7 @@ ProtoEvent(\polySynthPlayer).v.copy.putAll((
 		~mode.notNil.if({ ~mode.asMode.cpsFunc.value(notenum) },
 			{ notenum.midicps });
 	},
-	
+
 	prepNote: #{
 		var i, args, argval, thisEvent = currentEnvironment;
 		~newFreq = ~freq ?? { ~note.asFloat };
@@ -480,7 +481,7 @@ ProtoEvent(\polySynthPlayer).v.copy.putAll((
 		~newFreq = ~midiNoteToFreq.value(~newFreq).asArray;
 		~dur = ~dur ?? { ~delta ?? { ~note.dur } };
 		~length = (~length ?? { ~note.length }).asArray;
-		
+
 			// some patterns (e.g. Pfindur) might shorten the delta
 			// in which case length could be too long
 			// but this really applies only to MonoPortaVoicers,
@@ -488,7 +489,7 @@ ProtoEvent(\polySynthPlayer).v.copy.putAll((
 		if(~adjustLengthToRealDelta.value and: { ~dur != currentEnvironment.delta }) {
 			~length = ~length * currentEnvironment.delta / ~dur;
 		};
-		
+
 		~args = ~args ?? { [~note.tryPerform(\args)].tryPerform(\flatten, 1) } ?? { [] };
 		i = 0;	// args should be key value pairs, but might be an array of velocities
 				// drop pairs that are not \symbol, value
@@ -499,13 +500,15 @@ ProtoEvent(\polySynthPlayer).v.copy.putAll((
 				i = i + 2;	// should increment only if not removing an item
 			});
 		});
-		
+
 		~gate = (~gate ?? { ~note.gate }).asArray;
-		
+
 			// for args array to be valid (argName, value pairs), must have at least 2 items
 		(~args.size < 2).if({ ~args = nil });
-		if(~voicer.notNil and: { ~nodes.isNil }) {
-			~nodes = ~voicer.prGetNodes(max(~newFreq.size, max(~length.size, ~gate.size)));
+		if(~voicer.notNil) {
+			if(~nodes.isNil) {
+				~nodes = ~voicer.prGetNodes(max(~newFreq.size, max(~length.size, ~gate.size)));
+			};
 			~voicer.setArgsInEvent(currentEnvironment);
 		};
 		~bassID.notNil.if({
@@ -515,20 +518,20 @@ ProtoEvent(\polySynthPlayer).v.copy.putAll((
 			thisThread.clock.sched(0, { BP.changed(thisEvent[\bassID], thisEvent); });
 		});
 	},
-	
+
 	play: #{
 		var	lag = ~lag ? 0,  // ~timingOffset !? { ~timingOffset / ~clock.tempo };
 			timingOffset = ~timingOffset ? 0,
 			clock = ~clock,
 			voicer = ~voicer,
 			bundle, releaseGate;
+		~prepNote.value;
+		~finish.value;	// user-definable
 		(~debug == true).if({
 			"\n".debug;
 			["voicerNote event", ~clock.beats, ~clock.tempo].debug;
 			currentEnvironment.collect({ |value| value.isFunction.not.if(value, nil) }).postcs;
 		});
-		~prepNote.value;
-		~finish.value;	// user-definable
 		releaseGate = (~releaseGate ? 0).asArray;
 		~nodes.do({ |node, i|
 			var	freq = ~newFreq.wrapAt(i), length = ~length.wrapAt(i);
@@ -549,17 +552,20 @@ ProtoEvent(\polySynthPlayer).v.copy.putAll((
 	},
 		// for live midi input -- assumes midi note has been put into ~note
 	releaseNote: #{
+		var lag, timingOffset;
 		((~immediateOSC ? false) or: { ~voicer.target.server.latency.isNil }).if({
 			~voicer.release(~newFreq);
 		}, {
+			lag = ~lag ?? { 0 };
+			timingOffset = ~timingOffset ?? { 0 };
 			~voicer.release(~newFreq,
-				((~lag + ~timingOffset) / ~clock.tempo) + ~voicer.target.server.latency);
+				((lag + timingOffset) / (~clock ?? { thisThread.clock }).tempo) + ~voicer.target.server.latency);
 		});
 	},
-	
+
 		// you could override this
 	adjustLengthToRealDelta: { ~voicer.isKindOfByName(\MonoPortaVoicer) },
-	
+
 	keysToPropagate: #[\voicer, \midi, \mode, \timingOffset, \argKeys, \immediateOSC]
 ) => ProtoEvent(\voicerNote);
 
@@ -572,7 +578,7 @@ ProtoEvent(\voicerNote).v.copy.putAll((
 		if (~msgFunc.isNil) {
 			synthLib = ~synthLib ?? { SynthDescLib.global };
 			~desc = synthLib.synthDescs[~instrument];
-			if (~desc.notNil) { 
+			if (~desc.notNil) {
 				~hasGate = ~desc.hasGate;
 				~msgFunc = ~desc.msgFunc;
 			}{
@@ -597,7 +603,7 @@ ProtoEvent(\voicerNote).v.copy.putAll((
 			});
 		});
 	},
-	
+
 	playOneNote: #{ |freq, gate, length|
 		var	synth, server, groupbus;
 		server = ~server ? ~target.server;
@@ -616,22 +622,28 @@ ProtoEvent(\voicerNote).v.copy.putAll((
 				[synth.setMsg(\gate, ~releaseGate ? 0)], true);
 		});
 	},
-	
+
 	releaseNote: nil,
-	
-	keysToPropagate: #[\instrument, \target, \midi, \mode, \timingOffset]
+
+	keysToPropagate: #[\instrument, \target, \out, \midi, \mode, \timingOffset]
 )) => ProtoEvent(\synthNote);
 
 
 // event for a melody wrapper
 (	play: #{
+		var shouldPlay;
 		(~debug == true).if({
 			thisThread.beats.debug("\nchord trigger event"); currentEnvironment.debug;
 		});
 		~preAction.value;	// maybe some kind of cleanup?
 		~getTopNoteNum.value;
 			// nil is legit if there is no topnote pattern
-		(~topNoteNum.isNumber or: { ~topNoteNum.isNil }).if({
+		shouldPlay = if(~topNoteNum.size > 0) {
+			~topNoteNum.every({ |num| num.isNumber or: { num.isNil } })
+		} {
+			~topNoteNum.isNumber or: { ~topNoteNum.isNil }
+		};
+		if(shouldPlay) {
 			(~midi ? false).if({
 				~length = inf;	// should not terminate except by midi note
 			}, {
@@ -643,7 +655,7 @@ ProtoEvent(\voicerNote).v.copy.putAll((
 				// start it at the current logical time
 			~clock.sched(0, ~makeChildStream.value);
 			NotificationCenter.notify(~child, \runChild, currentEnvironment);
-		});
+		};
 	},
 	getTopNoteNum: {
 		~topNoteNum = ~top.tryPerform(\at, \freq)
@@ -717,9 +729,9 @@ ProtoEvent(\melWrap).v.copy.make({
 			pattern
 		});
 	};
-	
+
 	~getChord = true;	// default; midi input may override -- used??
-	
+
 	~keysToPropagate = #[\mode, \midi];
 }) => ProtoEvent(\macroRh);
 
@@ -770,13 +782,13 @@ PR(\abstractProcess).v.clone({
 		// by default, delta and sustain will have the same value
 	~sustain = Pkey(\delta);
 	~synth = Pfunc({ ~objects.keys.choose });
-	
+
 		// when you clone, if you need extra preparation, do ~userpreps = ~userpreps.copy.add({  ... });
 	~userpreps = List.new;
-	
+
 		// chuck-time parameter for user preparation
 	~userprep = nil;
-	
+
 		// ~objects is a dictionary
 		// key --> dict; outer key is the identifier for the synth that will be used in the synth pattern
 		// dict = (def: definition, args: [arg1: Pattern1, arg2: pattern2...])
@@ -788,7 +800,7 @@ PR(\abstractProcess).v.clone({
 	);
 
 		// support code follows
-	~makeSynthDefs = { 
+	~makeSynthDefs = {
 		~objects = ~objects.value;
 		~objects.keysValuesDo({ |id, def|
 			def[\synthdef].isNil.if({
@@ -870,7 +882,7 @@ PR(\abstractProcess).v.clone({
 		}
 	};
 
-	~basePattern = { 
+	~basePattern = {
 		(~debug ? false).if(DebugPbind, Pbind)
 		.new(
 			\synthKey, BPStream(\synth),
@@ -885,14 +897,14 @@ PR(\abstractProcess).v.clone({
 		)
 	};
 
-	~asPattern = { 
+	~asPattern = {
 		~basePattern.value.collect({ |ev|
 			(ev[\synthKey] != \rest).if({
 				~getUserArgs.(ev);
 			}, { ev });
 		});
 	};
-	
+
 	~getUserArgs = { |event|
 		var key = event[\synthKey], streamout;
 		block { |break|
@@ -917,14 +929,14 @@ PR(\abstractProcess).v.clone({
 			event
 		}
 	};
-	
+
 		// when you clone, if you need extra preparation, do ~userfrees = ~userfrees.copy.add({  ... });
 	~userfrees = List.new;
-	
+
 		// chuck-time parameter for user preparation
 	~userfree = nil;
-	
-	~freeCleanup = { 
+
+	~freeCleanup = {
 		if(~iMadeChan ? true) { ~chan.free };
 			// should free patches
 		~objects.do({ |def|
