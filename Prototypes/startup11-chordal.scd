@@ -230,7 +230,7 @@ PR(\abstractProcess).v.clone({
 // 			out = Pbindf(out, \argKeys, argPairs[0, 2..], *argPairs);
 			out = Pbind(\argKeys, argPairs[0, 2..], *argPairs) <> out;
 		};
-		out
+		~asPatternHook.(out) ?? { out };
 	};
 	
 	~acceptMIDIBuf = #{ |buf, adverb, parms|
