@@ -59,11 +59,11 @@ AbstractChuckArray.defaultSubType = \melAdapt;
 	spl2size = rrand(3, (cross.notes.size * 0.7).round.asInteger);
 	spl2 = (cross.notes.size - spl2size).rand.max(1);
 	(spl2size + spl2 >= cross.notes.size).if({ spl2size = cross.notes.size - spl2 });
-	
+
 	(spl2size >= 2).if({
 		new = source.notes.copyRange(0, splice-1);
 			// last diatonically mapped note + first spliced interval - s2 dia map note
-		current = (source.notes[splice-1] + cross.intervals[spl2 - 1] - 
+		current = (source.notes[splice-1] + cross.intervals[spl2 - 1] -
 			cross.notes[spl2].freq).asFloat;
 		new = new ++ (cross.notes.copyRange(spl2, spl2 + spl2size - 1) + current);
 			// last note copied + transposition + next interval from source - next note (source)
@@ -79,7 +79,7 @@ AbstractChuckArray.defaultSubType = \melAdapt;
 	(source.notes.size > 6).if({
 		halfSize = source.notes.size >> 1;
 		deleteFrom = halfSize.rand;
-		deleteTo = halfSize.rand + halfSize;
+		deleteTo = min(source.notes.size - 2, halfSize.rand + halfSize);
 		source.notes[0..deleteFrom] ++ source.notes[deleteTo..source.notes.size-1]
 	});	// else return nil (failed)
 } => Func(\delete);
@@ -111,7 +111,7 @@ AbstractChuckArray.defaultSubType = \melAdapt;
 	spl2size = rrand((s2.size * 0.2).round.asInteger, (s2.size * 0.7).round.asInteger);
 	spl2 = (s2.size - spl2size).rand.max(0);
 	dur2 = s2[spl2 .. spl2 + spl2size].collect(_.dur).sum;
-	
+
 		// calc coordinates in s1 matching that dur
 	dur1 = 0;
 	i = splice;
@@ -132,7 +132,7 @@ AbstractChuckArray.defaultSubType = \melAdapt;
 	(dur1 != dur2).if({
 		s2 = s2.copy.put(spl2 + spl2size, (notetemp = s2[spl2 + spl2size].copy).dur_(notetemp.dur + dur1 - dur2));
 	});
-	
+
 	newSeg = s1.copyRange(0, splice-1);
 	newSeg = newSeg ++ s2.copyRange(spl2, spl2 + spl2size);
 	(i < s1.size).if({
@@ -231,13 +231,13 @@ AbstractChuckArray.defaultSubType = \chordFit;
 		((n = n.asFloat) == n.asInteger).if({ 1 }, { -1 });
 	}).mean;	// use mean so that chords with lots of notes won't overwhelm thinner chords
 } => Func(\chModeFit).subType_(\chFitAnalysis);
-	
+
 #{ |notes, top, mode|
 	var degreesPerOctave, numBelowTop, numAboveTop, transposeBelow;
 	mode = mode.asMode;
 	degreesPerOctave = mode.scale.size;
 	numAboveTop = numBelowTop = 0;
-	notes.do({ |n| 
+	notes.do({ |n|
 		(n > top).if({ numAboveTop = numAboveTop + 1 });
 		(n < top).if({ numBelowTop = numBelowTop + 1 });
 	});
@@ -283,9 +283,9 @@ AbstractChuckArray.defaultSubType = \chordFit;
 		topMode = mode;
 	});
 	(mode != topMode).if({
-		top = Func(inEvent[\convertTopFunc] ? \convertMode).doAction(top, topMode, mode);
+		top = Func(inEvent[\convertTopFunc] ? \convertMode).doAction(top, topMode, mode, topEvent);
 	});
-		
+
 		// .value(inEvent) means that the Library item can generate a new root when called
 	root = (Library.at(inEvent[\bassID] ? \currentBassNote).value(inEvent) ? 0).asFloat;
 
@@ -324,7 +324,7 @@ AbstractChuckArray.defaultSubType = \chordFit;
 	fitness = resultList.collect({ |ch, i|
 		[i, Func(\chPitchFit).doAction(ch, top, root, mode, fitFactors)]
 	}).sort({ |a, b| a[1] > b[1] });
-	
+
 		// output -- fitness[0] is best fit, second [0] gets index into resultList
 		// dur and length should be replaced by microrhythm
 	resultList[fitness[0][0]].collect({ |freq| SequenceNote(freq, 1, 1) })
@@ -340,7 +340,7 @@ AbstractChuckArray.defaultSubType = \chordFit;
 
 	sortedNotes.asFloat.doAdjacentPairs({ |a, b| intervals.add((b - a)) });
 	intervals = intervals.scramble;
-	
+
 	result = Array(sortedNotes.size).add(SequenceNote(current, 1, 1));
 	intervals.do({ |int|
 		current = current + int;  // intervals are negative so this is actually descending
@@ -569,7 +569,7 @@ AbstractChuckArray.defaultSubType = \drumgenhelpers;
 
 {  ~genBase.value; } => Func(\drumBasicPre);
 
-{ 
+{
 	var	action = ~driverEvent.tryPerform(\at, ~collIndex), func;
 	~genBase.value;
 	Func.exists(action).if({
