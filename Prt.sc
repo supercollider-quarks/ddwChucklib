@@ -47,19 +47,7 @@ BPStream : Pattern {
 Prt : Proutine {
 	var	<>envir;
 	*new { arg routineFunc;
-		"Prt is deprecated. Use Proutine instead.".postln
-		^Proutine(routineFunc)
-//		^super.new(routineFunc).envir_(currentEnvironment)
+		"Prt is deprecated. Use Prout instead.".postln
+		^Prout(routineFunc)
 	}
-
-//	asStream {
-//		var	stream;
-//		
-//		envir.notNil.if({ envir.use({ stream = super.asStream; }) },
-//			{ stream = super.asStream; });
-//		
-//		^FuncStream({ |inval|
-//			inval.notNil.if({ stream.next(inval) });
-//		}, { stream.reset })
-//	}
 }
