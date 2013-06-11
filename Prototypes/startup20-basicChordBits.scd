@@ -128,8 +128,8 @@ PR(\abstractProcess).v.clone({
 {	var	b = MixingBoard.new;
 	8.do { |i|
 		MixerChannelGUI.new(nil, b) => MCG.prNew(i);
-		if(MIDIPort.initialized) {
-			MixerMIDIControl(\omni, nil, MCG(i).v);
+		if('MIDIPort'.asClass.notNil and: { 'MIDIPort'.asClass.initialized }) {
+			'MixerMIDIControl'.asClass.new(\omni, nil, MCG(i).v);
 		};
 		b.add(MCG(i).v);
 	};
