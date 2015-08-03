@@ -17,8 +17,9 @@ AbstractChuckArray {
 			<>directories,
 			<>defaultSubType = \basic,	// set this when loading a piece to differentiate
 									// in the browser
-			<>passThru = true;		// pass not-understood messages thru to the target object?
-	
+			<>passThru = true,		// pass not-understood messages thru to the target object?
+			<classHooks;
+
 	var	<collIndex,	// the instance is stored at this.class(collIndex)
 		<>value,		// what I'm pointing to
 		<>subType,
@@ -28,6 +29,7 @@ AbstractChuckArray {
 	*initClass {
 		var traverseSubclasses;
 		collection = IdentityDictionary.new;
+		classHooks = MultiLevelIdentityDictionary.new;
 			// recursively go thru subclasses to add a collection for each subclass to the coll
 		(traverseSubclasses = { |class|
 				// do not add a collection for abstract classes
@@ -55,6 +57,15 @@ AbstractChuckArray {
 					"Skipped chucklib directory %.\n".postf(dir);
 				});
 			});
+			// add some entries to the emacs symbol table
+			// but, no need to do that if not running under emacs
+			if(Platform.ideName.asString == "scel") {
+				[Func, PR, ProtoEvent].do { |class|
+					EmacsInterface.tryPerform(\addToSymbolTable,
+						collection[class.name].keys
+					);
+				};
+			};
 		});
 	}
 	
@@ -99,10 +110,12 @@ AbstractChuckArray {
 			// can't use collTemp here because it may be replaced with a new collection
 		collection[this.name].put(index, member);
 		ChuckableBrowser.updateGui(this);
+		classHooks.at(this, \put).value(index, member);
 	}
 	
 	removeFromCollection {
 			// do it this way b/c removeAt will change indices of other objects, not good
+		classHooks.at(this.class, \free).value(collIndex, this);
 		this.class.collection[collIndex] = nil;
 		ChuckableBrowser.updateGui(this.class);
 	}
@@ -200,11 +213,12 @@ AbstractChuckArray {
 	}
 	*loadGui { |width|
 		var	path;
-		this.loadWindowBounds(width);
-		this.loadFromChuckDirectories("devEnvironment.scd").isNil.if({
-			"Could not find devEnvironment.scd".warn;
-			^nil
-		});
+		if(this.loadWindowBounds(width).notNil) {
+			this.loadFromChuckDirectories("devEnvironment.scd").isNil.if({
+				"Could not find devEnvironment.scd".warn;
+				^nil
+			});
+		};
 	}
 	*openCodeDoc { |path|
 		var doc;
@@ -224,6 +238,29 @@ AbstractChuckArray {
 	
 	doesNotUnderstand { |selector ... args|
 		passThru.if({ ^value.performList(selector, args) }, { ^super.doesNotUnderstand(selector, *args) });
+	}
+
+	*addHook { |key, func|
+		var item;
+		if(func.notNil) {
+			item = classHooks.at(this, key);
+			classHooks.put(this, key, item.addFunc(func));
+		};
+	}
+	*removeHook { |key, func|
+		var item;
+		if(func.notNil) {
+			item = classHooks.at(this, key);
+			case
+			{ item === func } {
+				classHooks.removeEmptyAt(this, key)
+			}
+			{ item.isKindOf(FunctionList) } {
+				// have to .put: FunctionList:removeFunc might not return itself
+				classHooks.put(this, key, item.removeFunc(func));
+			};
+			// else, the provided function was never added as a hook: do nothing
+		};
 	}
 }
 
@@ -263,9 +300,11 @@ AbstractChuckDict : AbstractChuckArray {
 			// should not call extend on a dictionary
 		collection[this.name].put(index, member);
 		ChuckableBrowser.updateGui(this);
+		classHooks.at(this, \put).value(index, member);
 	}
 	
 	removeFromCollection {
+		classHooks.at(this.class, \free).value(collIndex, this);
 		this.class.collection.removeAt(collIndex);
 		ChuckableBrowser.updateGui(this.class);
 	}
@@ -392,13 +431,27 @@ VC : AbstractChuckNewDict {
 // env contains target and out keys
 // populate using a factory
 SY : VC {
-	// inherits bindFact and free	
+	// inherits bindFact and free
 	bindBP { |bp|
-		bp.v[\event] = bp.v[\event].copy.putAll((
-			instrument: value,
-			target: env[\target],
-			out: env[\out]
-		));
+		var group, bus;
+		if(env[\target].tryPerform(\groupBusInfo).notNil) {
+			#group, bus = env[\target].groupBusInfo;
+			bp.v[\event] = bp.v[\event].copy.putAll((
+				instrument: value,
+				target: env[\target],
+				group: group,
+				out: bus,
+				bus: bus
+			));
+		} {
+			bp.v[\event] = bp.v[\event].copy.putAll((
+				instrument: value,
+				target: env[\target],
+				group: env[\target].asGroup,
+				out: env[\out],
+				bus: env[\out]
+			));
+		};
 	}
 	
 	bindFact { |fact, adverb, parms|
@@ -849,6 +902,7 @@ BP : AbstractChuckNewDict {
 		process.put(\collIndex, this.collIndex);
 		this.exists.not.if({
 			value = process;
+			classHooks.at(this.class, \newProto).value(collIndex, this);
 		}, {
 				// make sure outermost process is a dependant if the respondsToBass flag is set
 				// first remove current outermost as dependant
@@ -906,7 +960,7 @@ BP : AbstractChuckNewDict {
 	
 		// 4 => BP(0) sets quant to BasicTimeSpec(4)
 	bindNilTimeSpec { |spec|
-		this.exists.if({ value.put(\quant, spec); });
+		this.exists.if({ value.quant = spec; });
 	}
 
 	bindQuant { |quant|
@@ -1137,6 +1191,10 @@ BP : AbstractChuckNewDict {
 						} {
 							if(notify) { this.changed(\couldNotPrepare, goTime) };
 						};
+					}
+					{
+						"BP(%): canStream condition failed, can't play".format(collIndex.asCompileString).warn;
+						if(notify) { this.changed(\couldNotStream, goTime) };
 					};
 			});
 		});
@@ -1173,7 +1231,9 @@ BP : AbstractChuckNewDict {
 		var	time;
 		this.exists.if({ 
 			time = this.quant(argQuant).bpSchedTime(this);
-			^(time >= this.clock.beats).if({ time }, { nil });
+			if(time.isNumber) {
+				^(time >= this.clock.beats).if({ time }, { nil });
+			} { ^nil }
 		}, { ^nil });
 	}
 		// dereference allows you to force play to start exactly now on the clock with `nil
