@@ -78,6 +78,10 @@
 		var	stream;
 		stream = CollStream(String.new(256));
 		this.streamArgs(stream);
+		// {
+		// 	Document.current
+		// 	.insertTextRange(stream.collection, Document.current.selectedRangeLocation, 0)
+		// }.fork(AppClock);
 		Document.current.selectedString_(stream.collection)
 	}
 	
