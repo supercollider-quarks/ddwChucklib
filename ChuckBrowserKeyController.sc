@@ -441,7 +441,8 @@ ChuckBrowserKeyController {
 		var next;
 		while {
 			next = true.yield;
-			next[1].ascii == 0 and: { next[2] > 0 }  // ignore empty modifier keystrokes
+			// ignore empty modifier keystrokes
+			(next[1].isNil or: { next[1].ascii == 0 }) and: { next[2] > 0 }
 		};
 		^next
 	}
