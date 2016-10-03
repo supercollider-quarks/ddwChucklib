@@ -44,7 +44,7 @@ BPStream : Pattern {
 // intended for routines that yield events
 // this is a workaround for EventStreamPlayer-stop
 // no longer needed b/c of EventStreamCleanup - deprecating
-Prt : Proutine {
+Prt : Prout {
 	var	<>envir;
 	*new { arg routineFunc;
 		"Prt is deprecated. Use Prout instead.".postln
